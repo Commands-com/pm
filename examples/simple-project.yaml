@@ -1,0 +1,92 @@
+# Simple Project Example for Testing and Demo
+# 
+# This file demonstrates the basic YAML project structure for Project Manager MCP.
+# Use this as a template for small projects or as a starting point for larger ones.
+#
+# YAML Structure Hierarchy:
+#   Epic (high-level initiative)
+#   └── Story (user-focused feature)
+#       └── Task (specific work item)
+#
+# Import this project with:
+#   project-manager-mcp --project examples/simple-project.yaml
+#
+# Features demonstrated:
+# - Single epic with two related stories
+# - Mix of task statuses (TODO, IN_PROGRESS)
+# - Realistic task descriptions for development workflow
+# - Proper YAML formatting and indentation
+
+# Root level: epics array contains all high-level project initiatives
+epics:
+  - name: "User Authentication System"                    # Epic name (required)
+    description: "Basic user login and registration functionality"  # Epic description (optional but recommended)
+    status: "ACTIVE"                                      # Epic status (required): ACTIVE, PLANNED, COMPLETED, CANCELLED
+    
+    # Stories array: user-focused features within this epic
+    stories:
+      - name: "User Registration Flow"                    # Story name (required)
+        description: "Allow new users to create accounts" # Story description (optional but recommended)
+        status: "TODO"                                    # Story status (required): TODO, IN_PROGRESS, COMPLETED, BLOCKED
+        
+        # Tasks array: specific work items to complete this story
+        tasks:
+          - name: "Create registration form UI"           # Task name (required)
+            description: "Design and implement user registration form"  # Task description (optional but recommended)
+            status: "TODO"                               # Task status (required): TODO/pending, IN_PROGRESS/in_progress, COMPLETED/completed, BLOCKED/blocked
+            
+          - name: "Implement registration API endpoint"
+            description: "Backend endpoint to handle user registration"
+            status: "TODO"
+            
+          - name: "Add email verification"
+            description: "Send verification emails to new users"
+            status: "TODO"
+
+      - name: "User Login Flow"
+        description: "Allow existing users to authenticate"
+        status: "TODO"
+        tasks:
+          - name: "Create login form UI"
+            description: "Design and implement user login form"
+            status: "IN_PROGRESS"                         # This task is currently being worked on
+            
+          - name: "Implement login API endpoint"
+            description: "Backend endpoint to handle user authentication"
+            status: "TODO"
+            
+          - name: "Add password reset functionality"
+            description: "Allow users to reset forgotten passwords"
+            status: "TODO"
+
+# Status Value Reference:
+# 
+# Epic Status Values:
+#   - ACTIVE: Currently being worked on
+#   - PLANNED: Future epic, not yet started  
+#   - COMPLETED: All stories and tasks finished
+#   - CANCELLED: Epic abandoned or no longer needed
+#
+# Story Status Values:
+#   - TODO: Not yet started
+#   - IN_PROGRESS: Currently being developed
+#   - COMPLETED: All tasks finished
+#   - BLOCKED: Cannot proceed due to dependencies/issues
+#
+# Task Status Values:
+#   - TODO or pending: Ready for work
+#   - IN_PROGRESS or in_progress: Currently being worked on
+#   - COMPLETED or completed: Finished and ready for review/deployment
+#   - BLOCKED or blocked: Cannot proceed due to dependencies/issues
+#
+# MCP Agent Workflow:
+# 1. Query available tasks: get_available_tasks(status="TODO")
+# 2. Acquire exclusive lock: acquire_task_lock(task_id, agent_id)
+# 3. Work on the task...
+# 4. Update progress: update_task_status(task_id, "completed", agent_id)
+# 
+# The system automatically:
+# - Prevents multiple agents from working on the same task
+# - Releases locks when tasks are completed
+# - Broadcasts real-time updates to the web dashboard
+# - Maintains task history and agent assignments

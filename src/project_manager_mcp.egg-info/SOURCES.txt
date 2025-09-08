@@ -1,0 +1,9 @@
+setup.py
+src/project_manager_mcp.egg-info/PKG-INFO
+src/project_manager_mcp.egg-info/SOURCES.txt
+src/project_manager_mcp.egg-info/dependency_links.txt
+src/project_manager_mcp.egg-info/requires.txt
+src/project_manager_mcp.egg-info/top_level.txt
+src/task_manager/__init__.py
+src/task_manager/api.py
+src/task_manager/database.py

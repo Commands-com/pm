@@ -1,0 +1,26 @@
+Metadata-Version: 2.4
+Name: project-manager-mcp
+Version: 0.1.0
+Summary: Project Manager MCP with SQLite database layer and atomic locking
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Requires-Python: >=3.8
+Requires-Dist: fastapi>=0.68.0
+Requires-Dist: uvicorn[standard]>=0.15.0
+Requires-Dist: websockets>=10.0
+Requires-Dist: pydantic>=1.8.0
+Provides-Extra: test
+Requires-Dist: pytest>=6.0; extra == "test"
+Requires-Dist: pytest-cov; extra == "test"
+Requires-Dist: pytest-asyncio>=0.18.0; extra == "test"
+Requires-Dist: httpx>=0.23.0; extra == "test"
+Dynamic: classifier
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

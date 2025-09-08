@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__project-manager-mcp__acquire_task_lock",
+      "mcp__project-manager-mcp__update_task_status",
+      "mcp__project-manager-mcp__get_available_tasks"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
