@@ -111,9 +111,9 @@ You have access to a Project Manager MCP server with these tools:
    Use update_task(task_id, agent_id, log_entry="Progress update...") regularly
 
 6. UPDATE TASK STATUS:
-   - TODO → IN_PROGRESS (auto-locked when acquired)
-   - IN_PROGRESS → DONE (auto-releases lock)
-   - Use update_task_status(task_id, "DONE", agent_id) when complete
+   - TODO → IN_PROGRESS: update_task_status(task_id, "IN_PROGRESS", agent_id) # Auto-acquires lock
+   - IN_PROGRESS → DONE: update_task_status(task_id, "DONE", agent_id) # Auto-releases lock
+   - PREFERRED: Use update_task_status() for automatic lock management
 
 === MODE-SPECIFIC IMPLEMENTATION ===
 
@@ -162,7 +162,7 @@ create_task(
   ra_mode="ra-full",
   ra_score="9",
   ra_tags='["#COMPLETION_DRIVE_INTEGRATION: Email service provider selection", "#SUGGEST_ERROR_HANDLING: Failed delivery retry logic", "#PATTERN_MOMENTUM: Template system from common patterns", "#CONTEXT_RECONSTRUCT: Assuming multi-channel notification needs"]',
-  ra_metadata='{"complexity_factors": ["Multi-channel delivery", "Template system", "User preferences"], "integration_points": ["Email service", "SMS gateway", "Database"], "verification_needed": true, "estimated_hours": 20, "risk_level": "high"}',
+  ra_metadata='{{"complexity_factors": ["Multi-channel delivery", "Template system", "User preferences"], "integration_points": ["Email service", "SMS gateway", "Database"], "verification_needed": true, "estimated_hours": 20, "risk_level": "high"}}',
   dependencies='["1", "2"]',
   prompt_snapshot="Implementing notification system with RA-Full methodology tracking"
 )
@@ -172,21 +172,27 @@ update_task(
   task_id="3",
   agent_id="claude-agent",
   ra_tags='["#PATTERN_MOMENTUM: Elasticsearch integration patterns", "#SUGGEST_VALIDATION: Input sanitization for search queries"]',
-  ra_metadata='{"performance_considerations": ["Index optimization", "Query caching"], "security_notes": ["SQL injection prevention", "Query rate limiting"], "estimated_hours": 16}',
+  ra_metadata='{{"performance_considerations": ["Index optimization", "Query caching"], "security_notes": ["SQL injection prevention", "Query rate limiting"], "estimated_hours": 16}}',
   ra_tags_mode="merge",
   ra_metadata_mode="merge", 
   log_entry="Added additional RA tags for search patterns and security considerations"
 )
 
 TASK COORDINATION WORKFLOW:
-1. acquire_task_lock("3", "claude-agent")  # Atomic locking
-2. Implement with RA tagging: update_task with ra_tags and progress logs
-3. update_task_status("3", "DONE", "claude-agent")  # Auto-releases lock
+1. create_task(...) - Create task first
+2. update_task_status(task_id, "IN_PROGRESS", agent_id) - Auto-acquires lock
+3. Implement with RA tagging: update_task with ra_tags and progress logs
+4. update_task_status(task_id, "DONE", agent_id) - Auto-releases lock
+
+LOCKING BEST PRACTICES:
+- PREFERRED: Use update_task_status("IN_PROGRESS") for auto-locking
+- AVOID: Manual acquire_task_lock() unless multi-agent coordination needed
+- Auto-locking prevents workflow inefficiencies and unnecessary lock management
 
 PARAMETER FORMATS (CRITICAL):
 - ra_score: String representation of integer 1-10 (e.g., "7", "9") 
 - ra_tags: JSON string of array (e.g., '["#TAG1: description", "#TAG2: description"]')
-- ra_metadata: JSON string of object (e.g., '{"key": "value", "estimated_hours": 16}')
+- ra_metadata: JSON string of object (e.g., '{{"key": "value", "estimated_hours": 16}}')
 - dependencies: JSON string of task ID array (e.g., '["1", "2", "3"]')
 
 === TASK VERIFICATION ===
@@ -203,16 +209,16 @@ get_task_details("3") returns:
 - "ra_score": 9 ✓
 - "ra_mode": "ra-full" ✓  
 - "ra_tags": ["#COMPLETION_DRIVE_INTEGRATION: Email service provider selection", ...] ✓
-- "ra_metadata": {"complexity_factors": [...], "estimated_hours": 20, ...} ✓
-- "dependencies": [{"id": 1, "name": "OAuth2 task", "status": "pending"}, ...] ✓
+- "ra_metadata": {{"complexity_factors": [...], "estimated_hours": 20, ...}} ✓
+- "dependencies": [{{"id": 1, "name": "OAuth2 task", "status": "pending"}}, ...] ✓
 
 === CRITICAL REQUIREMENTS ===
 
 1. ALWAYS create task first before implementing
 2. Use appropriate RA mode based on complexity assessment  
 3. Tag assumptions extensively in RA-Light/Full modes
-4. Update task logs regularly with progress
-5. Use atomic locking for multi-agent coordination
+4. Update task logs regularly with progress  
+5. Use update_task_status() for automatic lock management (avoid manual acquire_task_lock)
 6. Never leave tasks in inconsistent states
 7. Verify against acceptance criteria before marking DONE
 8. ALWAYS use JSON string format for complex parameters (ra_tags, ra_metadata, dependencies)
@@ -241,8 +247,8 @@ PARAMETER VALIDATION ERRORS:
 
 - Error: "Invalid ra_tags JSON" or "Invalid ra_metadata JSON"
   Solution: Check JSON syntax - use double quotes, proper escaping
-  ✓ Correct: '{"key": "value", "hours": 8}'
-  ✗ Wrong: "{'key': 'value', 'hours': 8}"
+  ✓ Correct: '{{"key": "value", "hours": 8}}'
+  ✗ Wrong: "{{'key': 'value', 'hours': 8}}"
 
 DEPENDENCY RESOLUTION ISSUES:
 - Dependencies show empty array in get_task_details response
@@ -283,9 +289,9 @@ COMPLEXITY MODES:
 
 MCP TOOLS:
 - create_task(epic_name, name, ra_mode, ra_score, ra_tags)
-- update_task(task_id, agent_id, ra_tags, log_entry)
-- update_task_status(task_id, status, agent_id)
-- acquire_task_lock/release_task_lock for coordination
+- update_task(task_id, agent_id, ra_tags, log_entry)  
+- update_task_status(task_id, status, agent_id) # Auto-locking preferred
+- acquire_task_lock/release_task_lock (only for complex multi-agent coordination)
 
 RA TAGS (RA-Light/Full only):
 #COMPLETION_DRIVE_IMPL, #COMPLETION_DRIVE_INTEGRATION, #CONTEXT_DEGRADED

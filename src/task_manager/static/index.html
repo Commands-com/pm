@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Commands.com Response Aware PM Dashboard</title>
+    <title>Commands.com RA PM Dashboard</title>
     <style>
         /* CSS Grid provides optimal 2D layout control for kanban columns with 95%+ browser support
            Verified: Superior to Flexbox alternative for responsive 4-column -> 1-column layout */
@@ -80,6 +80,141 @@
         .filter-select option {
             background-color: #334155;
             color: white;
+        }
+
+        .delete-filter-btn {
+            background: none;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            padding: 0.5rem;
+            color: #e2e8f0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            min-width: 36px;
+            height: 36px;
+        }
+
+        .delete-filter-btn:hover {
+            background-color: #dc2626;
+            border-color: #dc2626;
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .delete-filter-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Delete Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(2px);
+        }
+
+        .delete-modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90vw;
+            max-width: 480px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        .modal-body {
+            padding: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .warning-icon {
+            flex-shrink: 0;
+        }
+
+        .delete-modal-text {
+            flex: 1;
+        }
+
+        .delete-message {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 0.75rem 0;
+        }
+
+        .cascade-warning {
+            color: #6b7280;
+            font-size: 0.875rem;
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        .modal-footer {
+            padding: 1rem 2rem 2rem 2rem;
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .modal-btn-cancel {
+            background: #f3f4f6;
+            color: #374151;
+            border-color: #d1d5db;
+        }
+
+        .modal-btn-cancel:hover {
+            background: #e5e7eb;
+            border-color: #9ca3af;
+        }
+
+        .modal-btn-danger {
+            background: #dc2626;
+            color: white;
+            border-color: #dc2626;
+        }
+
+        .modal-btn-danger:hover {
+            background: #b91c1c;
+            border-color: #b91c1c;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.3);
+        }
+
+        .modal-btn-danger:active {
+            transform: translateY(0);
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                transform: scale(0.95) translateY(-10px);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
         }
         
         /* #COMPLETION_DRIVE_UI: Connection status indicator for WebSocket health monitoring
@@ -1076,7 +1211,7 @@
                     <rect x="21" y="8" width="2" height="16" style="fill:rgb(81,162,255);"/>
                 </g>
             </svg>
-            <h1>Commands.com Response Aware PM Dashboard</h1>
+            <h1>Commands.com RA PM Dashboard</h1>
         </div>
         <div class="header-filters">
             <div class="filter-group">
@@ -1090,6 +1225,13 @@
                 <select id="epicSelector" class="filter-select">
                     <option value="">All Epics</option>
                 </select>
+                <button id="deleteFilterButton" class="delete-filter-btn" title="Delete selected project or epic" style="display: none;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18"></path>
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                        <path d="M8 6V4c0-1 1-2 2-2h4c0 1 1 2 2 2v2"></path>
+                    </svg>
+                </button>
             </div>
         </div>
         <span id="connectionStatus" class="connection-status connecting">Connecting...</span>
@@ -1383,6 +1525,12 @@
                 case 'task.logs.appended':
                     handleTaskLogsAppended(data);
                     break;
+                case 'project_deleted':
+                    handleProjectDeleted(data);
+                    break;
+                case 'epic_deleted':
+                    handleEpicDeleted(data);
+                    break;
                 default:
                     console.log('Unknown event type:', data.type);
             }
@@ -1456,6 +1604,7 @@
                     description: taskData.description,
                     status: taskData.status || 'TODO',
                     epic_id: taskData.epic_id,
+                    project_id: projectData ? projectData.id : null,
                     ra_score: taskData.ra_score,
                     ra_mode: taskData.ra_mode,
                     complexity_score: taskData.ra_score || taskData.complexity_score, // Alias for UI compatibility
@@ -1614,6 +1763,81 @@
                     }
                 }, 500);
             }
+        }
+        
+        function handleProjectDeleted(data) {
+            console.log('Project deleted event received:', data);
+            
+            const projectId = String(data.project_id);
+            
+            // Remove project from AppState
+            if (AppState.projects.has(projectId)) {
+                AppState.projects.delete(projectId);
+            }
+            
+            // Remove all epics belonging to this project
+            AppState.epics.forEach((epic, epicId) => {
+                if (epic.project_id == data.project_id) {
+                    AppState.epics.delete(epicId);
+                }
+            });
+            
+            // Remove all tasks belonging to this project
+            AppState.tasks.forEach((task, taskId) => {
+                if (task.project_id == data.project_id) {
+                    AppState.tasks.delete(taskId);
+                }
+            });
+            
+            // Reset selections if deleted project was selected
+            if (AppState.selectedProjectId == data.project_id) {
+                AppState.selectedProjectId = null;
+                AppState.selectedEpicId = null;
+                saveSelectionState();
+            }
+            
+            // Update UI
+            populateProjectSelector();
+            populateEpicSelector();
+            updateDeleteButtonVisibility();
+            renderAllTasks();
+            updateTaskCounts();
+            
+            // Show notification
+            showNotification(`Project "${data.project_name}" deleted successfully`, 'success');
+        }
+        
+        function handleEpicDeleted(data) {
+            console.log('Epic deleted event received:', data);
+            
+            const epicId = String(data.epic_id);
+            
+            // Remove epic from AppState
+            if (AppState.epics.has(epicId)) {
+                AppState.epics.delete(epicId);
+            }
+            
+            // Remove all tasks belonging to this epic
+            AppState.tasks.forEach((task, taskId) => {
+                if (task.epic_id == data.epic_id) {
+                    AppState.tasks.delete(taskId);
+                }
+            });
+            
+            // Reset epic selection if deleted epic was selected
+            if (AppState.selectedEpicId == data.epic_id) {
+                AppState.selectedEpicId = null;
+                saveSelectionState();
+            }
+            
+            // Update UI
+            populateEpicSelector();
+            updateDeleteButtonVisibility();
+            renderAllTasks();
+            updateTaskCounts();
+            
+            // Show notification
+            showNotification(`Epic "${data.epic_name}" deleted successfully`, 'success');
         }
         
         // #COMPLETION_DRIVE_INIT: Load initial board state from API
@@ -2879,6 +3103,168 @@
             };
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
+
+        // Delete functionality
+        let deleteData = null; // Stores what to delete (project/epic info)
+
+        function updateDeleteButtonVisibility() {
+            const deleteBtn = document.getElementById('deleteFilterButton');
+            const projectSelector = document.getElementById('projectSelector');
+            const epicSelector = document.getElementById('epicSelector');
+            
+            if (!deleteBtn || !projectSelector || !epicSelector) return;
+            
+            // Show delete button if either a project or epic is selected
+            const showButton = projectSelector.value || epicSelector.value;
+            deleteBtn.style.display = showButton ? 'block' : 'none';
+        }
+
+        function showDeleteModal() {
+            const projectSelector = document.getElementById('projectSelector');
+            const epicSelector = document.getElementById('epicSelector');
+            const modal = document.getElementById('deleteModal');
+            const messageEl = document.getElementById('deleteModalMessage');
+            
+            if (!projectSelector || !epicSelector || !modal || !messageEl) return;
+            
+            deleteData = null;
+            
+            // Determine what to delete based on selections
+            if (epicSelector.value) {
+                // Epic is selected - delete epic
+                const epicName = epicSelector.options[epicSelector.selectedIndex].text;
+                const projectName = projectSelector.options[projectSelector.selectedIndex].text;
+                deleteData = {
+                    type: 'epic',
+                    id: parseInt(epicSelector.value),
+                    name: epicName,
+                    projectName: projectName
+                };
+                messageEl.textContent = `Are you sure you want to delete the epic "${epicName}"?`;
+            } else if (projectSelector.value) {
+                // Only project is selected - delete project
+                const projectName = projectSelector.options[projectSelector.selectedIndex].text;
+                deleteData = {
+                    type: 'project',
+                    id: parseInt(projectSelector.value),
+                    name: projectName
+                };
+                messageEl.textContent = `Are you sure you want to delete the project "${projectName}"?`;
+            } else {
+                return; // Nothing selected
+            }
+            
+            modal.style.display = 'flex';
+        }
+
+        function closeDeleteModal() {
+            const modal = document.getElementById('deleteModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            deleteData = null;
+        }
+
+        async function confirmDelete() {
+            if (!deleteData) {
+                closeDeleteModal();
+                return;
+            }
+            
+            const confirmBtn = document.getElementById('confirmDeleteBtn');
+            if (confirmBtn) {
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = 'Deleting...';
+            }
+            
+            try {
+                let response;
+                if (deleteData.type === 'project') {
+                    response = await fetch(`/api/projects/${deleteData.id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                } else if (deleteData.type === 'epic') {
+                    response = await fetch(`/api/epics/${deleteData.id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                }
+                
+                if (response && response.ok) {
+                    const result = await response.json();
+                    console.log('Deletion successful:', result);
+                    
+                    // Reset UI state before closing modal
+                    if (deleteData.type === 'project') {
+                        AppState.selectedProjectId = null;
+                        AppState.selectedEpicId = null;
+                    } else if (deleteData.type === 'epic') {
+                        AppState.selectedEpicId = null;
+                    }
+                    
+                    // Close modal and reset selections
+                    closeDeleteModal();
+                    
+                    saveSelectionState();
+                    updateDeleteButtonVisibility();
+                    
+                    // Refresh data will be handled by WebSocket events
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Delete failed:', errorData);
+                    alert(`Failed to delete ${deleteData.type}: ${errorData.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert(`Failed to delete ${deleteData.type}: ${error.message}`);
+            } finally {
+                if (confirmBtn) {
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = 'Delete';
+                }
+            }
+        }
+
+        // Add event listeners for delete functionality
+        function setupDeleteHandlers() {
+            const deleteBtn = document.getElementById('deleteFilterButton');
+            const projectSelector = document.getElementById('projectSelector');
+            const epicSelector = document.getElementById('epicSelector');
+            const modal = document.getElementById('deleteModal');
+            
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', showDeleteModal);
+            }
+            
+            if (projectSelector) {
+                projectSelector.addEventListener('change', updateDeleteButtonVisibility);
+            }
+            
+            if (epicSelector) {
+                epicSelector.addEventListener('change', updateDeleteButtonVisibility);
+            }
+            
+            // Close modal when clicking outside
+            if (modal) {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        closeDeleteModal();
+                    }
+                });
+            }
+            
+            // Close modal with Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+                    closeDeleteModal();
+                }
+            });
+        }
         
         // #COMPLETION_DRIVE_LIFECYCLE: Application initialization and cleanup
         // Pattern: Proper resource management and event handling setup
@@ -2893,6 +3279,9 @@
             
             // Setup drag and drop
             initializeDragAndDrop();
+            
+            // Setup delete handlers
+            setupDeleteHandlers();
             
             // Setup filter event listeners
             const projectSelector = document.getElementById('projectSelector');
@@ -2971,6 +3360,9 @@
             if (AppState.selectedProjectId) {
                 projectSelector.value = AppState.selectedProjectId;
             }
+            
+            // Update delete button visibility
+            updateDeleteButtonVisibility();
         }
         
         function populateEpicSelector() {
@@ -3010,6 +3402,9 @@
                     saveSelectionState();
                 }
             }
+            
+            // Update delete button visibility
+            updateDeleteButtonVisibility();
         }
         
         function handleProjectChange(event) {
@@ -3030,6 +3425,7 @@
             AppState.selectedEpicId = newEpicId;
             
             saveSelectionState();
+            updateDeleteButtonVisibility();
             filterAndRenderTasks();
         }
         
@@ -3066,22 +3462,34 @@
         function getFilteredTasks() {
             let filteredTasks = Array.from(AppState.tasks.values());
             
-            // Filter by epic first (more specific)
-            if (AppState.selectedEpicId) {
-                filteredTasks = filteredTasks.filter(task => 
-                    task.epic_id == AppState.selectedEpicId
-                );
-            } else if (AppState.selectedProjectId) {
-                // Filter by project (via epic relationship)
-                const projectEpicIds = Array.from(AppState.epics.values())
-                    .filter(epic => epic.project_id == AppState.selectedProjectId)
-                    .map(epic => epic.id);
-                
-                filteredTasks = filteredTasks.filter(task =>
-                    projectEpicIds.includes(task.epic_id)
-                );
+            console.log('DEBUG: Filtering tasks...');
+            console.log('DEBUG: selectedProjectId:', AppState.selectedProjectId, typeof AppState.selectedProjectId);
+            console.log('DEBUG: selectedEpicId:', AppState.selectedEpicId, typeof AppState.selectedEpicId);
+            console.log('DEBUG: All tasks:', filteredTasks.map(t => ({id: t.id, name: t.name, project_id: t.project_id, epic_id: t.epic_id})));
+            
+            // Filter by project first if selected
+            if (AppState.selectedProjectId) {
+                console.log('DEBUG: Filtering by project...');
+                filteredTasks = filteredTasks.filter(task => {
+                    const match = task.project_id == AppState.selectedProjectId;
+                    console.log(`DEBUG: Task ${task.id} project_id=${task.project_id} (${typeof task.project_id}) == ${AppState.selectedProjectId} (${typeof AppState.selectedProjectId}) = ${match}`);
+                    return match;
+                });
+                console.log('DEBUG: After project filter:', filteredTasks.length, 'tasks');
             }
             
+            // Then filter by epic if selected (within the project scope)
+            if (AppState.selectedEpicId) {
+                console.log('DEBUG: Filtering by epic...');
+                filteredTasks = filteredTasks.filter(task => {
+                    const match = task.epic_id == AppState.selectedEpicId;
+                    console.log(`DEBUG: Task ${task.id} epic_id=${task.epic_id} (${typeof task.epic_id}) == ${AppState.selectedEpicId} (${typeof AppState.selectedEpicId}) = ${match}`);
+                    return match;
+                });
+                console.log('DEBUG: After epic filter:', filteredTasks.length, 'tasks');
+            }
+            
+            console.log('DEBUG: Final filtered tasks:', filteredTasks.map(t => ({id: t.id, name: t.name})));
             return filteredTasks;
         }
         
@@ -3093,5 +3501,37 @@
             initializeApp();
         }
     </script>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal-overlay" style="display: none;">
+        <div class="delete-modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Confirm Deletion</h3>
+                <button class="modal-close-btn" onclick="closeDeleteModal()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="warning-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+                <div class="delete-modal-text">
+                    <p id="deleteModalMessage" class="delete-message"></p>
+                    <p class="cascade-warning">This action cannot be undone and will permanently delete all associated data.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+                <button id="confirmDeleteBtn" class="modal-btn modal-btn-danger" onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

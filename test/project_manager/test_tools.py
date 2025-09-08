@@ -422,8 +422,10 @@ class TestConcurrencyAndRaceConditions:
         os.close(fd)
         
         db = TaskDatabase(path)
-        # Create a test task
-        task_id = db.create_task("Concurrent Test Task", "Test task for concurrency")
+        # Create test hierarchy: project -> epic -> task
+        project_id = db.create_project("Test Project", "Project for concurrency testing")
+        epic_id = db.create_epic(project_id, "Test Epic", "Epic for concurrency testing")
+        task_id = db.create_task(epic_id, "Concurrent Test Task", "Test task for concurrency")
         
         yield db, task_id
         
@@ -510,7 +512,10 @@ class TestWebSocketIntegration:
         os.close(fd)
         
         db = TaskDatabase(path)
-        task_id = db.create_task("WebSocket Test Task", "Test task for WebSocket")
+        # Create test hierarchy: project -> epic -> task
+        project_id = db.create_project("Test Project", "Project for WebSocket testing")
+        epic_id = db.create_epic(project_id, "Test Epic", "Epic for WebSocket testing")
+        task_id = db.create_task(epic_id, "WebSocket Test Task", "Test task for WebSocket")
         
         yield db, task_id
         
@@ -575,9 +580,9 @@ class TestCreateTaskTool:
         """Mock database with all necessary methods for CreateTaskTool."""
         db = MagicMock(spec=TaskDatabase)
         
-        # Mock upsert methods
-        db.upsert_project.return_value = 1
-        db.upsert_epic.return_value = 1
+        # Mock upsert methods - return (id, was_created) tuple
+        db.upsert_project_with_status.return_value = (1, True)
+        db.upsert_epic_with_status.return_value = (1, True)
         db.get_epic_with_project_info.return_value = {
             'epic_id': 1, 'epic_name': 'Test Epic',
             'project_id': 1, 'project_name': 'Test Project'
@@ -662,8 +667,8 @@ class TestCreateTaskTool:
         assert response["task_id"] == 123
         
         # Verify upsert calls
-        mock_database.upsert_project.assert_called_once_with("New Project", "")
-        mock_database.upsert_epic.assert_called_once_with(1, "New Epic", "")
+        mock_database.upsert_project_with_status.assert_called_once_with("New Project", "")
+        mock_database.upsert_epic_with_status.assert_called_once_with(1, "New Epic", "")
         mock_database.create_task_with_ra_metadata.assert_called_once()
     
     @pytest.mark.asyncio

@@ -43,7 +43,7 @@ class TestRAInstructionsManager:
         """Test RAInstructionsManager initialization and metadata."""
         manager = RAInstructionsManager()
         
-        assert manager.version == "1.0.0"
+        assert manager.version == "2.0.0"
         assert isinstance(manager.last_updated, str)
         
         # Verify timestamp format
@@ -374,8 +374,8 @@ class TestCreateTaskRAIntegration:
         database = MagicMock(spec=TaskDatabase)
         database.create_task_with_ra_metadata = MagicMock(return_value=123)
         database.add_task_log_entry = MagicMock(return_value=1)
-        database.upsert_project = MagicMock(return_value=1)
-        database.upsert_epic = MagicMock(return_value=1)
+        database.upsert_project_with_status = MagicMock(return_value=(1, True))
+        database.upsert_epic_with_status = MagicMock(return_value=(1, True))
         return database
     
     @pytest.fixture
