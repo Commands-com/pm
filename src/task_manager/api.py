@@ -196,6 +196,7 @@ def generate_enriched_task_payload(task_data: Dict[str, Any], project_data: Opti
             "id": task_data.get("id"),
             "name": task_data.get("name"),
             "status": task_data.get("status"),
+            "epic_id": task_data.get("epic_id"),
             "ra_score": task_data.get("ra_score"),
             "ra_mode": task_data.get("ra_mode"),
             "description": task_data.get("description", "")
@@ -1199,6 +1200,148 @@ async def get_task_details_endpoint(
                     "details": str(e)
                 }
             }
+        )
+
+
+# Delete endpoints for project and epic management
+@app.delete("/api/projects/{project_id}")
+async def delete_project(
+    project_id: int,
+    db: TaskDatabase = Depends(get_database)
+):
+    """
+    Delete a project and all associated epics and tasks.
+    
+    Args:
+        project_id: ID of the project to delete
+        
+    Returns:
+        JSON response with success status and cascade deletion information
+    """
+    try:
+        result = db.delete_project(project_id)
+        
+        if result["success"]:
+            # Log the deletion for debugging
+            remaining_tasks = db.get_all_tasks()
+            remaining_epics = db.get_all_epics() 
+            remaining_projects = db.get_all_projects()
+            logger.info(f"After project deletion: {len(remaining_projects)} projects, {len(remaining_epics)} epics, {len(remaining_tasks)} tasks remaining")
+            # Broadcast deletion event to all WebSocket clients
+            await connection_manager.broadcast({
+                "type": "project_deleted",
+                "project_id": project_id,
+                "project_name": result["project_name"],
+                "cascaded_epics": result["cascaded_epics"],
+                "cascaded_tasks": result["cascaded_tasks"],
+                "message": result["message"],
+                "timestamp": datetime.now(timezone.utc).isoformat() + 'Z'
+            })
+            
+            return JSONResponse(
+                status_code=200,
+                content=result
+            )
+        else:
+            return JSONResponse(
+                status_code=404,
+                content=result
+            )
+            
+    except Exception as e:
+        logger.error(f"Failed to delete project {project_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete project: {str(e)}"
+        )
+
+
+@app.delete("/api/epics/{epic_id}")
+async def delete_epic(
+    epic_id: int,
+    db: TaskDatabase = Depends(get_database)
+):
+    """
+    Delete an epic and all associated tasks.
+    
+    Args:
+        epic_id: ID of the epic to delete
+        
+    Returns:
+        JSON response with success status and cascade deletion information
+    """
+    try:
+        result = db.delete_epic(epic_id)
+        
+        if result["success"]:
+            # Log the deletion for debugging
+            remaining_tasks = db.get_all_tasks()
+            remaining_epics = db.get_all_epics() 
+            logger.info(f"After epic deletion: {len(remaining_epics)} epics, {len(remaining_tasks)} tasks remaining")
+            # Broadcast deletion event to all WebSocket clients
+            await connection_manager.broadcast({
+                "type": "epic_deleted",
+                "epic_id": epic_id,
+                "epic_name": result["epic_name"],
+                "project_name": result["project_name"],
+                "cascaded_tasks": result["cascaded_tasks"],
+                "message": result["message"],
+                "timestamp": datetime.now(timezone.utc).isoformat() + 'Z'
+            })
+            
+            return JSONResponse(
+                status_code=200,
+                content=result
+            )
+        else:
+            return JSONResponse(
+                status_code=404,
+                content=result
+            )
+            
+    except Exception as e:
+        logger.error(f"Failed to delete epic {epic_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete epic: {str(e)}"
+        )
+
+
+@app.post("/api/cleanup/orphaned-tasks")
+async def cleanup_orphaned_tasks(
+    db: TaskDatabase = Depends(get_database)
+):
+    """
+    Clean up orphaned tasks that have no associated epic or project.
+    
+    This is needed to fix tasks that were left behind when CASCADE DELETE
+    wasn't working properly (before foreign keys were enabled).
+    
+    Returns:
+        JSON response with cleanup statistics
+    """
+    try:
+        result = db.cleanup_orphaned_tasks()
+        
+        if result["success"] and result["orphaned_tasks_removed"] > 0:
+            # Broadcast cleanup event to refresh UI
+            await connection_manager.broadcast({
+                "type": "orphaned_tasks_cleaned",
+                "tasks_removed": result["orphaned_tasks_removed"],
+                "message": result["message"],
+                "timestamp": datetime.now(timezone.utc).isoformat() + 'Z'
+            })
+            
+        return JSONResponse(
+            status_code=200,
+            content=result
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to cleanup orphaned tasks: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to cleanup orphaned tasks: {str(e)}"
         )
 
 

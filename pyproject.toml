@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "project-manager-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "Project Manager MCP with SQLite database layer and atomic locking"
 # ASSUMPTION: README.md will be created later - for now omit to avoid build errors
 # readme = "README.md"

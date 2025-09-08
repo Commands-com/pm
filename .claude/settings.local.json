@@ -7,7 +7,11 @@
       "mcp__project-manager-mcp__release_task_lock",
       "Read(//Users/dtannen/Code/commands-com-app/**)",
       "mcp__project-manager-mcp__create_task",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(source:*)",
+      "Bash(python -m pytest test/project_manager/test_ra_instructions.py::TestCreateTaskRAIntegration -v)",
+      "mcp__project-manager-mcp__get_task_details",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

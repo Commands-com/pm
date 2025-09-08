@@ -750,6 +750,8 @@ class CreateTaskTool(BaseTool):
             resolved_epic_id = None
             project_data = None
             epic_data = None
+            project_was_created = False
+            epic_was_created = False
             
             if epic_id:
                 # Use existing epic_id directly
@@ -780,7 +782,7 @@ class CreateTaskTool(BaseTool):
                 # Upsert project first
                 if project_name:
                     # Project upsert is atomic and race-condition safe per task requirements
-                    resolved_project_id = self.db.upsert_project(project_name, "")
+                    resolved_project_id, project_was_created = self.db.upsert_project_with_status(project_name, "")
                     project_data = {'id': resolved_project_id, 'name': project_name}
                 else:
                     # Use existing project_id
@@ -790,8 +792,8 @@ class CreateTaskTool(BaseTool):
                 
                 # Upsert epic within the project
                 # Epic upsert handles race conditions with SELECT + INSERT pattern as required by task spec
-                resolved_epic_id = self.db.upsert_epic(resolved_project_id, epic_name, "")
-                epic_data = {'id': resolved_epic_id, 'name': epic_name}
+                resolved_epic_id, epic_was_created = self.db.upsert_epic_with_status(resolved_project_id, epic_name, "")
+                epic_data = {'id': resolved_epic_id, 'name': epic_name, 'project_id': resolved_project_id}
             
             # === RA COMPLEXITY AUTO-ASSESSMENT ===
             
@@ -904,15 +906,17 @@ class CreateTaskTool(BaseTool):
                 "name": name,
                 "description": description,
                 "status": "pending",
+                "epic_id": resolved_epic_id,
                 "ra_score": ra_score,
                 "ra_mode": ra_mode
             }
             
             # Determine auto-switch flags based on creation context
             # #COMPLETION_DRIVE_IMPL: Flag generation logic for project/epic creation detection
+            # Use actual creation status from upsert operations
             auto_flags = {
-                "project_created": bool(project_name),  # True if we created a project
-                "epic_created": bool(epic_name)  # True if we created an epic
+                "project_created": project_was_created,
+                "epic_created": epic_was_created
             }
             
             # Extract session ID for auto-switch functionality

@@ -27,7 +27,7 @@ pip install -e .[dev]
 ### Basic Usage
 
 ```bash
-# Start with default configuration (dashboard on :8080, MCP on :8081)
+# Start with default configuration (dashboard on :8080, MCP over stdio)
 project-manager-mcp
 
 # Custom port and options
@@ -36,7 +36,7 @@ project-manager-mcp --port 9000 --no-browser
 # Import a project on startup
 project-manager-mcp --project examples/simple-project.yaml
 
-# MCP over stdio (for shell integration)
+# MCP over stdio (default; for shell integration)
 project-manager-mcp --mcp-transport stdio
 ```
 
@@ -47,12 +47,12 @@ After startup, access the dashboard at `http://localhost:8080` (or your chosen p
 Connect MCP clients to interact programmatically:
 
 ```bash
-# SSE transport (default)
-# Connect to http://localhost:8081/sse
-
-# Stdio transport
-project-manager-mcp --mcp-transport stdio
+# Stdio transport (default)
 # Connect via stdin/stdout
+
+# SSE transport (optional)
+project-manager-mcp --mcp-transport sse
+# Connect to http://localhost:8081/sse
 ```
 
 ## Architecture Overview
@@ -173,7 +173,7 @@ projects:
 ### CLI Options
 
 - `--port PORT`: Dashboard server port (default: 8080)
-- `--mcp-transport {sse|stdio|none}`: MCP transport mode (default: sse)
+- `--mcp-transport {stdio|sse|none}`: MCP transport mode (default: stdio)
 - `--project PATH`: Import project YAML on startup
 - `--no-browser`: Skip automatic browser launch
 - `--host HOST`: Server bind address (default: 127.0.0.1)
@@ -242,7 +242,7 @@ curl -H "Upgrade: websocket" http://localhost:8080/ws/updates
 
 **MCP client connection issues**
 ```bash
-# Test SSE endpoint
+# Test SSE endpoint (when using --mcp-transport sse)
 curl http://localhost:8081/sse
 
 # For stdio mode, verify no conflicting processes

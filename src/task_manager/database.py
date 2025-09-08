@@ -73,6 +73,7 @@ class TaskDatabase:
             cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA synchronous=NORMAL") 
             cursor.execute("PRAGMA busy_timeout=5000")  # 5 second timeout for lock contention
+            cursor.execute("PRAGMA foreign_keys=ON")  # Enable foreign key constraints for CASCADE DELETE
             
             # #SUGGEST_ERROR_HANDLING: Consider fallback to DELETE mode if WAL fails on network filesystem
             # cursor.execute("PRAGMA journal_mode=DELETE") as fallback
@@ -854,7 +855,7 @@ class TaskDatabase:
             cursor = self._connection.cursor()
             # #COMPLETION_DRIVE_IMPL: Updated query for new hierarchy with RA fields - removed story_id dependency
             cursor.execute("""
-                SELECT id, epic_id, name, description, status, 
+                SELECT id, epic_id, project_id, name, description, status, 
                        lock_holder, lock_expires_at, created_at, updated_at,
                        ra_mode, ra_score, ra_tags, ra_metadata, prompt_snapshot, dependencies
                 FROM tasks 
@@ -865,8 +866,8 @@ class TaskDatabase:
             tasks = []
             for row in rows:
                 # Determine if lock is currently active
-                lock_holder = row[5]
-                lock_expires_at = row[6]
+                lock_holder = row[6]
+                lock_expires_at = row[7]
                 is_locked = (lock_holder is not None and 
                            lock_expires_at is not None and 
                            lock_expires_at > current_time_str)
@@ -876,27 +877,27 @@ class TaskDatabase:
                 ra_metadata = None
                 dependencies = None
                 
-                if row[11]:  # ra_tags
+                if row[12]:  # ra_tags
                     try:
-                        ra_tags = json.loads(row[11])
+                        ra_tags = json.loads(row[12])
                         # Validate type - ra_tags must be array
                         if not isinstance(ra_tags, list):
                             ra_tags = []
                     except (ValueError, TypeError):
                         ra_tags = []
                 
-                if row[12]:  # ra_metadata  
+                if row[13]:  # ra_metadata  
                     try:
-                        ra_metadata = json.loads(row[12])
+                        ra_metadata = json.loads(row[13])
                         # Validate type - ra_metadata must be object
                         if not isinstance(ra_metadata, dict):
                             ra_metadata = {}
                     except (ValueError, TypeError):
                         ra_metadata = {}
                         
-                if row[14]:  # dependencies
+                if row[15]:  # dependencies
                     try:
-                        dependencies = json.loads(row[14])
+                        dependencies = json.loads(row[15])
                         # Validate type - dependencies must be array
                         if not isinstance(dependencies, list):
                             dependencies = []
@@ -906,19 +907,20 @@ class TaskDatabase:
                 tasks.append({
                     "id": row[0],
                     "epic_id": row[1], 
-                    "name": row[2],
-                    "description": row[3],
-                    "status": row[4],
+                    "project_id": row[2],
+                    "name": row[3],
+                    "description": row[4],
+                    "status": row[5],
                     "lock_holder": lock_holder if is_locked else None,
                     "lock_expires_at": lock_expires_at if is_locked else None,
                     "is_locked": is_locked,
-                    "created_at": row[7],
-                    "updated_at": row[8],
-                    "ra_mode": row[9],
-                    "ra_score": row[10],
+                    "created_at": row[8],
+                    "updated_at": row[9],
+                    "ra_mode": row[10],
+                    "ra_score": row[11],
                     "ra_tags": ra_tags,
                     "ra_metadata": ra_metadata,
-                    "prompt_snapshot": row[13],
+                    "prompt_snapshot": row[14],
                     "dependencies": dependencies
                 })
             
@@ -1587,6 +1589,38 @@ class TaskDatabase:
                     raise sqlite3.IntegrityError(f"Project '{name}' disappeared during upsert operation")
             
             return cursor.lastrowid
+
+    def upsert_project_with_status(self, name: str, description: Optional[str] = None) -> tuple[int, bool]:
+        """
+        Create project by name if not found, return existing project ID if found.
+        
+        Returns:
+            Tuple of (project_id, was_created) where was_created is True if newly created
+        """
+        current_time_str = datetime.now(timezone.utc).isoformat() + 'Z'
+        
+        with self._connection_lock:
+            cursor = self._connection.cursor()
+            
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO projects (name, description, created_at, updated_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (name, description, current_time_str, current_time_str),
+            )
+            
+            # If INSERT was successful, it was newly created
+            if cursor.rowcount > 0:
+                return cursor.lastrowid, True
+            
+            # If INSERT was ignored, project already existed
+            cursor.execute("SELECT id FROM projects WHERE name = ?", (name,))
+            row = cursor.fetchone()
+            if row:
+                return row[0], False
+            else:
+                raise sqlite3.IntegrityError(f"Project '{name}' disappeared during upsert operation")
     
     def upsert_epic(self, project_id: int, name: str, description: Optional[str] = None) -> int:
         """
@@ -1647,6 +1681,51 @@ class TaskDatabase:
                 else:
                     # Foreign key constraint violation or other integrity error
                     raise e
+
+    def upsert_epic_with_status(self, project_id: int, name: str, description: Optional[str] = None) -> tuple[int, bool]:
+        """
+        Create epic by name within project if not found, return existing epic ID if found.
+        
+        Returns:
+            Tuple of (epic_id, was_created) where was_created is True if newly created
+        """
+        current_time_str = datetime.now(timezone.utc).isoformat() + 'Z'
+        
+        with self._connection_lock:
+            cursor = self._connection.cursor()
+            
+            # Check for existing epic within project first
+            cursor.execute(
+                "SELECT id FROM epics WHERE project_id = ? AND name = ?",
+                (project_id, name)
+            )
+            
+            existing_row = cursor.fetchone()
+            if existing_row:
+                return existing_row[0], False
+            
+            # Try to create new epic
+            try:
+                cursor.execute(
+                    """
+                    INSERT INTO epics (project_id, name, description, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (project_id, name, description, current_time_str, current_time_str),
+                )
+                return cursor.lastrowid, True
+            except sqlite3.IntegrityError as e:
+                # Race condition where epic was created between SELECT and INSERT
+                cursor.execute(
+                    "SELECT id FROM epics WHERE project_id = ? AND name = ?",
+                    (project_id, name)
+                )
+                race_condition_row = cursor.fetchone()
+                if race_condition_row:
+                    return race_condition_row[0], False
+                else:
+                    # Foreign key constraint violation or other integrity error
+                    raise e
     
     def create_task_with_ra_metadata(
         self, 
@@ -1694,18 +1773,23 @@ class TaskDatabase:
         with self._connection_lock:
             cursor = self._connection.cursor()
             
+            # Get project_id from epic
+            cursor.execute("SELECT project_id FROM epics WHERE id = ?", (epic_id,))
+            row = cursor.fetchone()
+            project_id = row[0] if row else None
+            
             # #COMPLETION_DRIVE_INTEGRATION: Assume epic_id is valid and epic exists
             # Foreign key constraint will enforce referential integrity
             cursor.execute(
                 """
                 INSERT INTO tasks (
-                    epic_id, name, description, status, 
+                    epic_id, project_id, name, description, status, 
                     ra_mode, ra_score, ra_tags, ra_metadata, prompt_snapshot, dependencies,
                     created_at, updated_at
                 )
-                VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (epic_id, name, description, ra_mode, ra_score, 
+                (epic_id, project_id, name, description, ra_mode, ra_score, 
                  ra_tags_json, ra_metadata_json, prompt_snapshot, dependencies_json,
                  current_time_str, current_time_str),
             )
@@ -2558,6 +2642,161 @@ class TaskDatabase:
             
             removed_count = cursor.rowcount
             return removed_count
+
+    # Delete Methods for Project and Epic Management
+    # Implements CASCADE DELETE behavior for hierarchical data removal
+
+    def delete_project(self, project_id: int) -> Dict[str, Any]:
+        """
+        Delete a project and all associated epics and tasks via CASCADE DELETE.
+        
+        Args:
+            project_id: ID of the project to delete
+            
+        Returns:
+            Dict with success status and deletion statistics
+        """
+        with self._connection_lock:
+            cursor = self._connection.cursor()
+            
+            # First, get project info and cascade counts for the response
+            cursor.execute("""
+                SELECT name, description FROM projects WHERE id = ?
+            """, (project_id,))
+            
+            project_row = cursor.fetchone()
+            if not project_row:
+                return {"success": False, "error": f"Project {project_id} not found"}
+            
+            project_name, project_description = project_row
+            
+            # Get cascade deletion counts before deletion
+            cursor.execute("""
+                SELECT 
+                    (SELECT COUNT(*) FROM epics WHERE project_id = ?) as epic_count,
+                    (SELECT COUNT(*) FROM tasks WHERE project_id = ?) as task_count
+            """, (project_id, project_id))
+            
+            counts = cursor.fetchone()
+            epic_count, task_count = counts or (0, 0)
+            
+            try:
+                # Delete the project - CASCADE DELETE will handle epics and tasks
+                cursor.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+                
+                if cursor.rowcount == 0:
+                    return {"success": False, "error": f"Project {project_id} not found or already deleted"}
+                
+                return {
+                    "success": True,
+                    "project_id": project_id,
+                    "project_name": project_name,
+                    "cascaded_epics": epic_count,
+                    "cascaded_tasks": task_count,
+                    "message": f"Deleted project '{project_name}' and {epic_count} epics, {task_count} tasks"
+                }
+                
+            except sqlite3.Error as e:
+                logger.error(f"Database error deleting project {project_id}: {e}")
+                return {"success": False, "error": f"Database error: {str(e)}"}
+
+    def delete_epic(self, epic_id: int) -> Dict[str, Any]:
+        """
+        Delete an epic and all associated tasks via CASCADE DELETE.
+        
+        Args:
+            epic_id: ID of the epic to delete
+            
+        Returns:
+            Dict with success status and deletion statistics
+        """
+        with self._connection_lock:
+            cursor = self._connection.cursor()
+            
+            # First, get epic info and cascade counts for the response
+            cursor.execute("""
+                SELECT e.name, e.description, p.name as project_name
+                FROM epics e
+                JOIN projects p ON e.project_id = p.id
+                WHERE e.id = ?
+            """, (epic_id,))
+            
+            epic_row = cursor.fetchone()
+            if not epic_row:
+                return {"success": False, "error": f"Epic {epic_id} not found"}
+            
+            epic_name, epic_description, project_name = epic_row
+            
+            # Get cascade deletion counts before deletion
+            cursor.execute("""
+                SELECT COUNT(*) FROM tasks WHERE epic_id = ?
+            """, (epic_id,))
+            
+            task_count = cursor.fetchone()[0] or 0
+            
+            try:
+                # Delete the epic - CASCADE DELETE will handle tasks
+                cursor.execute("DELETE FROM epics WHERE id = ?", (epic_id,))
+                
+                if cursor.rowcount == 0:
+                    return {"success": False, "error": f"Epic {epic_id} not found or already deleted"}
+                
+                return {
+                    "success": True,
+                    "epic_id": epic_id,
+                    "epic_name": epic_name,
+                    "project_name": project_name,
+                    "cascaded_tasks": task_count,
+                    "message": f"Deleted epic '{epic_name}' from project '{project_name}' and {task_count} tasks"
+                }
+                
+            except sqlite3.Error as e:
+                logger.error(f"Database error deleting epic {epic_id}: {e}")
+                return {"success": False, "error": f"Database error: {str(e)}"}
+
+    def cleanup_orphaned_tasks(self) -> Dict[str, Any]:
+        """
+        Clean up tasks that have no associated epic or project (orphaned due to CASCADE DELETE not working previously).
+        
+        Returns:
+            Dict with cleanup statistics
+        """
+        with self._connection_lock:
+            cursor = self._connection.cursor()
+            
+            try:
+                # Find orphaned tasks (tasks whose epic or project no longer exists)
+                cursor.execute("""
+                    SELECT COUNT(*) FROM tasks 
+                    WHERE epic_id NOT IN (SELECT id FROM epics) 
+                       OR project_id NOT IN (SELECT id FROM projects WHERE project_id IS NOT NULL)
+                """)
+                
+                orphaned_count = cursor.fetchone()[0] or 0
+                
+                if orphaned_count > 0:
+                    # Delete orphaned tasks
+                    cursor.execute("""
+                        DELETE FROM tasks 
+                        WHERE epic_id NOT IN (SELECT id FROM epics)
+                           OR (project_id IS NOT NULL AND project_id NOT IN (SELECT id FROM projects))
+                    """)
+                    
+                    # Also clean up any task logs for deleted tasks
+                    cursor.execute("""
+                        DELETE FROM task_logs 
+                        WHERE task_id NOT IN (SELECT id FROM tasks)
+                    """)
+                
+                return {
+                    "success": True,
+                    "orphaned_tasks_removed": orphaned_count,
+                    "message": f"Cleaned up {orphaned_count} orphaned tasks"
+                }
+                
+            except sqlite3.Error as e:
+                logger.error(f"Database error during orphaned task cleanup: {e}")
+                return {"success": False, "error": f"Database error: {str(e)}"}
 
     # Event Logging Methods  
     # #COMPLETION_DRIVE_RESILIENCE: Event logging for missed event recovery

@@ -10,12 +10,12 @@ Comprehensive guide to using Project Manager MCP, covering CLI options, MCP tool
 # Start with default configuration
 project-manager-mcp
 # Starts dashboard on http://127.0.0.1:8080
-# Starts MCP SSE server on http://127.0.0.1:8081
+# Default transport is stdio (no network port)
 
 # Custom port configuration
 project-manager-mcp --port 9000
 # Dashboard: http://127.0.0.1:9000
-# MCP SSE: http://127.0.0.1:9001
+# (Use --mcp-transport sse to expose MCP on a port)
 
 # Disable automatic browser launch
 project-manager-mcp --no-browser
@@ -29,7 +29,20 @@ project-manager-mcp --verbose
 
 ### Transport Modes
 
-#### SSE Transport (Default)
+#### Stdio Transport (Default)
+
+```bash
+project-manager-mcp --mcp-transport stdio
+# MCP communication via stdin/stdout
+# Dashboard runs in background thread
+```
+
+**Use Cases:**
+- Shell script integration
+- Local AI agent development
+- Command-line MCP client testing
+
+#### SSE Transport
 
 ```bash
 project-manager-mcp --mcp-transport sse
@@ -49,19 +62,6 @@ async with httpx.AsyncClient() as client:
             pass
 ```
 
-#### Stdio Transport
-
-```bash
-project-manager-mcp --mcp-transport stdio
-# MCP communication via stdin/stdout
-# Dashboard runs in background thread
-```
-
-**Use Cases:**
-- Shell script integration
-- Local AI agent development
-- Command-line MCP client testing
-
 #### None Transport (Dashboard Only)
 
 ```bash
@@ -75,7 +75,7 @@ project-manager-mcp --mcp-transport none
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `--port` | int | 8080 | Dashboard server port |
-| `--mcp-transport` | choice | sse | MCP transport: sse, stdio, or none |
+| `--mcp-transport` | choice | stdio | MCP transport: stdio, sse, or none |
 | `--project` | path | None | Project YAML file to import |
 | `--no-browser` | flag | False | Skip automatic browser launch |
 | `--host` | string | 127.0.0.1 | Server bind address |

@@ -158,10 +158,11 @@ def validate_project_yaml(project_path: str) -> Dict[str, Any]:
 
 
 @click.command()
+@click.version_option(package_name="project-manager-mcp")
 @click.option('--port', default=DEFAULT_DASHBOARD_PORT, type=int, 
               help=f'Port for dashboard server (default: {DEFAULT_DASHBOARD_PORT})')
-@click.option('--mcp-transport', type=click.Choice(['stdio', 'sse', 'none']), default='sse',
-              help='MCP server transport mode (default: sse)')
+@click.option('--mcp-transport', type=click.Choice(['stdio', 'sse', 'none']), default='stdio',
+              help='MCP server transport mode (default: stdio)')
 @click.option('--project', type=click.Path(exists=True), 
               help='Project YAML file to import on startup')
 @click.option('--no-browser', is_flag=True, 
@@ -203,14 +204,14 @@ def main(port: int, mcp_transport: str, project: Optional[str], no_browser: bool
         logger.info(f"Starting Project Manager MCP (dashboard: {host}:{dashboard_port})")
         
         # Validate port availability
-        if mcp_transport != 'none':
+        if mcp_transport == 'sse':
+            # Need both dashboard and MCP ports for SSE
             required_ports = [dashboard_port, mcp_port]
             logger.debug(f"Checking port availability for {required_ports}")
-            
+
             for check_port in required_ports:
                 if not check_port_available(host, check_port):
-                    # Try to find alternative ports
-                    # Verified: Auto-recovery successfully finds alternative ports when defaults conflict.
+                    # Try to find alternative consecutive ports
                     logger.warning(f"Port {check_port} not available, searching for alternatives...")
                     try:
                         alternative_ports = find_available_ports(dashboard_port, 2, host)
@@ -220,7 +221,7 @@ def main(port: int, mcp_transport: str, project: Optional[str], no_browser: bool
                     except PortConflictError as e:
                         raise click.ClickException(f"Port conflict: {e}")
         else:
-            # Only need dashboard port for 'none' transport mode
+            # Only need dashboard port for 'stdio' or 'none' transport modes
             if not check_port_available(host, dashboard_port):
                 try:
                     alternative_ports = find_available_ports(dashboard_port, 1, host)
@@ -293,7 +294,10 @@ def setup_signal_handling():
     def signal_handler(signum, frame):
         logger.info(f"Received signal {signum}, initiating graceful shutdown...")
         _shutdown_event.set()
+        # Perform cleanup then interrupt the main loop so the program exits
         shutdown_gracefully()
+        # Raise KeyboardInterrupt to break out of blocking server.run() calls
+        raise KeyboardInterrupt
     
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
