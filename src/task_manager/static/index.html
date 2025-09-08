@@ -42,6 +42,46 @@
             margin: 0;
         }
         
+        .header-filters {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+        
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .filter-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #e2e8f0;
+            white-space: nowrap;
+        }
+        
+        .filter-select {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            background-color: #334155;
+            color: white;
+            font-size: 0.875rem;
+            min-width: 150px;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: #51a2ff;
+            box-shadow: 0 0 0 2px rgba(81, 162, 255, 0.2);
+        }
+        
+        .filter-select option {
+            background-color: #334155;
+            color: white;
+        }
+        
         /* #COMPLETION_DRIVE_UI: Connection status indicator for WebSocket health monitoring
            Assumption: Color coding provides clear visual feedback for connection state */
         .connection-status {
@@ -1006,6 +1046,22 @@
                 flex-direction: column;
                 align-items: stretch;
             }
+            
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem 0.75rem;
+            }
+            
+            .header-filters {
+                gap: 1rem;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .filter-select {
+                min-width: 120px;
+            }
         }
     </style>
 </head>
@@ -1021,6 +1077,20 @@
                 </g>
             </svg>
             <h1>Commands.com Response Aware PM Dashboard</h1>
+        </div>
+        <div class="header-filters">
+            <div class="filter-group">
+                <label for="projectSelector" class="filter-label">Project:</label>
+                <select id="projectSelector" class="filter-select">
+                    <option value="">All Projects</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="epicSelector" class="filter-label">Epic:</label>
+                <select id="epicSelector" class="filter-select">
+                    <option value="">All Epics</option>
+                </select>
+            </div>
         </div>
         <span id="connectionStatus" class="connection-status connecting">Connecting...</span>
     </header>
@@ -1176,6 +1246,10 @@
             connectionAttempts: 0,
             maxConnectionAttempts: 10,
             tasks: new Map(),
+            projects: new Map(),
+            epics: new Map(),
+            selectedProjectId: null,
+            selectedEpicId: null,
             pendingUpdates: new Map(),
             isOnline: navigator.onLine,
             pollingInterval: null,
@@ -1381,6 +1455,7 @@
                     name: taskData.name,
                     description: taskData.description,
                     status: taskData.status || 'TODO',
+                    epic_id: taskData.epic_id,
                     ra_score: taskData.ra_score,
                     ra_mode: taskData.ra_mode,
                     complexity_score: taskData.ra_score || taskData.complexity_score, // Alias for UI compatibility
@@ -1392,10 +1467,34 @@
                     epic_name: epicData ? epicData.name : null
                 };
                 
-                // Add task to state and render
+                // Add task to state
                 AppState.tasks.set(String(task.id), task);
-                renderTask(task);
-                updateTaskCounts();
+                
+                // Update projects and epics data if provided
+                if (projectData) {
+                    AppState.projects.set(String(projectData.id), projectData);
+                }
+                if (epicData) {
+                    AppState.epics.set(String(epicData.id), epicData);
+                }
+                
+                // Re-populate selectors if new project/epic was created
+                if (flags.project_created) {
+                    populateProjectSelector();
+                }
+                if (flags.epic_created) {
+                    populateEpicSelector();
+                }
+                
+                // Only render and update counts if task matches current filter
+                const filteredTasks = getFilteredTasks();
+                if (filteredTasks.some(t => t.id === task.id)) {
+                    renderTask(task);
+                    updateTaskCounts();
+                } else {
+                    // Task exists but doesn't match filter - still update counts
+                    updateTaskCounts();
+                }
                 
                 // #COMPLETION_DRIVE_INTEGRATION: Auto-switch logic for dashboard clients
                 // Check if this event should trigger auto-switch behavior
@@ -1443,6 +1542,7 @@
                     name: taskData.name,
                     description: taskData.description,
                     status: taskData.status,
+                    epic_id: taskData.epic_id,
                     ra_score: taskData.ra_score,
                     ra_mode: taskData.ra_mode,
                     complexity_score: taskData.ra_score || taskData.complexity_score, // UI compatibility
@@ -1454,9 +1554,23 @@
                     epic_name: enrichedData.epic ? enrichedData.epic.name : task.epic_name
                 });
                 
-                // Update state and render
+                // Update state
                 AppState.tasks.set(taskId, task);
-                renderTask(task);
+                
+                // Check if task should be visible in current filter
+                const wasVisible = document.getElementById(`task-${task.id}`) !== null;
+                const shouldBeVisible = getFilteredTasks().some(t => t.id === task.id);
+                
+                if (shouldBeVisible) {
+                    renderTask(task);
+                } else if (wasVisible) {
+                    // Task was visible but no longer matches filter - remove it
+                    const taskElement = document.getElementById(`task-${task.id}`);
+                    if (taskElement) {
+                        taskElement.remove();
+                    }
+                }
+                
                 updateTaskCounts();
                 
                 // Show notification about significant changes
@@ -1516,8 +1630,24 @@
                 const data = await response.json();
                 console.log('Board state loaded:', data);
                 
-                // Clear existing tasks
+                // Clear existing data
                 AppState.tasks.clear();
+                AppState.projects.clear();
+                AppState.epics.clear();
+                
+                // Process projects from API response
+                if (data.projects && Array.isArray(data.projects)) {
+                    data.projects.forEach(project => {
+                        AppState.projects.set(String(project.id), project);
+                    });
+                }
+                
+                // Process epics from API response
+                if (data.epics && Array.isArray(data.epics)) {
+                    data.epics.forEach(epic => {
+                        AppState.epics.set(String(epic.id), epic);
+                    });
+                }
                 
                 // Process tasks from API response
                 if (data.tasks && Array.isArray(data.tasks)) {
@@ -1526,6 +1656,12 @@
                     });
                 }
                 
+                // Load saved selections from localStorage
+                loadSelectionState();
+                
+                // Update UI
+                populateProjectSelector();
+                populateEpicSelector();
                 renderAllTasks();
                 updateTaskCounts();
                 
@@ -1547,8 +1683,9 @@
                 container.innerHTML = '';
             });
             
-            // Render all tasks
-            AppState.tasks.forEach(task => renderTask(task));
+            // Render filtered tasks
+            const filteredTasks = getFilteredTasks();
+            filteredTasks.forEach(task => renderTask(task));
         }
         
         // Status mapping between database vocabulary and UI vocabulary
@@ -1709,11 +1846,45 @@
         // #COMPLETION_DRIVE_UX: Build project breadcrumb navigation context
         // Assumption: Task object may contain project_name and epic_name fields
         function buildProjectBreadcrumb(task) {
-            if (!task.project_name && !task.epic_name) return '';
+            // Show breadcrumbs in these cases:
+            // 1. No project selected (All Projects) - show Project → Epic
+            // 2. Project selected but no epic (All Epics in Project) - show Epic only
+            const noProjectSelected = !AppState.selectedProjectId;
+            const projectSelectedNoEpic = AppState.selectedProjectId && !AppState.selectedEpicId;
+            const showBreadcrumb = noProjectSelected || projectSelectedNoEpic;
+            
+            if (!showBreadcrumb) return '';
             
             const parts = [];
-            if (task.project_name) parts.push(escapeHtml(task.project_name));
-            if (task.epic_name) parts.push(escapeHtml(task.epic_name));
+            
+            // Look up project and epic names from IDs if not directly available
+            let projectName = task.project_name;
+            let epicName = task.epic_name;
+            
+            // If we have epic_id but no epic_name, look it up
+            if (task.epic_id && !epicName) {
+                const epic = AppState.epics.get(String(task.epic_id));
+                if (epic) {
+                    epicName = epic.name;
+                    // Also get project name from epic if not available on task
+                    if (epic.project_id && !projectName) {
+                        const project = AppState.projects.get(String(epic.project_id));
+                        if (project) {
+                            projectName = project.name;
+                        }
+                    }
+                }
+            }
+            
+            // Determine what to show based on current filter state
+            if (noProjectSelected) {
+                // All Projects view - show Project → Epic
+                if (projectName) parts.push(escapeHtml(projectName));
+                if (epicName) parts.push(escapeHtml(epicName));
+            } else if (projectSelectedNoEpic) {
+                // Project selected, All Epics in Project view - show Epic only
+                if (epicName) parts.push(escapeHtml(epicName));
+            }
             
             if (parts.length === 0) return '';
             
@@ -2517,7 +2688,8 @@
                 done: 0
             };
             
-            AppState.tasks.forEach(task => {
+            const filteredTasks = getFilteredTasks();
+            filteredTasks.forEach(task => {
                 // Ensure we handle both database and UI status formats
                 const taskStatus = task.status ? task.status.toLowerCase().trim() : 'pending';
                 const statusKey = mapDatabaseStatusToUI(taskStatus);
@@ -2722,6 +2894,18 @@
             // Setup drag and drop
             initializeDragAndDrop();
             
+            // Setup filter event listeners
+            const projectSelector = document.getElementById('projectSelector');
+            const epicSelector = document.getElementById('epicSelector');
+            
+            if (projectSelector) {
+                projectSelector.addEventListener('change', handleProjectChange);
+            }
+            
+            if (epicSelector) {
+                epicSelector.addEventListener('change', handleEpicChange);
+            }
+            
             // Handle online/offline events
             window.addEventListener('online', function() {
                 console.log('Connection restored');
@@ -2762,6 +2946,143 @@
                     clearInterval(AppState.pollingInterval);
                 }
             });
+        }
+        
+        // #COMPLETION_DRIVE_FILTERING: Project and Epic filtering functionality
+        function populateProjectSelector() {
+            const projectSelector = document.getElementById('projectSelector');
+            if (!projectSelector) return;
+            
+            // Clear existing options except "All Projects"
+            projectSelector.innerHTML = '<option value="">All Projects</option>';
+            
+            // Add project options sorted by name
+            const projects = Array.from(AppState.projects.values())
+                .sort((a, b) => a.name.localeCompare(b.name));
+            
+            projects.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project.id;
+                option.textContent = project.name;
+                projectSelector.appendChild(option);
+            });
+            
+            // Restore saved selection
+            if (AppState.selectedProjectId) {
+                projectSelector.value = AppState.selectedProjectId;
+            }
+        }
+        
+        function populateEpicSelector() {
+            const epicSelector = document.getElementById('epicSelector');
+            if (!epicSelector) return;
+            
+            // Clear existing options except "All Epics"
+            epicSelector.innerHTML = '<option value="">All Epics</option>';
+            
+            // Filter epics based on selected project
+            let epics = Array.from(AppState.epics.values());
+            if (AppState.selectedProjectId) {
+                epics = epics.filter(epic => epic.project_id == AppState.selectedProjectId);
+                // Change the "All Epics" text to be more specific
+                epicSelector.options[0].textContent = 'All Epics in Project';
+            } else {
+                epicSelector.options[0].textContent = 'All Epics';
+            }
+            
+            // Add epic options sorted by name
+            epics.sort((a, b) => a.name.localeCompare(b.name))
+                .forEach(epic => {
+                    const option = document.createElement('option');
+                    option.value = epic.id;
+                    option.textContent = epic.name;
+                    epicSelector.appendChild(option);
+                });
+            
+            // Restore saved selection if still valid
+            if (AppState.selectedEpicId) {
+                const epicExists = epics.some(epic => epic.id == AppState.selectedEpicId);
+                if (epicExists) {
+                    epicSelector.value = AppState.selectedEpicId;
+                } else {
+                    // Clear invalid epic selection
+                    AppState.selectedEpicId = null;
+                    saveSelectionState();
+                }
+            }
+        }
+        
+        function handleProjectChange(event) {
+            const newProjectId = event.target.value || null;
+            AppState.selectedProjectId = newProjectId;
+            
+            // Clear epic selection when project changes
+            AppState.selectedEpicId = null;
+            
+            // Update UI
+            populateEpicSelector();
+            saveSelectionState();
+            filterAndRenderTasks();
+        }
+        
+        function handleEpicChange(event) {
+            const newEpicId = event.target.value || null;
+            AppState.selectedEpicId = newEpicId;
+            
+            saveSelectionState();
+            filterAndRenderTasks();
+        }
+        
+        function loadSelectionState() {
+            try {
+                const saved = localStorage.getItem('pmDashboard.selectedFilters');
+                if (saved) {
+                    const filters = JSON.parse(saved);
+                    AppState.selectedProjectId = filters.projectId || null;
+                    AppState.selectedEpicId = filters.epicId || null;
+                }
+            } catch (error) {
+                console.warn('Failed to load saved filter selections:', error);
+            }
+        }
+        
+        function saveSelectionState() {
+            try {
+                const filters = {
+                    projectId: AppState.selectedProjectId,
+                    epicId: AppState.selectedEpicId
+                };
+                localStorage.setItem('pmDashboard.selectedFilters', JSON.stringify(filters));
+            } catch (error) {
+                console.warn('Failed to save filter selections:', error);
+            }
+        }
+        
+        function filterAndRenderTasks() {
+            renderAllTasks();
+            updateTaskCounts();
+        }
+        
+        function getFilteredTasks() {
+            let filteredTasks = Array.from(AppState.tasks.values());
+            
+            // Filter by epic first (more specific)
+            if (AppState.selectedEpicId) {
+                filteredTasks = filteredTasks.filter(task => 
+                    task.epic_id == AppState.selectedEpicId
+                );
+            } else if (AppState.selectedProjectId) {
+                // Filter by project (via epic relationship)
+                const projectEpicIds = Array.from(AppState.epics.values())
+                    .filter(epic => epic.project_id == AppState.selectedProjectId)
+                    .map(epic => epic.id);
+                
+                filteredTasks = filteredTasks.filter(task =>
+                    projectEpicIds.includes(task.epic_id)
+                );
+            }
+            
+            return filteredTasks;
         }
         
         // #COMPLETION_DRIVE_STARTUP: Initialize application when DOM is ready
