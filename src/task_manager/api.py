@@ -517,6 +517,34 @@ async def update_task_status(
         }
         db_status = status_mapping.get(update.status, update.status)
 
+        # Proactively clear and broadcast any expired locks for fresh state
+        try:
+            expired_ids = db.cleanup_expired_locks_with_ids()
+            for eid in expired_ids:
+                await connection_manager.optimized_broadcast({
+                    "type": "task.unlocked",
+                    "task_id": eid,
+                    "agent_id": None,
+                    "reason": "lock_expired"
+                })
+        except Exception:
+            pass
+
+        # Auto-acquire a short-lived lock if task is not locked to allow single-call updates
+        auto_locked = False
+        current_lock = db.get_task_lock_status(task_id)
+        if "error" in current_lock:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        if current_lock["is_locked"] and current_lock["lock_holder"] != update.agent_id:
+            raise HTTPException(status_code=403, detail="Task is locked by another agent")
+
+        if not current_lock["is_locked"]:
+            if db.acquire_task_lock_atomic(task_id, update.agent_id, 60):
+                auto_locked = True
+            else:
+                raise HTTPException(status_code=409, detail="Failed to acquire lock for update")
+
         # Validate task exists and update status with lock validation
         result = db.update_task_status(task_id, db_status, update.agent_id)
         
@@ -531,6 +559,20 @@ async def update_task_status(
                 "agent_id": update.agent_id
             })
             
+            # Release the auto-acquired lock immediately (UI should not hold locks)
+            if auto_locked:
+                try:
+                    if db.release_lock(task_id, update.agent_id):
+                        await connection_manager.optimized_broadcast({
+                            "type": "task.unlocked",
+                            "task_id": task_id,
+                            "agent_id": update.agent_id,
+                            "reason": "auto_release_after_update"
+                        })
+                except Exception:
+                    # Non-fatal: avoid blocking HTTP response on release/broadcast failures
+                    pass
+
             logger.info(f"Task {task_id} status updated to {update.status} by {update.agent_id}")
             
             return TaskStatusResponse(
@@ -544,7 +586,8 @@ async def update_task_status(
             if "not found" in error_msg.lower():
                 raise HTTPException(status_code=404, detail=error_msg)
             elif "must be locked" in error_msg.lower():
-                raise HTTPException(status_code=403, detail=error_msg)
+                # Fallback: expose as 409 conflict to hint at lock state
+                raise HTTPException(status_code=409, detail=error_msg)
             else:
                 raise HTTPException(status_code=400, detail=error_msg)
                 
@@ -621,6 +664,19 @@ async def acquire_task_lock(
         if not agent_id:
             raise HTTPException(status_code=400, detail="agent_id required")
         
+        # Clear any expired locks system-wide and broadcast unlocks
+        try:
+            expired_ids = db.cleanup_expired_locks_with_ids()
+            for eid in expired_ids:
+                await connection_manager.optimized_broadcast({
+                    "type": "task.unlocked",
+                    "task_id": eid,
+                    "agent_id": None,
+                    "reason": "lock_expired"
+                })
+        except Exception:
+            pass
+
         # Attempt to acquire lock
         success = db.acquire_task_lock_atomic(task_id, agent_id, duration)
         

@@ -458,6 +458,10 @@
                 AppState.tasks.set(String(data.task_id), task);
                 renderTask(task);
                 updateTaskCounts();
+            } else {
+                // If task not found locally (stale state), resync board
+                console.log('Task not found in state for status update; reloading board state');
+                loadBoardState();
             }
         }
         
@@ -467,6 +471,9 @@
                 task.lock_holder = data.agent_id;
                 AppState.tasks.set(String(data.task_id), task);
                 renderTask(task);
+            } else {
+                console.log('Task not found in state for lock; reloading board state');
+                loadBoardState();
             }
         }
         
@@ -476,6 +483,9 @@
                 task.lock_holder = null;
                 AppState.tasks.set(String(data.task_id), task);
                 renderTask(task);
+            } else {
+                console.log('Task not found in state for unlock; reloading board state');
+                loadBoardState();
             }
         }
         

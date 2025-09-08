@@ -119,7 +119,7 @@ curl http://localhost:8080/api/board/state
 
 #### POST /api/task/{task_id}/status
 
-Update task status with lock validation and WebSocket broadcasting.
+Update task status with auto-locking and WebSocket broadcasting.
 
 **Path Parameters:**
 - `task_id` (integer): Task ID to update
@@ -127,15 +127,15 @@ Update task status with lock validation and WebSocket broadcasting.
 **Request Body:**
 ```json
 {
-  "status": "completed",
+  "status": "DONE",
   "agent_id": "agent-alice"
 }
 ```
 
 **Request Fields:**
 - `status` (string): New task status
-  - Valid values: `"pending"`, `"in_progress"`, `"completed"`, `"blocked"`
-- `agent_id` (string): Agent identifier (must hold the task lock)
+  - Valid values: `"pending"`, `"in_progress"`, `"completed"`, `"blocked"`, `"TODO"`, `"IN_PROGRESS"`, `"DONE"`, `"REVIEW"`
+- `agent_id` (string): Agent identifier
 
 **Success Response (200 OK):**
 ```json
@@ -154,10 +154,10 @@ Update task status with lock validation and WebSocket broadcasting.
 }
 ```
 
-**403 Forbidden** - Lock validation failed:
+**403 Forbidden** - Locked by another agent:
 ```json
 {
-  "detail": "Task must be locked by requesting agent to update status"
+  "detail": "Task is locked by another agent"
 }
 ```
 
@@ -173,16 +173,17 @@ Update task status with lock validation and WebSocket broadcasting.
 curl -X POST http://localhost:8080/api/task/1/status \
   -H "Content-Type: application/json" \
   -d '{
-    "status": "completed",
+    "status": "DONE",
     "agent_id": "agent-alice"
   }'
 ```
 
 **Side Effects:**
-- Validates agent holds the lock on the task
-- Updates task status in database
+- Auto-acquires a short-lived lock when the task is unlocked (single-call UX)
+- Errors if the task is locked by a different agent
+- Updates task status in the database
 - Broadcasts `task.status_changed` WebSocket event
-- Triggers dashboard real-time updates
+- Releases the auto-acquired lock after update (unless transitioning to IN_PROGRESS)
 
 ### Task Lock Management
 

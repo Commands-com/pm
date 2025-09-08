@@ -10,6 +10,7 @@ import asyncio
 import psutil
 import time
 import logging
+import os
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
@@ -17,7 +18,7 @@ from collections import defaultdict, deque
 
 # Performance monitoring configuration
 METRICS_HISTORY_SIZE = 1000  # Keep last 1000 data points for trending
-LOCK_CLEANUP_INTERVAL = 300  # 5 minutes in seconds
+LOCK_CLEANUP_INTERVAL = int(os.getenv("LOCK_CLEANUP_INTERVAL", "300"))  # seconds
 MEMORY_MONITORING_INTERVAL = 60  # 1 minute for memory tracking
 
 logger = logging.getLogger(__name__)
@@ -256,7 +257,7 @@ class BackgroundTasks:
         
         # Start lock cleanup task
         cleanup_task = asyncio.create_task(
-            self._lock_cleanup_worker(database)
+            self._lock_cleanup_worker(database, connection_manager)
         )
         self.tasks.append(cleanup_task)
         
@@ -291,7 +292,7 @@ class BackgroundTasks:
             except asyncio.TimeoutError:
                 logger.warning("Background task shutdown timeout")
     
-    async def _lock_cleanup_worker(self, database):
+    async def _lock_cleanup_worker(self, database, connection_manager):
         """
         Background worker for automated lock cleanup.
         
@@ -304,12 +305,32 @@ class BackgroundTasks:
             try:
                 start_time = time.time()
                 
-                # Clean up expired locks
-                expired_count = database.cleanup_expired_locks()
+                # Clean up expired locks and broadcast unlock events
+                expired_ids = []
+                try:
+                    expired_ids = database.cleanup_expired_locks_with_ids()
+                except Exception:
+                    # Fallback to count-only cleanup if detailed method unavailable
+                    count_only = database.cleanup_expired_locks()
+                    expired_ids = []
+                    if count_only:
+                        logger.info(f"Cleaned up {count_only} expired locks (ids unavailable)")
+                        performance_monitor.increment_daily_stat('locks_cleaned', count_only)
                 
-                if expired_count > 0:
-                    logger.info(f"Cleaned up {expired_count} expired locks")
-                    performance_monitor.increment_daily_stat('locks_cleaned', expired_count)
+                if expired_ids:
+                    logger.info(f"Cleaned up {len(expired_ids)} expired locks: {expired_ids}")
+                    performance_monitor.increment_daily_stat('locks_cleaned', len(expired_ids))
+                    # Broadcast unlock events for each task
+                    for task_id in expired_ids:
+                        try:
+                            await connection_manager.optimized_broadcast({
+                                "type": "task.unlocked",
+                                "task_id": task_id,
+                                "agent_id": None,
+                                "reason": "lock_expired"
+                            })
+                        except Exception as be:
+                            logger.warning(f"Failed to broadcast unlock for task {task_id}: {be}")
                 
                 # Update monitoring timestamp
                 performance_monitor.update_cleanup_time()

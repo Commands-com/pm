@@ -3,7 +3,8 @@
     "allow": [
       "mcp__project-manager-mcp__acquire_task_lock",
       "mcp__project-manager-mcp__update_task_status",
-      "mcp__project-manager-mcp__get_available_tasks"
+      "mcp__project-manager-mcp__get_available_tasks",
+      "mcp__project-manager-mcp__release_task_lock"
     ],
     "deny": [],
     "ask": []

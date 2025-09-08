@@ -579,6 +579,48 @@ class TaskDatabase:
             """, (current_time_str, current_time_str))
             
             return cursor.rowcount
+
+    def cleanup_expired_locks_with_ids(self) -> list[int]:
+        """
+        Clean up expired locks and return list of affected task IDs.
+        
+        Returns:
+            List of task IDs whose locks were cleared due to expiration.
+        """
+        current_time_str = self._get_current_time_str()
+        with self._connection_lock:
+            cursor = self._connection.cursor()
+            # Identify expired locks
+            cursor.execute(
+                """
+                SELECT id
+                FROM tasks
+                WHERE lock_holder IS NOT NULL
+                  AND lock_expires_at IS NOT NULL
+                  AND lock_expires_at < ?
+                """,
+                (current_time_str,)
+            )
+            rows = cursor.fetchall()
+            expired_ids = [row[0] for row in rows]
+
+            if not expired_ids:
+                return []
+
+            # Clear expired locks
+            cursor.execute(
+                """
+                UPDATE tasks
+                SET lock_holder = NULL,
+                    lock_expires_at = NULL,
+                    updated_at = ?
+                WHERE lock_expires_at IS NOT NULL
+                  AND lock_expires_at < ?
+                """,
+                (current_time_str, current_time_str)
+            )
+
+            return expired_ids
     
     def close(self):
         """Close database connection."""

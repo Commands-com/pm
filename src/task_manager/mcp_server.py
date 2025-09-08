@@ -121,13 +121,14 @@ class ProjectManagerMCPServer:
                 limit: Optional[int] = None
             ) -> str:
                 """
-                Get available tasks filtered by status and lock status.
+                Get tasks filtered by status and lock status.
                 
-                Retrieves tasks available for agent assignment, excluding locked tasks
-                by default unless explicitly requested. Supports status filtering.
+                Returns tasks across all statuses by default. Use status to filter
+                (e.g., TODO, IN_PROGRESS, DONE, REVIEW). Excludes locked tasks by
+                default unless explicitly requested.
                 
                 Args:
-                    status: Task status to filter by (TODO, IN_PROGRESS, DONE, etc.)
+                    status: Task status to filter by (ALL, TODO, IN_PROGRESS, DONE, REVIEW, etc.)
                     include_locked: Whether to include currently locked tasks
                     limit: Maximum number of tasks to return
                     
@@ -179,14 +180,16 @@ class ProjectManagerMCPServer:
                 agent_id: str
             ) -> str:
                 """
-                Update task status with lock validation and optional auto-release.
+                Update task status with auto-locking and release semantics.
                 
-                Updates task status while validating agent holds the lock. Automatically
-                releases lock when status changes to DONE/completed.
+                If the task is unlocked, this tool auto-acquires a lock for the
+                requesting agent, performs the update, then releases the lock
+                (unless moving to IN_PROGRESS). If the task is locked by a
+                different agent, the update fails.
                 
                 Args:
                     task_id: ID of the task to update (string, converted to int)
-                    status: New status for the task (pending, in_progress, completed, etc.)
+                    status: New status for the task (TODO/IN_PROGRESS/DONE/REVIEW or DB vocabulary)
                     agent_id: ID of the agent requesting the update
                     
                 Returns:

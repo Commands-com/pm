@@ -48,7 +48,7 @@ Connect MCP clients to interact programmatically:
 
 ```bash
 # SSE transport (default)
-# Connect to http://localhost:8081
+# Connect to http://localhost:8081/sse
 
 # Stdio transport
 project-manager-mcp --mcp-transport stdio
@@ -89,19 +89,34 @@ Each task supports:
 
 ### Atomic Task Locking
 
+Two patterns are supported:
+
+1) Single-call update (auto-lock):
 ```python
-# Acquire exclusive lock on task
-result = mcp_client.call_tool("acquire_task_lock", {
+# Automatically acquires a short-lived lock if unlocked, updates status, then releases.
+mcp_client.call_tool("update_task_status", {
+    "task_id": "123",
+    "status": "DONE",            # UI vocabulary also accepted
+    "agent_id": "agent-1"
+})
+```
+
+2) Explicit lock + update (long-running work):
+```python
+# Acquire exclusive lock on task (status moves to IN_PROGRESS)
+mcp_client.call_tool("acquire_task_lock", {
     "task_id": "123",
     "agent_id": "agent-1",
     "timeout": 300
 })
 
-# Update task status (validates lock ownership)
-result = mcp_client.call_tool("update_task_status", {
-    "task_id": "123", 
-    "status": "completed",
-    "agent_id": "agent-1"  # Must match lock holder
+# Perform work...
+
+# Update status and auto-release on DONE
+mcp_client.call_tool("update_task_status", {
+    "task_id": "123",
+    "status": "DONE",
+    "agent_id": "agent-1"
 })
 ```
 

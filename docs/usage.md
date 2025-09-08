@@ -105,11 +105,11 @@ project-manager-mcp --mcp-transport none --port 3000
 
 ### GetAvailableTasks
 
-Query tasks available for work, filtered by status and lock availability.
+Query tasks filtered by status and lock availability.
 
 **Parameters:**
-- `status` (string, optional): Task status filter. Default: "TODO"
-  - Valid values: `"pending"`, `"in_progress"`, `"completed"`, `"blocked"`, `"TODO"`, `"DONE"`
+- `status` (string, optional): Task status filter. Default: `"ALL"`
+  - Valid values: `"ALL"`, `"pending"`, `"in_progress"`, `"completed"`, `"blocked"`, `"TODO"`, `"IN_PROGRESS"`, `"DONE"`, `"REVIEW"`
 - `include_locked` (boolean, optional): Include locked tasks. Default: `false`
 - `limit` (integer, optional): Maximum tasks to return
 
@@ -123,7 +123,7 @@ Array of task objects with availability metadata.
   "params": {
     "name": "get_available_tasks",
     "arguments": {
-      "status": "TODO",
+      "status": "ALL",
       "include_locked": false,
       "limit": 10
     }
@@ -208,19 +208,20 @@ Success/failure status with lock details.
 
 ### UpdateTaskStatus
 
-Update task status with lock validation and auto-release on completion.
+Update task status with auto-locking and real-time broadcast.
 
 **Parameters:**
 - `task_id` (string): Task ID to update
 - `status` (string): New task status
-  - Valid values: `"pending"`, `"in_progress"`, `"completed"`, `"blocked"`, `"TODO"`, `"DONE"`, `"IN_PROGRESS"`
-- `agent_id` (string): Agent identifier (must match lock holder)
+  - Valid values: `"pending"`, `"in_progress"`, `"completed"`, `"blocked"`, `"TODO"`, `"DONE"`, `"IN_PROGRESS"`, `"REVIEW"`
+- `agent_id` (string): Agent identifier
 
 **Behavior:**
-- Validates agent holds the lock
-- Updates task status
-- Auto-releases lock when status becomes `"completed"` or `"DONE"`
-- Broadcasts status change events
+- If the task is unlocked, the tool automatically acquires a lock for the requesting agent, updates the status, then releases the lock (unless moving to `IN_PROGRESS`).
+- If the task is locked by another agent, it returns an error.
+- If the task is already locked by the requesting agent, it proceeds normally.
+- Auto-releases the lock when status becomes `"completed"`/`"DONE"` or when the lock was auto-acquired and the new status is not `IN_PROGRESS`.
+- Broadcasts status change events (`task.status_changed`) with UI vocabulary (`TODO`, `IN_PROGRESS`, `DONE`, `REVIEW`).
 
 **Example Request:**
 ```json
@@ -230,7 +231,7 @@ Update task status with lock validation and auto-release on completion.
     "name": "update_task_status",
     "arguments": {
       "task_id": "1",
-      "status": "completed",
+      "status": "DONE",
       "agent_id": "agent-alice"
     }
   }
@@ -241,9 +242,9 @@ Update task status with lock validation and auto-release on completion.
 ```json
 {
   "success": true,
-  "message": "Task 1 status updated to completed and lock auto-released",
+  "message": "Task 1 status updated to DONE and lock auto-released",
   "task_id": 1,
-  "status": "completed",
+  "status": "DONE",
   "agent_id": "agent-alice",
   "lock_released": true
 }
@@ -296,7 +297,7 @@ Triggered when task status is updated.
   "type": "task.status_changed",
   "timestamp": "2024-01-15T14:30:00.000Z",
   "task_id": 1,
-  "status": "completed",
+  "status": "DONE",
   "agent_id": "agent-alice",
   "lock_released": true
 }
@@ -312,7 +313,7 @@ Triggered when task lock is acquired.
   "timestamp": "2024-01-15T14:25:00.000Z", 
   "task_id": 1,
   "agent_id": "agent-alice",
-  "status": "in_progress",
+  "status": "IN_PROGRESS",
   "timeout": 600
 }
 ```
@@ -452,9 +453,9 @@ project-manager-mcp --project /path/to/project.yaml
 ### Basic Task Assignment
 
 ```python
-# 1. Query available tasks
+# 1. Query available tasks (ALL by default)
 tasks = await mcp_client.call_tool("get_available_tasks", {
-    "status": "TODO",
+    "status": "ALL",
     "limit": 5
 })
 
@@ -471,7 +472,7 @@ lock_result = await mcp_client.call_tool("acquire_task_lock", {
 # 4. Update status (auto-releases lock on completion)
 await mcp_client.call_tool("update_task_status", {
     "task_id": str(task_id),
-    "status": "completed",
+    "status": "DONE",
     "agent_id": "my-agent"
 })
 ```
@@ -555,14 +556,12 @@ sqlite3 project_manager.db "SELECT * FROM tasks WHERE lock_holder IS NOT NULL;"
 
 **Status update failures:**
 ```json
-// Common error: Agent doesn't hold lock
+// Common error: Task locked by another agent
 {
-  "success": false,
-  "message": "Task 1 must be locked by requesting agent"
+  "detail": "Task is locked by another agent"
 }
 
-// Solution: Acquire lock first
-// acquire_task_lock -> update_task_status
+// Solution: Wait until the lock expires, or coordinate with the lock holder.
 ```
 
 **WebSocket disconnections:**

@@ -139,17 +139,18 @@ class BaseTool(ABC):
 
 class GetAvailableTasks(BaseTool):
     """
-    MCP tool to retrieve available tasks filtered by status and lock status.
+    MCP tool to retrieve tasks filtered by status and lock state.
     
-    Returns tasks that are available for agent assignment, excluding locked tasks
-    by default unless explicitly requested. Supports status filtering to get
-    tasks in specific states (TODO, IN_PROGRESS, DONE, etc.).
+    By default returns ALL tasks across statuses. Use the `status` parameter
+    to filter (e.g., TODO, IN_PROGRESS, DONE, REVIEW). Locked tasks are
+    excluded by default unless `include_locked=True`.
     
-    Standard Mode Implementation:
-    - Validates status parameter against known values
-    - Excludes locked tasks unless include_locked=True
-    - Returns comprehensive task information including availability status
-    - Handles database errors gracefully with detailed error responses
+    Implementation notes:
+    - Validates status against known values (including 'ALL')
+    - Maps UI statuses (TODO/DONE/IN_PROGRESS/REVIEW) to database values
+    - For pending work (TODO/pending), uses an optimized query; other statuses
+      are filtered from the full task list
+    - Returns availability metadata for client consumption
     """
     
     async def apply(self, status: str = "ALL", include_locked: bool = False, 
@@ -288,6 +289,19 @@ class AcquireTaskLock(BaseTool):
             if timeout <= 0 or timeout > 3600:  # Max 1 hour
                 return self._format_error_response("timeout must be between 1 and 3600 seconds")
             
+            # Clear any expired locks and broadcast unlock events
+            try:
+                expired_ids = self.db.cleanup_expired_locks_with_ids()
+                for eid in expired_ids:
+                    await self._broadcast_event(
+                        "task.unlocked",
+                        task_id=eid,
+                        agent_id=None,
+                        reason="lock_expired"
+                    )
+            except Exception:
+                pass
+
             # Check if task exists first
             # Standard Mode: Pre-validation to provide helpful error messages
             lock_status = self.db.get_task_lock_status(task_id_int)
@@ -361,18 +375,17 @@ class AcquireTaskLock(BaseTool):
 
 class UpdateTaskStatus(BaseTool):
     """
-    MCP tool for updating task status with lock validation and auto-release.
+    MCP tool for updating task status with auto-lock and release semantics.
     
-    Updates task status while validating that the requesting agent holds the
-    lock on the task. Automatically releases the lock when status is changed
-    to DONE, allowing other agents to access the completed task.
-    
-    Standard Mode Implementation:
-    - Validates lock ownership before allowing status updates
-    - Supports status transition validation
-    - Auto-releases lock when status changes to DONE/completed
-    - Broadcasts status change events for real-time dashboard updates
-    - Provides detailed validation error messages
+    Behavior:
+    - If the task is unlocked, the tool auto-acquires a lock for the requesting
+      agent, performs the status update, then releases the lock (unless moving
+      to IN_PROGRESS).
+    - If the task is locked by another agent, returns an error.
+    - If the task is locked by the requesting agent, proceeds normally.
+    - Auto-releases the lock when status changes to DONE/completed or when the
+      lock was auto-acquired and the new status is not IN_PROGRESS.
+    - Broadcasts real-time events for dashboard updates.
     """
     
     async def apply(self, task_id: str, status: str, agent_id: str) -> str:
@@ -416,36 +429,62 @@ class UpdateTaskStatus(BaseTool):
             }
             db_status = status_mapping.get(status, status)
             
-            # Validate lock ownership before allowing status update
-            # This prevents unauthorized status changes and race conditions
+            # Clear any expired locks and broadcast unlock events
+            try:
+                expired_ids = self.db.cleanup_expired_locks_with_ids()
+                for eid in expired_ids:
+                    await self._broadcast_event(
+                        "task.unlocked",
+                        task_id=eid,
+                        agent_id=None,
+                        reason="lock_expired"
+                    )
+            except Exception:
+                pass
+
+            # Ensure lock ownership before allowing status update.
+            # If unlocked, attempt to auto-acquire lock for this update (single-call UX).
             lock_status = self.db.get_task_lock_status(task_id_int)
             if "error" in lock_status:
                 return self._format_error_response(f"Task {task_id} not found")
-            
-            if not lock_status["is_locked"] or lock_status["lock_holder"] != agent_id:
-                if not lock_status["is_locked"]:
-                    error_msg = f"Task {task_id} must be locked by requesting agent to update status"
-                else:
-                    error_msg = f"Task {task_id} is locked by different agent: {lock_status['lock_holder']}"
-                
-                return self._format_error_response(
-                    error_msg,
-                    lock_holder=lock_status.get("lock_holder"),
-                    expires_at=lock_status.get("lock_expires_at")
-                )
+
+            auto_locked = False
+            if lock_status["is_locked"]:
+                if lock_status["lock_holder"] != agent_id:
+                    return self._format_error_response(
+                        f"Task {task_id} is locked by different agent: {lock_status['lock_holder']}",
+                        lock_holder=lock_status.get("lock_holder"),
+                        expires_at=lock_status.get("lock_expires_at")
+                    )
+            else:
+                # Try to acquire lock automatically
+                if not self.db.acquire_task_lock_atomic(task_id_int, agent_id, 300):
+                    return self._format_error_response(
+                        f"Failed to acquire lock on task {task_id} for update"
+                    )
+                auto_locked = True
             
             # Update task status using database method with lock validation
             result = self.db.update_task_status(task_id_int, db_status, agent_id)
             
             if result["success"]:
-                # Check if we should auto-release lock when task is completed
-                # Standard Mode Assumption: DONE/completed tasks should release locks automatically
+                # Decide whether to release lock after update
                 lock_released = False
-                if db_status in ['completed', 'DONE']:
+                should_release = (db_status in ['completed', 'DONE']) or (auto_locked and db_status != 'in_progress')
+                if should_release:
                     release_success = self.db.release_lock(task_id_int, agent_id)
                     if release_success:
                         lock_released = True
-                        logger.info(f"Auto-released lock on task {task_id} after completion")
+                        logger.info(f"Auto-released lock on task {task_id} after status update")
+                else:
+                    # If we auto-acquired and are keeping the lock (e.g., IN_PROGRESS), broadcast lock
+                    if auto_locked:
+                        await self._broadcast_event(
+                            "task.locked",
+                            task_id=task_id_int,
+                            agent_id=agent_id,
+                            status="IN_PROGRESS"
+                        )
                 
                 # Map database status to UI/UX status vocabulary
                 ui_status_map = {
