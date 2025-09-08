@@ -39,7 +39,7 @@ curl http://localhost:8080/healthz
 
 #### GET /api/board/state
 
-Retrieve complete project state including all epics, stories, and tasks.
+Retrieve complete project state including all projects, epics, and tasks.
 
 **Response:**
 ```json
@@ -50,27 +50,20 @@ Retrieve complete project state including all epics, stories, and tasks.
       "name": "Create registration form UI",
       "description": "Design and implement user registration form",
       "status": "pending",
-      "story_id": 1,
+      "epic_id": 1,
       "lock_holder": null,
-      "lock_expires_at": null
+      "lock_expires_at": null,
+      "is_locked": false
     },
     {
       "id": 2,
       "name": "Implement registration API",
       "description": "Backend endpoint to handle user registration",
       "status": "in_progress",
-      "story_id": 1,
+      "epic_id": 1,
       "lock_holder": "agent-alice",
-      "lock_expires_at": "2024-01-15T14:35:00.000Z"
-    }
-  ],
-  "stories": [
-    {
-      "id": 1,
-      "name": "User Registration Flow",
-      "description": "Allow new users to create accounts",
-      "status": "TODO",
-      "epic_id": 1
+      "lock_expires_at": "2024-01-15T14:35:00.000Z",
+      "is_locked": true
     }
   ],
   "epics": [
@@ -78,7 +71,17 @@ Retrieve complete project state including all epics, stories, and tasks.
       "id": 1,
       "name": "User Authentication System",
       "description": "Basic user login and registration functionality",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "project_id": 1
+    }
+  ],
+  "projects": [
+    {
+      "id": 1,
+      "name": "User Management Platform",
+      "description": "Complete user lifecycle management system",
+      "created_at": "2024-01-15T10:00:00.000Z",
+      "updated_at": "2024-01-15T10:00:00.000Z"
     }
   ]
 }
@@ -89,22 +92,27 @@ Retrieve complete project state including all epics, stories, and tasks.
 - `name` (string): Task name
 - `description` (string): Task description  
 - `status` (string): Current task status (`"pending"`, `"in_progress"`, `"completed"`, `"blocked"`)
-- `story_id` (integer): Parent story ID
+- `epic_id` (integer): Parent epic ID
 - `lock_holder` (string|null): Agent ID holding the lock, or null
 - `lock_expires_at` (string|null): Lock expiration timestamp (ISO 8601), or null
-
-**Story Fields:**
-- `id` (integer): Unique story identifier
-- `name` (string): Story name
-- `description` (string): Story description
-- `status` (string): Current story status
-- `epic_id` (integer): Parent epic ID
+- `is_locked` (boolean): Whether the task is currently locked
 
 **Epic Fields:**
-- `id` (integer): Unique epic identifier  
+- `id` (integer): Unique epic identifier
 - `name` (string): Epic name
 - `description` (string): Epic description
-- `status` (string): Current epic status (`"ACTIVE"`, `"PLANNED"`, `"COMPLETED"`, `"CANCELLED"`)
+- `status` (string): Epic status (`"ACTIVE"`, `"pending"`, etc.)
+- `project_id` (integer): Parent project ID
+
+**Project Fields:**
+- `id` (integer): Unique project identifier
+- `name` (string): Project name
+- `description` (string): Project description
+- `created_at` (string): Project creation timestamp (ISO 8601)
+- `updated_at` (string): Project last update timestamp (ISO 8601)
+
+**Hierarchy:**
+The system uses a three-level hierarchy: Projects → Epics → Tasks. Projects are top-level containers, epics group related functionality within a project, and tasks represent individual work items.
 
 **Status Codes:**
 - `200 OK`: Board state retrieved successfully

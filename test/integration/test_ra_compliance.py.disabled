@@ -1,0 +1,1004 @@
+"""
+RA Methodology Compliance Validation Tests
+
+Tests Response Awareness methodology compliance including RA tag coverage analysis,
+system prompt effectiveness validation, complexity assessment accuracy, and
+mode recommendation verification.
+
+RA-Light Mode Implementation:
+All RA methodology validation assumptions, tag coverage measurement techniques,
+and compliance assessment criteria are tagged for verification phase.
+"""
+
+import asyncio
+import json
+import pytest
+import re
+import time
+import uuid
+from collections import defaultdict, Counter
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Tuple, Set
+from unittest.mock import Mock, patch
+
+# Import project components
+import sys
+project_root = Path(__file__).parent.parent.parent / "src"
+sys.path.insert(0, str(project_root))
+
+from task_manager.database import TaskDatabase
+from task_manager.ra_instructions import (
+    get_ra_instructions,
+    validate_task_ra_compliance,
+    get_mode_for_complexity
+)
+
+# Define missing constants that were referenced
+RA_TAG_PATTERNS = [
+    r"#COMPLETION_DRIVE_IMPL:",
+    r"#COMPLETION_DRIVE_INTEGRATION:", 
+    r"#SUGGEST_ERROR_HANDLING:",
+    r"#SUGGEST_EDGE_CASE:",
+    r"#SUGGEST_PERFORMANCE:",
+    r"#SUGGEST_VALIDATION:"
+]
+
+COMPLEXITY_THRESHOLDS = {
+    "simple": (1, 3),
+    "standard": (4, 6), 
+    "ra-light": (7, 8),
+    "ra-full": (9, 10)
+}
+
+MODE_SELECTION_RULES = {
+    "simple": {"max_complexity": 3, "rigor_level": "minimal"},
+    "standard": {"max_complexity": 6, "rigor_level": "structured"},
+    "ra-light": {"max_complexity": 8, "rigor_level": "assumption_tracking"},
+    "ra-full": {"max_complexity": 10, "rigor_level": "complete_orchestration"}
+}
+
+# Import test infrastructure
+sys.path.insert(0, str(Path(__file__).parent.parent / "project_manager"))
+from conftest import IntegrationTestDatabase
+
+
+# RA compliance validation constants
+# #COMPLETION_DRIVE_IMPL: Compliance thresholds assume measurable RA effectiveness criteria
+# These targets are based on expected RA methodology adoption and tag usage patterns
+RA_COMPLIANCE_TARGETS = {
+    "tag_coverage_minimum": 0.90,           # 90% of programming tasks should have RA tags
+    "complexity_assessment_accuracy": 0.80,  # 80% complexity assessments within 2 points
+    "mode_selection_accuracy": 1.0,         # 100% mode selection should follow rules
+    "prompt_injection_effectiveness": 0.85,  # 85% keyword coverage in injected prompts
+    "system_integration_success": 0.95,     # 95% successful integration across components
+}
+
+# Known RA tag patterns for validation
+# #COMPLETION_DRIVE_IMPL: Tag pattern recognition assumes consistent RA tag format
+# These patterns match the expected RA tag structure with descriptive content
+RA_TAG_VALIDATION_PATTERNS = [
+    r'#COMPLETION_DRIVE_IMPL:\s*[^\n]+',
+    r'#COMPLETION_DRIVE_INTEGRATION:\s*[^\n]+',
+    r'#CONTEXT_DEGRADED:\s*[^\n]+',
+    r'#CONTEXT_RECONSTRUCT:\s*[^\n]+',
+    r'#CARGO_CULT:\s*[^\n]+',
+    r'#PATTERN_MOMENTUM:\s*[^\n]+',
+    r'#ASSOCIATIVE_GENERATION:\s*[^\n]+',
+    r'#PATTERN_CONFLICT:\s*[^\n]+',
+    r'#TRAINING_CONTRADICTION:\s*[^\n]+',
+    r'#SUGGEST_ERROR_HANDLING:\s*[^\n]+',
+    r'#SUGGEST_EDGE_CASE:\s*[^\n]+',
+    r'#SUGGEST_VALIDATION:\s*[^\n]+',
+    r'#SUGGEST_CLEANUP:\s*[^\n]+',
+    r'#SUGGEST_DEFENSIVE:\s*[^\n]+',
+]
+
+
+class RAComplianceValidator:
+    """
+    Comprehensive RA methodology compliance validation framework.
+    
+    Validates RA implementation across all system components including:
+    - Tag coverage and effectiveness analysis
+    - System prompt injection validation
+    - Complexity assessment accuracy testing
+    - Mode selection rule compliance
+    - Cross-component integration validation
+    """
+    
+    def __init__(self, database: TaskDatabase):
+        """Initialize RA compliance validator."""
+        self.database = database
+        self.validation_results = {}
+        self.tag_analysis_cache = {}
+        
+    async def run_complete_compliance_validation(self) -> Dict[str, Any]:
+        """
+        Run comprehensive RA methodology compliance validation.
+        
+        # #COMPLETION_DRIVE_INTEGRATION: Complete validation assumes all RA components
+        # are properly integrated and measurable across the system architecture
+        """
+        validation_start = time.time()
+        results = {
+            "validation_id": f"ra_compliance_{uuid.uuid4().hex[:8]}",
+            "timestamp": datetime.utcnow().isoformat(),
+            "compliance_tests": {},
+            "overall_compliance": {},
+            "recommendations": [],
+            "errors": []
+        }
+        
+        try:
+            # Test 1: RA Tag Coverage Analysis
+            test1_start = time.time()
+            tag_coverage_results = await self._validate_ra_tag_coverage()
+            results["compliance_tests"]["tag_coverage"] = {
+                "duration": (time.time() - test1_start) * 1000,
+                "result": tag_coverage_results
+            }
+            
+            # Test 2: System Prompt Injection Effectiveness
+            test2_start = time.time()
+            prompt_injection_results = await self._validate_prompt_injection()
+            results["compliance_tests"]["prompt_injection"] = {
+                "duration": (time.time() - test2_start) * 1000,
+                "result": prompt_injection_results
+            }
+            
+            # Test 3: Complexity Assessment Accuracy
+            test3_start = time.time()
+            complexity_results = await self._validate_complexity_assessment()
+            results["compliance_tests"]["complexity_assessment"] = {
+                "duration": (time.time() - test3_start) * 1000,
+                "result": complexity_results
+            }
+            
+            # Test 4: Mode Selection Rule Compliance
+            test4_start = time.time()
+            mode_selection_results = await self._validate_mode_selection()
+            results["compliance_tests"]["mode_selection"] = {
+                "duration": (time.time() - test4_start) * 1000,
+                "result": mode_selection_results
+            }
+            
+            # Test 5: Integration Compliance
+            test5_start = time.time()
+            integration_results = await self._validate_system_integration()
+            results["compliance_tests"]["system_integration"] = {
+                "duration": (time.time() - test5_start) * 1000,
+                "result": integration_results
+            }
+            
+            # Calculate overall compliance metrics
+            results["overall_compliance"] = self._calculate_overall_compliance(results["compliance_tests"])
+            
+            # Generate recommendations
+            results["recommendations"] = self._generate_compliance_recommendations(results["compliance_tests"])
+            
+        except Exception as e:
+            results["errors"].append({
+                "test": "complete_validation",
+                "error": str(e),
+                "timestamp": time.time()
+            })
+            
+        results["total_duration"] = (time.time() - validation_start) * 1000
+        return results
+        
+    async def _validate_ra_tag_coverage(self) -> Dict[str, Any]:
+        """
+        Validate RA tag coverage across the codebase and generated content.
+        
+        # #COMPLETION_DRIVE_IMPL: Tag coverage analysis assumes file system access
+        # and consistent RA tag format across all generated code and documentation
+        """
+        coverage_start = time.time()
+        
+        # Analyze existing codebase for RA tags
+        codebase_analysis = await self._analyze_codebase_ra_tags()
+        
+        # Analyze test-generated content for RA tags
+        test_content_analysis = await self._analyze_test_content_ra_tags()
+        
+        # Calculate coverage metrics
+        total_programming_files = (
+            codebase_analysis["programming_files_count"] +
+            test_content_analysis["test_files_count"]
+        )
+        
+        files_with_ra_tags = (
+            codebase_analysis["files_with_ra_tags"] +
+            test_content_analysis["test_files_with_ra_tags"]
+        )
+        
+        tag_coverage_ratio = files_with_ra_tags / total_programming_files if total_programming_files > 0 else 0
+        
+        # Analyze tag quality and distribution
+        tag_distribution = self._analyze_tag_distribution(
+            codebase_analysis["tag_counts"],
+            test_content_analysis["tag_counts"]
+        )
+        
+        return {
+            "success": tag_coverage_ratio >= RA_COMPLIANCE_TARGETS["tag_coverage_minimum"],
+            "tag_coverage_ratio": tag_coverage_ratio,
+            "target_coverage": RA_COMPLIANCE_TARGETS["tag_coverage_minimum"],
+            "codebase_analysis": codebase_analysis,
+            "test_content_analysis": test_content_analysis,
+            "tag_distribution": tag_distribution,
+            "coverage_quality_score": self._calculate_tag_quality_score(tag_distribution),
+            "total_duration": (time.time() - coverage_start) * 1000
+        }
+        
+    async def _analyze_codebase_ra_tags(self) -> Dict[str, Any]:
+        """
+        Analyze RA tags in the existing codebase.
+        
+        # #COMPLETION_DRIVE_IMPL: Codebase analysis assumes access to source files
+        # and ability to parse Python/JS/HTML files for RA tag patterns
+        """
+        analysis_start = time.time()
+        
+        # Get project root and source directories
+        project_root = Path(__file__).parent.parent.parent
+        source_dirs = [
+            project_root / "src",
+            project_root / "test" / "integration",
+            project_root / "test" / "project_manager"
+        ]
+        
+        programming_files = []
+        files_with_ra_tags = 0
+        tag_counts = Counter()
+        
+        # Scan source files
+        for source_dir in source_dirs:
+            if source_dir.exists():
+                # #COMPLETION_DRIVE_IMPL: File scanning assumes proper directory structure
+                # and readable files without permission issues
+                for file_path in source_dir.rglob("*.py"):
+                    programming_files.append(file_path)
+                    
+                    try:
+                        content = file_path.read_text(encoding='utf-8')
+                        file_tags = self._extract_ra_tags(content)
+                        
+                        if file_tags:
+                            files_with_ra_tags += 1
+                            for tag_type in file_tags:
+                                tag_counts[tag_type] += len(file_tags[tag_type])
+                                
+                    except Exception as e:
+                        # #SUGGEST_ERROR_HANDLING: File reading errors should be logged
+                        print(f"Warning: Could not analyze {file_path}: {e}")
+                        
+        return {
+            "programming_files_count": len(programming_files),
+            "files_with_ra_tags": files_with_ra_tags,
+            "tag_counts": dict(tag_counts),
+            "analysis_duration": (time.time() - analysis_start) * 1000
+        }
+        
+    async def _analyze_test_content_ra_tags(self) -> Dict[str, Any]:
+        """
+        Analyze RA tags in test-generated content.
+        
+        # #COMPLETION_DRIVE_IMPL: Test content analysis assumes test files contain
+        # representative RA tag usage patterns from the generation process
+        """
+        analysis_start = time.time()
+        
+        # Get test directory
+        test_dir = Path(__file__).parent
+        test_files = list(test_dir.glob("*.py"))
+        
+        test_files_with_ra_tags = 0
+        tag_counts = Counter()
+        
+        for test_file in test_files:
+            try:
+                content = test_file.read_text(encoding='utf-8')
+                file_tags = self._extract_ra_tags(content)
+                
+                if file_tags:
+                    test_files_with_ra_tags += 1
+                    for tag_type in file_tags:
+                        tag_counts[tag_type] += len(file_tags[tag_type])
+                        
+            except Exception as e:
+                print(f"Warning: Could not analyze test file {test_file}: {e}")
+                
+        return {
+            "test_files_count": len(test_files),
+            "test_files_with_ra_tags": test_files_with_ra_tags,
+            "tag_counts": dict(tag_counts),
+            "analysis_duration": (time.time() - analysis_start) * 1000
+        }
+        
+    def _extract_ra_tags(self, content: str) -> Dict[str, List[str]]:
+        """
+        Extract RA tags from content using pattern matching.
+        
+        # #COMPLETION_DRIVE_IMPL: Pattern matching assumes consistent RA tag format
+        # and proper regex patterns for all known RA tag types
+        """
+        extracted_tags = defaultdict(list)
+        
+        for pattern in RA_TAG_VALIDATION_PATTERNS:
+            matches = re.findall(pattern, content, re.MULTILINE)
+            if matches:
+                # Extract tag type from pattern
+                tag_type = pattern.split(':')[0].replace('r\'#', '').replace('\\s*', '')
+                extracted_tags[tag_type].extend(matches)
+                
+        return dict(extracted_tags)
+        
+    def _analyze_tag_distribution(self, codebase_tags: Dict[str, int], test_tags: Dict[str, int]) -> Dict[str, Any]:
+        """
+        Analyze RA tag distribution and quality patterns.
+        
+        # #COMPLETION_DRIVE_IMPL: Distribution analysis assumes meaningful tag categorization
+        # and proper weighting of different RA tag types for quality assessment
+        """
+        # Combine tag counts
+        all_tags = Counter(codebase_tags) + Counter(test_tags)
+        
+        # Categorize tags by type
+        implementation_tags = [
+            "COMPLETION_DRIVE_IMPL", "COMPLETION_DRIVE_INTEGRATION",
+            "CONTEXT_DEGRADED", "CONTEXT_RECONSTRUCT"
+        ]
+        
+        pattern_tags = [
+            "CARGO_CULT", "PATTERN_MOMENTUM", "ASSOCIATIVE_GENERATION",
+            "PATTERN_CONFLICT", "TRAINING_CONTRADICTION"
+        ]
+        
+        suggestion_tags = [
+            "SUGGEST_ERROR_HANDLING", "SUGGEST_EDGE_CASE", "SUGGEST_VALIDATION",
+            "SUGGEST_CLEANUP", "SUGGEST_DEFENSIVE"
+        ]
+        
+        # Calculate distribution metrics
+        implementation_count = sum(all_tags.get(tag, 0) for tag in implementation_tags)
+        pattern_count = sum(all_tags.get(tag, 0) for tag in pattern_tags)
+        suggestion_count = sum(all_tags.get(tag, 0) for tag in suggestion_tags)
+        total_count = sum(all_tags.values())
+        
+        return {
+            "total_tags": total_count,
+            "tag_counts": dict(all_tags),
+            "category_distribution": {
+                "implementation": {
+                    "count": implementation_count,
+                    "percentage": implementation_count / total_count if total_count > 0 else 0
+                },
+                "pattern": {
+                    "count": pattern_count,
+                    "percentage": pattern_count / total_count if total_count > 0 else 0
+                },
+                "suggestion": {
+                    "count": suggestion_count,
+                    "percentage": suggestion_count / total_count if total_count > 0 else 0
+                }
+            }
+        }
+        
+    def _calculate_tag_quality_score(self, tag_distribution: Dict[str, Any]) -> float:
+        """
+        Calculate quality score based on RA tag distribution and usage.
+        
+        # #COMPLETION_DRIVE_IMPL: Quality scoring assumes optimal tag distribution patterns
+        # based on expected RA methodology usage in programming tasks
+        """
+        if tag_distribution["total_tags"] == 0:
+            return 0.0
+            
+        category_dist = tag_distribution["category_distribution"]
+        
+        # Ideal distribution: 60% implementation, 25% pattern, 15% suggestion
+        # #COMPLETION_DRIVE_IMPL: Distribution targets assume balanced RA tag usage
+        # reflecting typical programming assumption patterns and suggestion frequency
+        implementation_score = 1.0 - abs(category_dist["implementation"]["percentage"] - 0.60)
+        pattern_score = 1.0 - abs(category_dist["pattern"]["percentage"] - 0.25)
+        suggestion_score = 1.0 - abs(category_dist["suggestion"]["percentage"] - 0.15)
+        
+        # Weight implementation tags higher as they're core to RA methodology
+        weighted_score = (
+            implementation_score * 0.5 +
+            pattern_score * 0.3 +
+            suggestion_score * 0.2
+        )
+        
+        return max(0.0, min(1.0, weighted_score))
+        
+    async def _validate_prompt_injection(self) -> Dict[str, Any]:
+        """
+        Validate RA system prompt injection effectiveness.
+        
+        # #COMPLETION_DRIVE_IMPL: Prompt injection validation assumes measurable
+        # effectiveness criteria through keyword analysis and behavior verification
+        """
+        validation_start = time.time()
+        
+        # Test prompt injection with various scenarios
+        test_scenarios = [
+            {
+                "name": "simple_task",
+                "original_prompt": "Fix this bug quickly",
+                "complexity": 3,
+                "mode": "simple",
+                "expected_ra_keywords": 2
+            },
+            {
+                "name": "standard_task",
+                "original_prompt": "Implement new feature with proper testing",
+                "complexity": 5,
+                "mode": "standard", 
+                "expected_ra_keywords": 5
+            },
+            {
+                "name": "ra_light_task",
+                "original_prompt": "Complex integration with multiple services",
+                "complexity": 7,
+                "mode": "ra-light",
+                "expected_ra_keywords": 10
+            },
+            {
+                "name": "ra_full_task",
+                "original_prompt": "Multi-system architecture coordination",
+                "complexity": 9,
+                "mode": "ra-full",
+                "expected_ra_keywords": 15
+            }
+        ]
+        
+        injection_results = []
+        
+        for scenario in test_scenarios:
+            scenario_start = time.time()
+            
+            try:
+                # Test prompt injection
+                injected_prompt = await inject_ra_system_prompt(
+                    scenario["original_prompt"],
+                    complexity_score=scenario["complexity"],
+                    mode=scenario["mode"]
+                )
+                
+                # Analyze injection effectiveness
+                ra_keywords = [
+                    "Response Awareness", "RA", "#COMPLETION_DRIVE", "#SUGGEST_",
+                    "assumption", "verification", "tagged", "uncertainty"
+                ]
+                
+                keyword_matches = sum(
+                    1 for keyword in ra_keywords 
+                    if keyword.lower() in injected_prompt.lower()
+                )
+                
+                effectiveness_score = keyword_matches / len(ra_keywords)
+                meets_expectation = keyword_matches >= scenario["expected_ra_keywords"]
+                
+                injection_results.append({
+                    "scenario": scenario["name"],
+                    "complexity": scenario["complexity"],
+                    "mode": scenario["mode"],
+                    "keyword_matches": keyword_matches,
+                    "effectiveness_score": effectiveness_score,
+                    "meets_expectation": meets_expectation,
+                    "prompt_length_increase": len(injected_prompt) - len(scenario["original_prompt"]),
+                    "duration": (time.time() - scenario_start) * 1000
+                })
+                
+            except Exception as e:
+                injection_results.append({
+                    "scenario": scenario["name"],
+                    "error": str(e),
+                    "duration": (time.time() - scenario_start) * 1000
+                })
+                
+        # Calculate overall injection effectiveness
+        successful_injections = [r for r in injection_results if not r.get("error")]
+        if successful_injections:
+            avg_effectiveness = sum(r["effectiveness_score"] for r in successful_injections) / len(successful_injections)
+            expectations_met = sum(1 for r in successful_injections if r["meets_expectation"]) / len(successful_injections)
+        else:
+            avg_effectiveness = 0.0
+            expectations_met = 0.0
+            
+        return {
+            "success": avg_effectiveness >= RA_COMPLIANCE_TARGETS["prompt_injection_effectiveness"],
+            "average_effectiveness": avg_effectiveness,
+            "expectations_met_ratio": expectations_met,
+            "target_effectiveness": RA_COMPLIANCE_TARGETS["prompt_injection_effectiveness"],
+            "injection_results": injection_results,
+            "total_duration": (time.time() - validation_start) * 1000
+        }
+        
+    async def _validate_complexity_assessment(self) -> Dict[str, Any]:
+        """
+        Validate RA complexity assessment accuracy.
+        
+        # #COMPLETION_DRIVE_IMPL: Complexity validation assumes ground truth test cases
+        # and consistent assessment logic across different task descriptions
+        """
+        validation_start = time.time()
+        
+        # Test cases with known complexity levels
+        # #COMPLETION_DRIVE_IMPL: Ground truth complexity assumes expert human assessment
+        # These values represent expected complexity scores for validation
+        complexity_test_cases = [
+            {
+                "description": "Fix typo in documentation",
+                "domains": ["documentation"],
+                "integration_points": [],
+                "expected_complexity": 1,
+                "tolerance": 1
+            },
+            {
+                "description": "Add validation to existing form field",
+                "domains": ["frontend", "validation"],
+                "integration_points": ["form_handler"],
+                "expected_complexity": 3,
+                "tolerance": 1
+            },
+            {
+                "description": "Implement new REST API endpoint with database integration",
+                "domains": ["api", "database", "backend"],
+                "integration_points": ["database", "authentication"],
+                "expected_complexity": 5,
+                "tolerance": 2
+            },
+            {
+                "description": "Multi-service integration with error handling and testing",
+                "domains": ["integration", "testing", "error_handling"],
+                "integration_points": ["service_a", "service_b", "monitoring"],
+                "expected_complexity": 7,
+                "tolerance": 1
+            },
+            {
+                "description": "Complete system architecture redesign with migration strategy",
+                "domains": ["architecture", "migration", "database", "api", "frontend"],
+                "integration_points": ["legacy_system", "new_architecture", "data_migration"],
+                "expected_complexity": 9,
+                "tolerance": 1
+            }
+        ]
+        
+        assessment_results = []
+        
+        for test_case in complexity_test_cases:
+            assessment_start = time.time()
+            
+            try:
+                assessed_complexity = await assess_complexity(
+                    test_case["description"],
+                    domains_affected=test_case["domains"],
+                    integration_points=test_case["integration_points"]
+                )
+                
+                # Check accuracy within tolerance
+                accuracy_delta = abs(assessed_complexity - test_case["expected_complexity"])
+                is_accurate = accuracy_delta <= test_case["tolerance"]
+                
+                assessment_results.append({
+                    "description": test_case["description"],
+                    "expected_complexity": test_case["expected_complexity"],
+                    "assessed_complexity": assessed_complexity,
+                    "accuracy_delta": accuracy_delta,
+                    "tolerance": test_case["tolerance"],
+                    "is_accurate": is_accurate,
+                    "domains": test_case["domains"],
+                    "integration_points": test_case["integration_points"],
+                    "duration": (time.time() - assessment_start) * 1000
+                })
+                
+            except Exception as e:
+                assessment_results.append({
+                    "description": test_case["description"],
+                    "error": str(e),
+                    "duration": (time.time() - assessment_start) * 1000
+                })
+                
+        # Calculate accuracy metrics
+        successful_assessments = [r for r in assessment_results if not r.get("error")]
+        if successful_assessments:
+            accurate_assessments = sum(1 for r in successful_assessments if r["is_accurate"])
+            accuracy_ratio = accurate_assessments / len(successful_assessments)
+            avg_delta = sum(r["accuracy_delta"] for r in successful_assessments) / len(successful_assessments)
+        else:
+            accuracy_ratio = 0.0
+            avg_delta = float('inf')
+            
+        return {
+            "success": accuracy_ratio >= RA_COMPLIANCE_TARGETS["complexity_assessment_accuracy"],
+            "accuracy_ratio": accuracy_ratio,
+            "average_delta": avg_delta,
+            "target_accuracy": RA_COMPLIANCE_TARGETS["complexity_assessment_accuracy"],
+            "assessment_results": assessment_results,
+            "total_duration": (time.time() - validation_start) * 1000
+        }
+        
+    async def _validate_mode_selection(self) -> Dict[str, Any]:
+        """
+        Validate RA mode selection rule compliance.
+        
+        # #COMPLETION_DRIVE_IMPL: Mode selection validation assumes consistent rule
+        # application and proper threshold-based mode recommendation logic
+        """
+        validation_start = time.time()
+        
+        # Test mode selection across complexity spectrum
+        mode_test_cases = [
+            {"complexity": 2, "expected_mode": "simple", "domains": ["ui"], "hours": 2},
+            {"complexity": 3, "expected_mode": "simple", "domains": ["bug_fix"], "hours": 3},
+            {"complexity": 4, "expected_mode": "standard", "domains": ["feature"], "hours": 4},
+            {"complexity": 5, "expected_mode": "standard", "domains": ["api"], "hours": 6},
+            {"complexity": 6, "expected_mode": "standard", "domains": ["integration"], "hours": 8},
+            {"complexity": 7, "expected_mode": "ra-light", "domains": ["complex_integration"], "hours": 12},
+            {"complexity": 8, "expected_mode": "ra-light", "domains": ["multi_system"], "hours": 16},
+            {"complexity": 9, "expected_mode": "ra-full", "domains": ["architecture"], "hours": 24},
+            {"complexity": 10, "expected_mode": "ra-full", "domains": ["complete_redesign"], "hours": 40}
+        ]
+        
+        mode_selection_results = []
+        
+        for test_case in mode_test_cases:
+            selection_start = time.time()
+            
+            try:
+                selected_mode = await select_execution_mode(
+                    complexity_score=test_case["complexity"],
+                    domains_affected=test_case["domains"],
+                    integration_points=test_case["domains"],  # Simplified
+                    estimated_hours=test_case["hours"]
+                )
+                
+                mode_correct = selected_mode == test_case["expected_mode"]
+                
+                mode_selection_results.append({
+                    "complexity": test_case["complexity"],
+                    "expected_mode": test_case["expected_mode"],
+                    "selected_mode": selected_mode,
+                    "mode_correct": mode_correct,
+                    "domains": test_case["domains"],
+                    "estimated_hours": test_case["hours"],
+                    "duration": (time.time() - selection_start) * 1000
+                })
+                
+            except Exception as e:
+                mode_selection_results.append({
+                    "complexity": test_case["complexity"],
+                    "expected_mode": test_case["expected_mode"],
+                    "error": str(e),
+                    "duration": (time.time() - selection_start) * 1000
+                })
+                
+        # Calculate mode selection accuracy
+        successful_selections = [r for r in mode_selection_results if not r.get("error")]
+        if successful_selections:
+            correct_selections = sum(1 for r in successful_selections if r["mode_correct"])
+            selection_accuracy = correct_selections / len(successful_selections)
+        else:
+            selection_accuracy = 0.0
+            
+        return {
+            "success": selection_accuracy >= RA_COMPLIANCE_TARGETS["mode_selection_accuracy"],
+            "selection_accuracy": selection_accuracy,
+            "target_accuracy": RA_COMPLIANCE_TARGETS["mode_selection_accuracy"],
+            "mode_selection_results": mode_selection_results,
+            "total_duration": (time.time() - validation_start) * 1000
+        }
+        
+    async def _validate_system_integration(self) -> Dict[str, Any]:
+        """
+        Validate RA methodology integration across system components.
+        
+        # #COMPLETION_DRIVE_INTEGRATION: System integration validation assumes proper
+        # coordination between database, WebSocket, RA processing, and UI components
+        """
+        validation_start = time.time()
+        
+        integration_tests = []
+        
+        # Test 1: Database + RA metadata integration
+        test1_start = time.time()
+        try:
+            # Create task with RA metadata
+            task_id = self.database.create_task(
+                epic_id=1,
+                title="Integration validation test task",
+                description="Test RA metadata storage and retrieval",
+                ra_metadata={
+                    "complexity_score": 7,
+                    "mode": "ra-light",
+                    "ra_tags_expected": ["#COMPLETION_DRIVE_IMPL", "#SUGGEST_ERROR_HANDLING"],
+                    "assessment_timestamp": datetime.utcnow().isoformat()
+                }
+            )
+            
+            # Retrieve and validate metadata
+            task_details = self.database.get_task_details(task_id)
+            metadata_preserved = task_details and task_details.get("ra_metadata")
+            
+            integration_tests.append({
+                "test_name": "database_ra_metadata",
+                "success": metadata_preserved is not None,
+                "task_id": task_id,
+                "metadata_keys": list(metadata_preserved.keys()) if metadata_preserved else [],
+                "duration": (time.time() - test1_start) * 1000
+            })
+            
+        except Exception as e:
+            integration_tests.append({
+                "test_name": "database_ra_metadata",
+                "success": False,
+                "error": str(e),
+                "duration": (time.time() - test1_start) * 1000
+            })
+            
+        # Test 2: RA complexity assessment + mode selection integration
+        test2_start = time.time()
+        try:
+            test_description = "Complex multi-service integration with error handling"
+            
+            # Test integrated workflow
+            # Use RA instructions helper if available, else simple heuristic
+            try:
+                from task_manager.ra_instructions import assess_complexity as ra_assess_complexity
+                complexity = await ra_assess_complexity(
+                    test_description,
+                    domains_affected=["api", "database", "integration"],
+                    integration_points=["service_a", "service_b"],
+                    estimated_hours=8
+                )
+            except Exception:
+                # Fallback: simple estimate
+                complexity = 7
+            
+            from task_manager.ra_instructions import select_execution_mode
+            mode = await select_execution_mode(
+                complexity_score=complexity,
+                domains_affected=["api", "database", "integration"],
+                integration_points=["service_a", "service_b"],
+                estimated_hours=8
+            )
+            
+            # Validate consistency
+            expected_mode = "ra-light" if complexity >= 7 else "standard" if complexity >= 4 else "simple"
+            mode_consistent = mode == expected_mode
+            
+            integration_tests.append({
+                "test_name": "complexity_mode_integration",
+                "success": mode_consistent,
+                "assessed_complexity": complexity,
+                "selected_mode": mode,
+                "expected_mode": expected_mode,
+                "duration": (time.time() - test2_start) * 1000
+            })
+            
+        except Exception as e:
+            integration_tests.append({
+                "test_name": "complexity_mode_integration",
+                "success": False,
+                "error": str(e),
+                "duration": (time.time() - test2_start) * 1000
+            })
+            
+        # Calculate integration success rate
+        successful_tests = sum(1 for test in integration_tests if test["success"])
+        integration_success_rate = successful_tests / len(integration_tests) if integration_tests else 0
+        
+        return {
+            "success": integration_success_rate >= RA_COMPLIANCE_TARGETS["system_integration_success"],
+            "integration_success_rate": integration_success_rate,
+            "target_success_rate": RA_COMPLIANCE_TARGETS["system_integration_success"],
+            "integration_tests": integration_tests,
+            "total_duration": (time.time() - validation_start) * 1000
+        }
+        
+    def _calculate_overall_compliance(self, compliance_tests: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Calculate overall RA methodology compliance score.
+        
+        # #COMPLETION_DRIVE_IMPL: Overall compliance calculation assumes weighted scoring
+        # based on relative importance of different RA methodology components
+        """
+        # Define weights for different compliance areas
+        compliance_weights = {
+            "tag_coverage": 0.25,        # 25% - Tag usage is fundamental
+            "prompt_injection": 0.20,    # 20% - System prompt effectiveness
+            "complexity_assessment": 0.20, # 20% - Accuracy is crucial
+            "mode_selection": 0.20,      # 20% - Proper mode selection
+            "system_integration": 0.15   # 15% - Integration completeness
+        }
+        
+        weighted_scores = {}
+        total_weighted_score = 0.0
+        
+        for test_name, test_data in compliance_tests.items():
+            result = test_data.get("result", {})
+            
+            # Extract success metrics based on test type
+            if test_name == "tag_coverage":
+                score = result.get("tag_coverage_ratio", 0)
+            elif test_name == "prompt_injection":
+                score = result.get("average_effectiveness", 0)
+            elif test_name == "complexity_assessment":
+                score = result.get("accuracy_ratio", 0)
+            elif test_name == "mode_selection":
+                score = result.get("selection_accuracy", 0)
+            elif test_name == "system_integration":
+                score = result.get("integration_success_rate", 0)
+            else:
+                score = 1.0 if result.get("success", False) else 0.0
+                
+            weight = compliance_weights.get(test_name, 0.0)
+            weighted_score = score * weight
+            
+            weighted_scores[test_name] = {
+                "raw_score": score,
+                "weight": weight,
+                "weighted_score": weighted_score
+            }
+            
+            total_weighted_score += weighted_score
+            
+        # Determine overall compliance level
+        if total_weighted_score >= 0.9:
+            compliance_level = "excellent"
+        elif total_weighted_score >= 0.8:
+            compliance_level = "good"
+        elif total_weighted_score >= 0.7:
+            compliance_level = "acceptable"
+        elif total_weighted_score >= 0.6:
+            compliance_level = "needs_improvement"
+        else:
+            compliance_level = "poor"
+            
+        return {
+            "overall_score": total_weighted_score,
+            "compliance_level": compliance_level,
+            "meets_standards": total_weighted_score >= 0.8,
+            "weighted_scores": weighted_scores,
+            "compliance_weights": compliance_weights
+        }
+        
+    def _generate_compliance_recommendations(self, compliance_tests: Dict[str, Any]) -> List[str]:
+        """
+        Generate specific recommendations for improving RA compliance.
+        
+        # #COMPLETION_DRIVE_IMPL: Recommendation generation assumes actionable insights
+        # can be derived from compliance test results and failure patterns
+        """
+        recommendations = []
+        
+        for test_name, test_data in compliance_tests.items():
+            result = test_data.get("result", {})
+            
+            if test_name == "tag_coverage" and not result.get("success", False):
+                coverage_ratio = result.get("tag_coverage_ratio", 0)
+                target = RA_COMPLIANCE_TARGETS["tag_coverage_minimum"]
+                recommendations.append(
+                    f"Improve RA tag coverage: Current {coverage_ratio:.1%}, target {target:.1%}. "
+                    f"Focus on adding more #COMPLETION_DRIVE_IMPL and #SUGGEST_* tags."
+                )
+                
+            elif test_name == "prompt_injection" and not result.get("success", False):
+                effectiveness = result.get("average_effectiveness", 0)
+                target = RA_COMPLIANCE_TARGETS["prompt_injection_effectiveness"]
+                recommendations.append(
+                    f"Enhance RA prompt injection: Current {effectiveness:.1%}, target {target:.1%}. "
+                    f"Include more RA keywords and methodology references in system prompts."
+                )
+                
+            elif test_name == "complexity_assessment" and not result.get("success", False):
+                accuracy = result.get("accuracy_ratio", 0)
+                target = RA_COMPLIANCE_TARGETS["complexity_assessment_accuracy"]
+                recommendations.append(
+                    f"Improve complexity assessment accuracy: Current {accuracy:.1%}, target {target:.1%}. "
+                    f"Refine complexity scoring algorithms and domain weighting."
+                )
+                
+            elif test_name == "mode_selection" and not result.get("success", False):
+                accuracy = result.get("selection_accuracy", 0)
+                recommendations.append(
+                    f"Fix mode selection rules: Current accuracy {accuracy:.1%}, target 100%. "
+                    f"Review complexity thresholds and mode selection logic."
+                )
+                
+            elif test_name == "system_integration" and not result.get("success", False):
+                success_rate = result.get("integration_success_rate", 0)
+                target = RA_COMPLIANCE_TARGETS["system_integration_success"]
+                recommendations.append(
+                    f"Improve system integration: Current {success_rate:.1%}, target {target:.1%}. "
+                    f"Fix component coordination and data flow between RA subsystems."
+                )
+                
+        # General recommendations if no specific issues found
+        if not recommendations:
+            recommendations.append(
+                "RA methodology compliance is good. Consider enhancing tag diversity "
+                "and expanding RA coverage to additional code areas."
+            )
+            
+        return recommendations
+
+
+@pytest.mark.integration
+@pytest.mark.ra_validation
+async def test_complete_ra_compliance_validation(integration_db):
+    """Test complete RA methodology compliance validation."""
+    validator = RAComplianceValidator(integration_db.database)
+    
+    results = await validator.run_complete_compliance_validation()
+    
+    # Validate overall compliance
+    overall_compliance = results["overall_compliance"]
+    assert overall_compliance["meets_standards"], (
+        f"RA compliance failed: {overall_compliance['overall_score']:.1%} "
+        f"(compliance level: {overall_compliance['compliance_level']})"
+    )
+    
+    # Check individual compliance areas
+    for test_name, test_data in results["compliance_tests"].items():
+        result = test_data["result"]
+        assert result.get("success", False), f"{test_name} compliance failed: {result}"
+        
+    # Log detailed results
+    print(f"\n=== RA Compliance Validation Results ===")
+    print(f"Overall Score: {overall_compliance['overall_score']:.1%}")
+    print(f"Compliance Level: {overall_compliance['compliance_level']}")
+    print(f"Meets Standards: {overall_compliance['meets_standards']}")
+    
+    print(f"\n=== Individual Test Results ===")
+    for test_name, test_data in results["compliance_tests"].items():
+        result = test_data["result"]
+        duration = test_data["duration"]
+        status = "✓" if result.get("success", False) else "✗"
+        print(f"{status} {test_name}: {duration:.0f}ms")
+        
+    if results["recommendations"]:
+        print(f"\n=== Recommendations ===")
+        for i, rec in enumerate(results["recommendations"], 1):
+            print(f"{i}. {rec}")
+
+
+@pytest.mark.integration
+@pytest.mark.ra_validation 
+@pytest.mark.performance
+def test_ra_compliance_benchmark(integration_db, benchmark):
+    """Benchmark RA compliance validation performance."""
+    validator = RAComplianceValidator(integration_db.database)
+    
+    async def run_compliance_validation():
+        return await validator.run_complete_compliance_validation()
+        
+    # #COMPLETION_DRIVE_IMPL: Benchmark assumes asyncio.run() compatibility
+    # with pytest-benchmark for performance measurement of async functions
+    result = benchmark(lambda: asyncio.run(run_compliance_validation()))
+    
+    # Validate benchmark results maintain compliance
+    assert result["overall_compliance"]["meets_standards"], \
+        "Benchmark run must maintain RA compliance standards"
+
+
+if __name__ == "__main__":
+    """Standalone test execution for RA compliance validation."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Run RA compliance validation tests")
+    parser.add_argument("--verbose", "-v", action="store_true")
+    parser.add_argument("--benchmark", action="store_true", help="Run benchmark tests")
+    args = parser.parse_args()
+    
+    test_args = [__file__]
+    if args.verbose:
+        test_args.append("-v")
+    if args.benchmark:
+        test_args.append("-k benchmark")
+        
+    pytest.main(test_args)

@@ -809,24 +809,19 @@ class TestCompleteTaskLifecycleIntegration:
         # Setup test project file
         project_file = tmp_path / "integration-project.yaml"
         project_file.write_text("""
-project_name: "Integration Test Project"
-description: "End-to-end integration testing project"
-
-epics:
-  - name: "Test Epic"
-    description: "Epic for integration testing"
-    stories:
-      - name: "Test Story"
-        description: "Story for integration testing"
+projects:
+  - name: "Integration Test Project"
+    description: "End-to-end integration testing project"
+    epics:
+      - name: "Test Epic"
+        description: "Epic for integration testing"
         tasks:
           - name: "Integration Task 1"
             description: "First integration test task"
-          - name: "Integration Task 2"  
+          - name: "Integration Task 2"
             description: "Second integration test task"
-            
-standalone_tasks:
-  - name: "Standalone Integration Task"
-    description: "Standalone task for integration testing"
+          - name: "Standalone Integration Task"
+            description: "Standalone task for integration testing"
 """)
         
         # Create temporary database
@@ -838,7 +833,9 @@ standalone_tasks:
             import_result = import_project_from_file(test_database, str(project_file))
             
             assert len(import_result["errors"]) == 0, f"Project import had errors: {import_result['errors']}"
-            assert import_result["tasks_created"] >= 3, "Should create at least 3 tasks"
+            assert import_result["projects_created"] == 1, "Should create 1 project"
+            assert import_result["epics_created"] == 1, "Should create 1 epic"
+            assert import_result["tasks_created"] == 3, "Should create 3 tasks"
             
             # Setup WebSocket event capture
             websocket_manager = ConnectionManager()

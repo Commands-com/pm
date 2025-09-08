@@ -142,7 +142,7 @@
             border-radius: 8px;
             padding: 0.875rem;
             margin-bottom: 0.75rem;
-            cursor: move;
+            cursor: pointer; /* Changed from move to pointer for modal interaction */
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
@@ -167,6 +167,121 @@
             cursor: not-allowed;
         }
         
+        /* #COMPLETION_DRIVE_RA: RA indicator styles for complexity scoring and mode display
+           Assumption: Color coding follows accessibility guidelines and provides clear visual hierarchy */
+        .complexity-badge {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 0.75rem;
+            line-height: 1.2;
+            margin-right: 0.5rem;
+        }
+
+        .score-1-3 { background-color: #10b981; color: white; } /* Green - Simple */
+        .score-4-6 { background-color: #f59e0b; color: white; } /* Yellow - Standard */  
+        .score-7-8 { background-color: #ef4444; color: white; } /* Red - RA-Light */
+        .score-9-10 { background-color: #7c3aed; color: white; } /* Purple - RA-Full */
+
+        .mode-badge {
+            display: inline-block;
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 8px;
+            text-transform: uppercase;
+            font-weight: 500;
+            letter-spacing: 0.025em;
+        }
+
+        .mode-badge.simple { background-color: #dcfce7; color: #166534; }
+        .mode-badge.standard { background-color: #fef3c7; color: #92400e; }
+        .mode-badge.ra-light { background-color: #fecaca; color: #991b1b; }
+        .mode-badge.ra-full { background-color: #e9d5ff; color: #6b21a8; }
+
+        /* #COMPLETION_DRIVE_RA: RA tag summary and project context indicators
+           Assumption: Compact display maintains card readability while showing essential RA context */
+        .ra-tags-summary {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin: 0.25rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .ra-tag-count {
+            background-color: #f1f5f9;
+            padding: 0.125rem 0.375rem;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .project-breadcrumb {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .breadcrumb-separator {
+            margin: 0 0.25rem;
+            color: #cbd5e1;
+        }
+
+        .dependencies-count {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.65rem;
+            color: #6366f1;
+            background-color: #eef2ff;
+            padding: 0.125rem 0.375rem;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .verification-status {
+            display: inline-block;
+            font-size: 0.65rem;
+            padding: 0.125rem 0.375rem;
+            border-radius: 6px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .verification-status.pending { background-color: #fef3c7; color: #92400e; }
+        .verification-status.in_progress { background-color: #dbeafe; color: #1e40af; }
+        .verification-status.review { background-color: #fecaca; color: #991b1b; }
+        .verification-status.done { background-color: #dcfce7; color: #166534; }
+
+        /* #COMPLETION_DRIVE_UX: Adaptive scoring display for predicted vs actual complexity
+           Assumption: Side-by-side display makes comparison clear without overwhelming card */
+        .adaptive-scoring {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin: 0.25rem 0;
+        }
+
+        .score-comparison {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .score-arrow {
+            color: #cbd5e1;
+        }
+
+        .task-indicators {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.375rem;
+            align-items: center;
+            margin: 0.5rem 0 0.25rem 0;
+        }
+
         .task-title {
             font-weight: 600;
             color: #1e293b;
@@ -261,6 +376,637 @@
                 transform: rotate(360deg);
             }
         }
+        
+        /* #COMPLETION_DRIVE_MODAL: Modal styling with responsive design and accessibility
+           Assumption: Modal follows Material Design principles with proper z-index layering */
+        .task-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(2px);
+        }
+        
+        .task-modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90vw;
+            max-width: 1000px;
+            height: 80vh;
+            max-height: 800px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid #e5e5e5;
+            background-color: #f8fafc;
+        }
+        
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .modal-close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0.25rem;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            line-height: 1;
+            min-width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-close-btn:hover {
+            background-color: #f1f5f9;
+            color: #374151;
+        }
+        
+        /* #COMPLETION_DRIVE_TABS: Tab navigation with visual state indicators
+           Assumption: Active tab indicator provides clear visual feedback */
+        .modal-tabs {
+            display: flex;
+            border-bottom: 2px solid #e5e5e5;
+            background-color: white;
+            overflow-x: auto;
+        }
+        
+        .modal-tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+            color: #64748b;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        
+        .modal-tab:hover {
+            color: #374151;
+            background-color: #f8fafc;
+        }
+        
+        .modal-tab.active {
+            border-bottom-color: #3b82f6;
+            color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        
+        .modal-content-area {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* #COMPLETION_DRIVE_TABS: Tab content with consistent spacing and scrollable areas
+           Assumption: Each tab needs its own scrolling behavior */
+        .tab-content {
+            display: none;
+            height: 100%;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Overview Tab Styles */
+        .overview-sections {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            height: fit-content;
+        }
+        
+        .task-description {
+            background: #f8fafc;
+            padding: 1.25rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+        
+        .task-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .metric-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .metric-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+        
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .overview-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .task-breadcrumb-full {
+            background: #f1f5f9;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+            font-size: 0.875rem;
+        }
+        
+        .task-timestamps {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        .timestamp-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .timestamp-label {
+            color: #64748b;
+            font-weight: 500;
+        }
+        
+        .timestamp-value {
+            color: #1e293b;
+        }
+        
+        .task-status-info {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        /* RA Tags Tab Styles */
+        .ra-tags-header {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .tags-search-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+        
+        .tags-search-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            ring: 2px solid rgba(59, 130, 246, 0.1);
+        }
+        
+        .tags-category-filter {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .category-filter-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .category-filter-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        .ra-tags-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .ra-tag-category {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .ra-tag-category-header {
+            background: #f8fafc;
+            padding: 1rem;
+            font-weight: 600;
+            color: #1e293b;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .ra-tag-list {
+            padding: 1rem;
+        }
+        
+        .ra-tag-item {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 0.875rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .ra-tag-name {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        
+        .ra-tag-description {
+            color: #64748b;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+        
+        /* Execution Log Tab Styles */
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .log-filters {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .log-filter-select {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            background: white;
+        }
+        
+        .log-refresh-btn {
+            padding: 0.5rem 1rem;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background-color 0.2s ease;
+        }
+        
+        .log-refresh-btn:hover {
+            background: #2563eb;
+        }
+        
+        .log-pagination {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .pagination-btn {
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .execution-log-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .log-entry {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 1rem;
+            border-left: 4px solid #e5e7eb;
+        }
+        
+        .log-entry.prompt {
+            border-left-color: #3b82f6;
+        }
+        
+        .log-entry.ra_tag {
+            border-left-color: #f59e0b;
+        }
+        
+        .log-entry.status {
+            border-left-color: #10b981;
+        }
+        
+        .log-entry.update {
+            border-left-color: #8b5cf6;
+        }
+        
+        .log-entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .log-entry-type {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.025em;
+        }
+        
+        .log-entry-type.prompt {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .log-entry-type.ra_tag {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .log-entry-type.status {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .log-entry-type.update {
+            background: #e9d5ff;
+            color: #6b21a8;
+        }
+        
+        .log-entry-timestamp {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+        
+        .log-entry-content {
+            font-size: 0.875rem;
+            line-height: 1.5;
+            color: #374151;
+        }
+        
+        /* System Prompt Tab Styles */
+        .prompt-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .prompt-version {
+            font-size: 0.875rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+        
+        .prompt-copy-btn {
+            padding: 0.5rem 1rem;
+            background: #6b7280;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background-color 0.2s ease;
+        }
+        
+        .prompt-copy-btn:hover {
+            background: #4b5563;
+        }
+        
+        .system-prompt-container {
+            background: #1e293b;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .system-prompt-content {
+            color: #e2e8f0;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.8125rem;
+            line-height: 1.5;
+            padding: 1.25rem;
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        /* Dependencies Tab Styles */
+        .dependency-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .dependency-stat {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .dependencies-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .dependency-item {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .dependency-item:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+        }
+        
+        .dependency-info {
+            flex: 1;
+        }
+        
+        .dependency-name {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+        
+        .dependency-id {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+        
+        .dependency-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .dependency-status.todo {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .dependency-status.in_progress {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .dependency-status.review {
+            background: #fecaca;
+            color: #991b1b;
+        }
+        
+        .dependency-status.done {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        /* Loading State */
+        .modal-loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        
+        .modal-loading .spinner {
+            width: 32px;
+            height: 32px;
+            margin-bottom: 1rem;
+        }
+        
+        /* #SUGGEST_RESPONSIVE: Mobile responsiveness for modal interface
+           Complex tabbed interface may need different layout on mobile */
+        @media (max-width: 768px) {
+            .task-modal-content {
+                width: 95vw;
+                height: 90vh;
+                margin: 1rem;
+            }
+            
+            .overview-sections {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-tabs {
+                overflow-x: scroll;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+            }
+            
+            .modal-tabs::-webkit-scrollbar {
+                display: none;
+            }
+            
+            .ra-tags-header {
+                flex-direction: column;
+            }
+            
+            .log-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
     </style>
 </head>
 <body>
@@ -332,6 +1078,93 @@
             </div>
         </div>
     </main>
+    
+    <!-- #COMPLETION_DRIVE_MODAL: Task Detail Modal with comprehensive RA data display
+         Assumption: Modal follows standard UX patterns with backdrop close and tab navigation -->
+    <div id="taskDetailModal" class="task-modal" style="display: none;">
+        <div class="task-modal-content">
+            <div class="modal-header">
+                <h2 id="modalTaskTitle" class="modal-title">Task Details</h2>
+                <button id="modalCloseBtn" class="modal-close-btn" aria-label="Close Modal">&times;</button>
+            </div>
+            
+            <div class="modal-tabs">
+                <button class="modal-tab active" data-tab="overview">Overview</button>
+                <button class="modal-tab" data-tab="ra-tags">RA Tags</button>
+                <button class="modal-tab" data-tab="execution-log">Execution Log</button>
+                <button class="modal-tab" data-tab="system-prompt">System Prompt</button>
+                <button class="modal-tab" data-tab="dependencies">Dependencies</button>
+            </div>
+            
+            <div class="modal-content-area">
+                <!-- Overview Tab -->
+                <div id="overview-tab" class="tab-content active">
+                    <div class="overview-sections">
+                        <div class="overview-main">
+                            <div id="taskDescription" class="task-description"></div>
+                            <div id="taskMetrics" class="task-metrics"></div>
+                        </div>
+                        <div class="overview-sidebar">
+                            <div id="taskBreadcrumb" class="task-breadcrumb-full"></div>
+                            <div id="taskTimestamps" class="task-timestamps"></div>
+                            <div id="taskStatus" class="task-status-info"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- RA Tags Tab -->
+                <div id="ra-tags-tab" class="tab-content">
+                    <div class="ra-tags-header">
+                        <input type="text" id="tagsSearchInput" placeholder="Search tags..." class="tags-search-input">
+                        <div id="tagsCategoryFilter" class="tags-category-filter"></div>
+                    </div>
+                    <div id="raTagsContainer" class="ra-tags-container"></div>
+                </div>
+                
+                <!-- Execution Log Tab -->
+                <div id="execution-log-tab" class="tab-content">
+                    <div class="log-header">
+                        <div class="log-filters">
+                            <select id="logTypeFilter" class="log-filter-select">
+                                <option value="all">All Types</option>
+                                <option value="prompt">Prompts</option>
+                                <option value="ra_tag">RA Tags</option>
+                                <option value="status">Status Updates</option>
+                                <option value="update">Updates</option>
+                            </select>
+                            <button id="logRefreshBtn" class="log-refresh-btn">Refresh</button>
+                        </div>
+                        <div id="logPagination" class="log-pagination"></div>
+                    </div>
+                    <div id="executionLogContainer" class="execution-log-container"></div>
+                </div>
+                
+                <!-- System Prompt Tab -->
+                <div id="system-prompt-tab" class="tab-content">
+                    <div class="prompt-header">
+                        <div id="promptVersion" class="prompt-version"></div>
+                        <button id="promptCopyBtn" class="prompt-copy-btn">Copy to Clipboard</button>
+                    </div>
+                    <div id="systemPromptContainer" class="system-prompt-container">
+                        <pre id="systemPromptContent" class="system-prompt-content"></pre>
+                    </div>
+                </div>
+                
+                <!-- Dependencies Tab -->
+                <div id="dependencies-tab" class="tab-content">
+                    <div class="dependencies-stats">
+                        <div id="dependencyStats" class="dependency-stats"></div>
+                    </div>
+                    <div id="dependenciesContainer" class="dependencies-container"></div>
+                </div>
+            </div>
+            
+            <div class="modal-loading" id="modalLoading" style="display: none;">
+                <div class="spinner"></div>
+                <span>Loading task details...</span>
+            </div>
+        </div>
+    </div>
     
     <script>
         // #COMPLETION_DRIVE_ARCHITECTURE: Global state management for WebSocket and UI
@@ -452,8 +1285,8 @@
             }
         }
         
-        // #COMPLETION_DRIVE_REALTIME: Handle real-time updates from WebSocket
-        // Pattern: Event-driven updates maintain UI consistency across clients
+        // #COMPLETION_DRIVE_REALTIME: Handle real-time updates from WebSocket with enriched payloads
+        // Pattern: Event-driven updates maintain UI consistency across clients with enhanced payload support
         function handleRealtimeUpdate(data) {
             console.log('Processing real-time update:', data);
             
@@ -466,6 +1299,15 @@
                     break;
                 case 'task.unlocked':
                     handleTaskUnlocked(data);
+                    break;
+                case 'task.created':
+                    handleTaskCreated(data);
+                    break;
+                case 'task.updated':
+                    handleTaskUpdated(data);
+                    break;
+                case 'task.logs.appended':
+                    handleTaskLogsAppended(data);
                     break;
                 default:
                     console.log('Unknown event type:', data.type);
@@ -518,6 +1360,148 @@
             }
         }
         
+        // #COMPLETION_DRIVE_IMPL: Enhanced event handlers for enriched WebSocket payloads
+        // New event types support auto-switch functionality and comprehensive real-time updates
+        
+        function handleTaskCreated(data) {
+            console.log('Task created event received:', data);
+            
+            // #COMPLETION_DRIVE_INTEGRATION: Extract enriched task data from event payload
+            const enrichedData = data.data || data;
+            const taskData = enrichedData.task;
+            const projectData = enrichedData.project;
+            const epicData = enrichedData.epic;
+            const flags = enrichedData.flags || {};
+            const initiator = enrichedData.initiator;
+            
+            if (taskData) {
+                // Create task object compatible with existing UI structure
+                const task = {
+                    id: taskData.id,
+                    name: taskData.name,
+                    description: taskData.description,
+                    status: taskData.status || 'TODO',
+                    ra_score: taskData.ra_score,
+                    ra_mode: taskData.ra_mode,
+                    complexity_score: taskData.ra_score || taskData.complexity_score, // Alias for UI compatibility
+                    mode_used: taskData.ra_mode || taskData.mode_used, // Alias for UI compatibility
+                    estimated_hours: taskData.ra_metadata?.estimated_hours || 'N/A', // Extract from ra_metadata
+                    created_at: taskData.created_at,
+                    updated_at: taskData.updated_at,
+                    project_name: projectData ? projectData.name : null,
+                    epic_name: epicData ? epicData.name : null
+                };
+                
+                // Add task to state and render
+                AppState.tasks.set(String(task.id), task);
+                renderTask(task);
+                updateTaskCounts();
+                
+                // #COMPLETION_DRIVE_INTEGRATION: Auto-switch logic for dashboard clients
+                // Check if this event should trigger auto-switch behavior
+                if (enrichedData.auto_switch_recommended && initiator) {
+                    // #SUGGEST_EDGE_CASE: Implement session-based auto-switch logic
+                    // For now, show notification about new task creation
+                    let switchMessage = `New task created: ${task.name}`;
+                    
+                    if (flags.project_created) {
+                        switchMessage += ` (new project: ${projectData?.name})`;
+                    }
+                    if (flags.epic_created) {
+                        switchMessage += ` (new epic: ${epicData?.name})`;
+                    }
+                    
+                    showNotification(switchMessage, 'success', 5000);
+                }
+            }
+        }
+        
+        function handleTaskUpdated(data) {
+            console.log('Task updated event received:', data);
+            
+            // #COMPLETION_DRIVE_INTEGRATION: Extract enriched update data from event payload
+            const enrichedData = data.data || data;
+            const taskData = enrichedData.task;
+            const changedFields = enrichedData.changed_fields || [];
+            const fieldChanges = enrichedData.field_changes || {};
+            
+            if (taskData && taskData.id) {
+                const taskId = String(taskData.id);
+                
+                // Skip update if user has pending operation to avoid conflicts
+                if (AppState.pendingUpdates.has(taskId)) {
+                    console.log('Skipping remote task update due to pending local update');
+                    return;
+                }
+                
+                // Get existing task or create new one
+                let task = AppState.tasks.get(taskId) || {};
+                
+                // Update task with enriched data
+                Object.assign(task, {
+                    id: taskData.id,
+                    name: taskData.name,
+                    description: taskData.description,
+                    status: taskData.status,
+                    ra_score: taskData.ra_score,
+                    ra_mode: taskData.ra_mode,
+                    complexity_score: taskData.ra_score || taskData.complexity_score, // UI compatibility
+                    mode_used: taskData.ra_mode || taskData.mode_used, // UI compatibility
+                    estimated_hours: taskData.ra_metadata?.estimated_hours || 'N/A', // Extract from ra_metadata
+                    created_at: taskData.created_at,
+                    updated_at: taskData.updated_at,
+                    project_name: enrichedData.project ? enrichedData.project.name : task.project_name,
+                    epic_name: enrichedData.epic ? enrichedData.epic.name : task.epic_name
+                });
+                
+                // Update state and render
+                AppState.tasks.set(taskId, task);
+                renderTask(task);
+                updateTaskCounts();
+                
+                // Show notification about significant changes
+                if (changedFields.includes('status')) {
+                    const statusChange = fieldChanges.status;
+                    if (statusChange) {
+                        showNotification(`Task "${task.name}" moved to ${statusChange.new}`, 'info');
+                    }
+                }
+                
+                // Update task detail modal if it's currently showing this task
+                if (taskDetailModal && taskDetailModal.currentTask && 
+                    taskDetailModal.currentTask.id == taskData.id) {
+                    // #SUGGEST_EDGE_CASE: Consider refreshing modal data for real-time updates
+                    console.log('Task detail modal is open for updated task - consider refreshing');
+                }
+            }
+        }
+        
+        function handleTaskLogsAppended(data) {
+            console.log('Task logs appended event received:', data);
+            
+            // #COMPLETION_DRIVE_IMPL: Handle real-time log updates for task detail modal
+            const logsData = data.data || data;
+            const taskId = logsData.task_id;
+            const logEntries = logsData.log_entries || [];
+            
+            // If task detail modal is open for this task, update the logs
+            if (taskDetailModal && taskDetailModal.currentTask && 
+                taskDetailModal.currentTask.id == taskId &&
+                taskDetailModal.activeTab === 'execution-log') {
+                
+                // #SUGGEST_IMPLEMENTATION: Real-time log appending in modal
+                // For now, show notification about new log entries
+                showNotification(`${logEntries.length} new log entr${logEntries.length === 1 ? 'y' : 'ies'} added`, 'info');
+                
+                // Optional: Auto-refresh logs in modal
+                setTimeout(() => {
+                    if (taskDetailModal.currentTask && taskDetailModal.currentTask.id == taskId) {
+                        taskDetailModal.refreshExecutionLogs();
+                    }
+                }, 500);
+            }
+        }
+        
         // #COMPLETION_DRIVE_INIT: Load initial board state from API
         // Pattern: Fetch complete state on page load, then maintain via WebSocket
         async function loadBoardState() {
@@ -567,8 +1551,25 @@
             AppState.tasks.forEach(task => renderTask(task));
         }
         
+        // Status mapping between database vocabulary and UI vocabulary
+        function mapDatabaseStatusToUI(dbStatus) {
+            const statusMap = {
+                'pending': 'todo',
+                'in_progress': 'in_progress',
+                'review': 'review', 
+                'completed': 'done',
+                'blocked': 'todo', // Blocked tasks appear in TODO for now
+                'todo': 'todo', // Handle UI status format
+                'done': 'done'  // Handle UI status format
+            };
+            const normalizedStatus = (dbStatus || 'pending').toLowerCase().trim();
+            return statusMap[normalizedStatus] || 'todo'; // Default to todo for unknown statuses
+        }
+
+        // #COMPLETION_DRIVE_RA: Enhanced task rendering with RA indicators and project context
+        // Assumption: Task object contains RA-related fields (complexity_score, mode_used, ra_tags, etc.)
         function renderTask(task) {
-            const statusKey = task.status.toLowerCase().replace(' ', '_');
+            const statusKey = mapDatabaseStatusToUI(task.status.toLowerCase());
             const container = document.getElementById(`${statusKey}-tasks`);
             
             if (!container) {
@@ -589,23 +1590,923 @@
             taskElement.draggable = !task.lock_holder; // Only draggable if not locked
             taskElement.dataset.taskId = task.id;
             
-            // #COMPLETION_DRIVE_UI: Task card content with metadata display
-            // Pattern: Show relevant information for task management context
+            // Add click handler for task details modal
+            taskElement.addEventListener('click', function(e) {
+                // Prevent click during drag operations
+                if (e.target.closest('.task-card').classList.contains('dragging')) {
+                    return;
+                }
+                openTaskDetailModal(task);
+            });
+            
+            // Build RA indicators
+            const raIndicators = buildRAIndicators(task);
+            const projectBreadcrumb = buildProjectBreadcrumb(task);
+            const taskMeta = buildTaskMeta(task);
+            
+            taskElement.innerHTML = `
+                ${projectBreadcrumb}
+                <div class="task-title">${escapeHtml(task.name || 'Untitled Task')}</div>
+                ${raIndicators}
+                ${taskMeta}
+            `;
+            
+            container.appendChild(taskElement);
+        }
+        
+        // #COMPLETION_DRIVE_RA: Build RA indicator elements with graceful degradation
+        // Assumption: Missing RA data should not break the UI - show what's available
+        function buildRAIndicators(task) {
+            let indicators = [];
+            
+            // Complexity score badge
+            if (task.ra_score) {
+                const score = parseInt(task.ra_score);
+                let scoreClass = 'score-1-3'; // Default to simple
+                if (score >= 9) scoreClass = 'score-9-10';
+                else if (score >= 7) scoreClass = 'score-7-8';
+                else if (score >= 4) scoreClass = 'score-4-6';
+                
+                indicators.push(`<span class="complexity-badge ${scoreClass}">${score}</span>`);
+            }
+            
+            // Mode badge
+            if (task.ra_mode) {
+                const mode = task.ra_mode.toLowerCase().replace('-', '-');
+                indicators.push(`<span class="mode-badge ${mode}">${task.ra_mode}</span>`);
+            }
+            
+            // Dependencies count
+            if (task.dependencies_count && task.dependencies_count > 0) {
+                indicators.push(`<span class="dependencies-count">⚡ ${task.dependencies_count} deps</span>`);
+            }
+            
+            // Verification status
+            if (task.verification_status) {
+                const status = task.verification_status.toLowerCase();
+                indicators.push(`<span class="verification-status ${status}">${task.verification_status}</span>`);
+            }
+            
+            // RA tags summary
+            if (task.ra_tags && task.ra_tags.length > 0) {
+                const tagSummary = buildRATagsSummary(task.ra_tags);
+                indicators.push(`<div class="ra-tags-summary">${tagSummary}</div>`);
+            }
+            
+            // Adaptive scoring (predicted vs actual)
+            if (task.predicted_complexity && task.complexity_score && 
+                task.predicted_complexity !== task.complexity_score) {
+                const adaptiveScore = `
+                    <div class="adaptive-scoring">
+                        <span class="score-comparison">
+                            Predicted: ${task.predicted_complexity} 
+                            <span class="score-arrow">→</span> 
+                            Actual: ${task.complexity_score}
+                        </span>
+                    </div>
+                `;
+                indicators.push(adaptiveScore);
+            }
+            
+            return indicators.length > 0 ? `<div class="task-indicators">${indicators.join('')}</div>` : '';
+        }
+        
+        // #COMPLETION_DRIVE_RA: Build RA tags summary with category breakdown
+        // Assumption: RA tags are objects with 'category' and 'count' or simple array of tag objects
+        function buildRATagsSummary(raTags) {
+            if (!raTags || raTags.length === 0) return '';
+            
+            // Count tags by category (simplified approach for now)
+            let totalTags = Array.isArray(raTags) ? raTags.length : 0;
+            let implTags = 0;
+            let suggestTags = 0;
+            
+            // If tags have category information, count them
+            if (Array.isArray(raTags)) {
+                raTags.forEach(tag => {
+                    if (typeof tag === 'object' && tag.category) {
+                        if (tag.category.includes('IMPL') || tag.category.includes('COMPLETION_DRIVE')) {
+                            implTags++;
+                        } else if (tag.category.includes('SUGGEST')) {
+                            suggestTags++;
+                        }
+                    }
+                });
+            }
+            
+            let summary = `<span class="ra-tag-count">${totalTags} tags</span>`;
+            
+            if (implTags > 0 || suggestTags > 0) {
+                const breakdown = [];
+                if (implTags > 0) breakdown.push(`${implTags} impl`);
+                if (suggestTags > 0) breakdown.push(`${suggestTags} suggest`);
+                summary += ` <span style="font-size: 0.65rem;">(${breakdown.join(', ')})</span>`;
+            }
+            
+            return summary;
+        }
+        
+        // #COMPLETION_DRIVE_UX: Build project breadcrumb navigation context
+        // Assumption: Task object may contain project_name and epic_name fields
+        function buildProjectBreadcrumb(task) {
+            if (!task.project_name && !task.epic_name) return '';
+            
+            const parts = [];
+            if (task.project_name) parts.push(escapeHtml(task.project_name));
+            if (task.epic_name) parts.push(escapeHtml(task.epic_name));
+            
+            if (parts.length === 0) return '';
+            
+            return `
+                <div class="project-breadcrumb">
+                    ${parts.join('<span class="breadcrumb-separator">→</span>')}
+                </div>
+            `;
+        }
+        
+        // #COMPLETION_DRIVE_UX: Build task metadata section with existing agent/lock info
+        // Pattern: Maintain existing functionality while adding RA context
+        function buildTaskMeta(task) {
             const lockInfo = task.lock_holder ? 
                 `<span class="task-locked-info">🔒 ${task.lock_holder}</span>` : '';
             
             const agentInfo = task.agent_id ? 
                 `<span class="task-agent">${task.agent_id}</span>` : '';
             
-            taskElement.innerHTML = `
-                <div class="task-title">${escapeHtml(task.name || 'Untitled Task')}</div>
+            return `
                 <div class="task-meta">
                     <span>${agentInfo}</span>
                     <span>${lockInfo}</span>
                 </div>
             `;
+        }
+        
+        // #COMPLETION_DRIVE_MODAL: Comprehensive task detail modal with tabbed interface and RA data integration
+        // Assumption: Modal handles all data loading states and provides complete RA information display
+        class TaskDetailModal {
+            constructor() {
+                this.modal = document.getElementById('taskDetailModal');
+                this.currentTask = null;
+                this.currentTaskData = null;
+                this.activeTab = 'overview';
+                this.logCursor = null;
+                this.filteredLogs = [];
+                this.isLoading = false;
+                
+                this.initializeEventListeners();
+            }
             
-            container.appendChild(taskElement);
+            initializeEventListeners() {
+                // Close button and backdrop click
+                const closeBtn = document.getElementById('modalCloseBtn');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => this.close());
+                }
+                
+                // #COMPLETION_DRIVE_UX: Backdrop click closes modal (standard UX pattern)
+                this.modal.addEventListener('click', (e) => {
+                    if (e.target === this.modal) {
+                        this.close();
+                    }
+                });
+                
+                // Escape key closes modal
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && this.modal.style.display === 'flex') {
+                        this.close();
+                    }
+                });
+                
+                // Tab navigation
+                const tabs = document.querySelectorAll('.modal-tab');
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', (e) => {
+                        const tabName = e.target.dataset.tab;
+                        this.switchTab(tabName);
+                    });
+                });
+                
+                // Log refresh button
+                const logRefreshBtn = document.getElementById('logRefreshBtn');
+                if (logRefreshBtn) {
+                    logRefreshBtn.addEventListener('click', () => {
+                        if (this.currentTask) {
+                            this.refreshExecutionLogs();
+                        }
+                    });
+                }
+                
+                // Log type filter
+                const logTypeFilter = document.getElementById('logTypeFilter');
+                if (logTypeFilter) {
+                    logTypeFilter.addEventListener('change', () => {
+                        this.filterLogs();
+                    });
+                }
+                
+                // RA tags search
+                const tagsSearchInput = document.getElementById('tagsSearchInput');
+                if (tagsSearchInput) {
+                    tagsSearchInput.addEventListener('input', () => {
+                        this.filterRATags();
+                    });
+                }
+                
+                // System prompt copy button
+                const promptCopyBtn = document.getElementById('promptCopyBtn');
+                if (promptCopyBtn) {
+                    promptCopyBtn.addEventListener('click', () => {
+                        this.copySystemPrompt();
+                    });
+                }
+            }
+            
+            async open(task) {
+                if (this.isLoading) return;
+                
+                this.currentTask = task;
+                this.currentTaskData = null;
+                this.modal.style.display = 'flex';
+                
+                // Set basic title immediately
+                const titleElement = document.getElementById('modalTaskTitle');
+                if (titleElement) {
+                    titleElement.textContent = task.name || 'Task Details';
+                }
+                
+                // Show loading state
+                this.showLoading();
+                
+                try {
+                    // #COMPLETION_DRIVE_INTEGRATION: Load comprehensive task details from MCP tool
+                    // Assumption: get_task_details provides all required data fields
+                    await this.loadTaskDetails(task.id);
+                    
+                    // Hide loading and show content
+                    this.hideLoading();
+                    
+                    // Initialize all tabs with loaded data
+                    this.initializeAllTabs();
+                    
+                } catch (error) {
+                    console.error('Failed to load task details:', error);
+                    this.hideLoading();
+                    this.showError('Failed to load task details');
+                }
+            }
+            
+            close() {
+                this.modal.style.display = 'none';
+                this.currentTask = null;
+                this.currentTaskData = null;
+                this.activeTab = 'overview';
+                this.logCursor = null;
+                this.filteredLogs = [];
+                
+                // Reset tab state
+                this.switchTab('overview');
+            }
+            
+            showLoading() {
+                this.isLoading = true;
+                const loadingElement = document.getElementById('modalLoading');
+                if (loadingElement) {
+                    loadingElement.style.display = 'flex';
+                }
+            }
+            
+            hideLoading() {
+                this.isLoading = false;
+                const loadingElement = document.getElementById('modalLoading');
+                if (loadingElement) {
+                    loadingElement.style.display = 'none';
+                }
+            }
+            
+            showError(message) {
+                // Clear all tab content and show error
+                const contentArea = document.querySelector('.modal-content-area');
+                if (contentArea) {
+                    contentArea.innerHTML = `
+                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ef4444;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 2rem; margin-bottom: 1rem;">⚠️</div>
+                                <div style="font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem;">Error Loading Task</div>
+                                <div style="color: #64748b;">${escapeHtml(message)}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            async loadTaskDetails(taskId) {
+                try {
+                    // #COMPLETION_DRIVE_INTEGRATION: Fetch task details from backend via API
+                    // Pattern: Use REST API for MCP tool integration
+                    const response = await fetch('/api/task/details', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            task_id: String(taskId),
+                            log_limit: 100
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    // #SUGGEST_ERROR_HANDLING: Handle MCP tool error responses gracefully
+                    if (result.error) {
+                        throw new Error(result.error.message || 'Unknown error occurred');
+                    }
+                    
+                    // Parse the MCP tool response (it returns JSON string)
+                    if (typeof result.result === 'string') {
+                        this.currentTaskData = JSON.parse(result.result);
+                    } else {
+                        this.currentTaskData = result.result;
+                    }
+                    
+                    console.log('Loaded task details:', this.currentTaskData);
+                    
+                } catch (error) {
+                    console.error('Error loading task details:', error);
+                    throw error;
+                }
+            }
+            
+            initializeAllTabs() {
+                this.populateOverviewTab();
+                this.populateRATagsTab();
+                this.populateExecutionLogTab();
+                this.populateSystemPromptTab();
+                this.populateDependenciesTab();
+            }
+            
+            switchTab(tabName) {
+                // Update active tab
+                this.activeTab = tabName;
+                
+                // Update tab buttons
+                document.querySelectorAll('.modal-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                    if (tab.dataset.tab === tabName) {
+                        tab.classList.add('active');
+                    }
+                });
+                
+                // Update tab content
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                
+                const activeContent = document.getElementById(`${tabName}-tab`);
+                if (activeContent) {
+                    activeContent.classList.add('active');
+                }
+            }
+            
+            // #COMPLETION_DRIVE_IMPL: Overview tab population with complete task details and RA metadata
+            // Assumption: Task data includes all RA fields and project context from MCP tool
+            populateOverviewTab() {
+                if (!this.currentTaskData) return;
+                
+                const task = this.currentTaskData.task;
+                const project = this.currentTaskData.project;
+                const epic = this.currentTaskData.epic;
+                
+                // Task description
+                const descriptionElement = document.getElementById('taskDescription');
+                if (descriptionElement) {
+                    descriptionElement.innerHTML = `
+                        <h3 style="margin-bottom: 1rem; color: #1e293b;">Description</h3>
+                        <p>${escapeHtml(task.description || 'No description available')}</p>
+                    `;
+                }
+                
+                // Task metrics
+                const metricsElement = document.getElementById('taskMetrics');
+                if (metricsElement) {
+                    const metrics = [
+                        { label: 'Complexity Score', value: (task.ra_score !== null && task.ra_score !== undefined) ? task.ra_score : 'N/A' },
+                        { label: 'Estimated Hours', value: (task.ra_metadata?.estimated_hours !== null && task.ra_metadata?.estimated_hours !== undefined) ? task.ra_metadata.estimated_hours : 'N/A' },
+                        { label: 'Mode Used', value: task.ra_mode || 'N/A' },
+                        { label: 'Current Status', value: task.status || 'Unknown' }
+                    ];
+                    
+                    metricsElement.innerHTML = metrics.map(metric => `
+                        <div class="metric-card">
+                            <div class="metric-label">${metric.label}</div>
+                            <div class="metric-value">${escapeHtml(String(metric.value))}</div>
+                        </div>
+                    `).join('');
+                }
+                
+                // Project breadcrumb
+                const breadcrumbElement = document.getElementById('taskBreadcrumb');
+                if (breadcrumbElement) {
+                    const breadcrumbParts = [];
+                    if (project && project.name) breadcrumbParts.push(project.name);
+                    if (epic && epic.name) breadcrumbParts.push(epic.name);
+                    breadcrumbParts.push(task.name);
+                    
+                    breadcrumbElement.innerHTML = `
+                        <h4 style="margin-bottom: 0.5rem; color: #1e293b;">Context</h4>
+                        <div style="font-size: 0.875rem;">${breadcrumbParts.map(p => escapeHtml(p)).join(' → ')}</div>
+                    `;
+                }
+                
+                // Timestamps
+                const timestampsElement = document.getElementById('taskTimestamps');
+                if (timestampsElement) {
+                    const timestamps = [
+                        { label: 'Created', value: this.formatTimestamp(task.created_at) },
+                        { label: 'Updated', value: this.formatTimestamp(task.updated_at) }
+                    ];
+                    
+                    if (task.started_at) {
+                        timestamps.push({ label: 'Started', value: this.formatTimestamp(task.started_at) });
+                    }
+                    
+                    if (task.completed_at) {
+                        timestamps.push({ label: 'Completed', value: this.formatTimestamp(task.completed_at) });
+                    }
+                    
+                    timestampsElement.innerHTML = `
+                        <h4 style="margin-bottom: 1rem; color: #1e293b;">Timeline</h4>
+                        ${timestamps.map(ts => `
+                            <div class="timestamp-row">
+                                <span class="timestamp-label">${ts.label}</span>
+                                <span class="timestamp-value">${ts.value}</span>
+                            </div>
+                        `).join('')}
+                    `;
+                }
+                
+                // Status info
+                const statusElement = document.getElementById('taskStatus');
+                if (statusElement) {
+                    const statusInfo = [];
+                    
+                    if (task.agent_id) {
+                        statusInfo.push(`<div><strong>Agent:</strong> ${escapeHtml(task.agent_id)}</div>`);
+                    }
+                    
+                    if (task.lock_holder) {
+                        statusInfo.push(`<div><strong>Locked by:</strong> ${escapeHtml(task.lock_holder)}</div>`);
+                    }
+                    
+                    if (task.verification_status) {
+                        statusInfo.push(`<div><strong>Verification:</strong> ${escapeHtml(task.verification_status)}</div>`);
+                    }
+                    
+                    statusElement.innerHTML = `
+                        <h4 style="margin-bottom: 1rem; color: #1e293b;">Status</h4>
+                        ${statusInfo.join('') || '<div style="color: #64748b;">No additional status information</div>'}
+                    `;
+                }
+            }
+            
+            // #COMPLETION_DRIVE_RA: RA Tags tab with categorized display and search functionality
+            // Assumption: RA tags are provided as array with category information
+            populateRATagsTab() {
+                if (!this.currentTaskData) return;
+                
+                const task = this.currentTaskData.task;
+                const raTags = task.ra_tags || [];
+                
+                // Category filter buttons
+                const categoryFilterElement = document.getElementById('tagsCategoryFilter');
+                if (categoryFilterElement) {
+                    const categories = ['All', ...new Set(raTags.map(tag => this.getTagCategory(tag)))];
+                    
+                    categoryFilterElement.innerHTML = categories.map(category => `
+                        <button class="category-filter-btn ${category === 'All' ? 'active' : ''}" 
+                                data-category="${category}">${category}</button>
+                    `).join('');
+                    
+                    // Add category filter event listeners
+                    categoryFilterElement.addEventListener('click', (e) => {
+                        if (e.target.classList.contains('category-filter-btn')) {
+                            // Update active button
+                            categoryFilterElement.querySelectorAll('.category-filter-btn').forEach(btn => {
+                                btn.classList.remove('active');
+                            });
+                            e.target.classList.add('active');
+                            
+                            this.filterRATags();
+                        }
+                    });
+                }
+                
+                this.displayRATags(raTags);
+            }
+            
+            displayRATags(tags) {
+                const containerElement = document.getElementById('raTagsContainer');
+                if (!containerElement) return;
+                
+                if (tags.length === 0) {
+                    containerElement.innerHTML = `
+                        <div style="text-align: center; color: #64748b; padding: 2rem;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">🏷️</div>
+                            <div>No RA tags found for this task</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Group tags by category
+                const categorizedTags = {};
+                tags.forEach(tag => {
+                    const category = this.getTagCategory(tag);
+                    if (!categorizedTags[category]) {
+                        categorizedTags[category] = [];
+                    }
+                    categorizedTags[category].push(tag);
+                });
+                
+                containerElement.innerHTML = Object.entries(categorizedTags).map(([category, categoryTags]) => `
+                    <div class="ra-tag-category">
+                        <div class="ra-tag-category-header">
+                            <span>${category}</span>
+                            <span style="font-weight: 400; font-size: 0.875rem; color: #64748b;">${categoryTags.length} tags</span>
+                        </div>
+                        <div class="ra-tag-list">
+                            ${categoryTags.map(tag => this.renderRATag(tag)).join('')}
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            renderRATag(tag) {
+                // #SUGGEST_ERROR_HANDLING: Handle different tag data formats gracefully
+                let tagName, tagDescription;
+                
+                if (typeof tag === 'object') {
+                    tagName = tag.name || tag.tag || 'Unknown Tag';
+                    tagDescription = tag.description || tag.content || 'No description';
+                } else {
+                    // Parse string format: "#TAG_NAME: Description"
+                    const tagString = String(tag);
+                    const colonIndex = tagString.indexOf(':');
+                    
+                    if (colonIndex !== -1) {
+                        tagName = tagString.substring(0, colonIndex).trim();
+                        tagDescription = tagString.substring(colonIndex + 1).trim();
+                    } else {
+                        tagName = tagString;
+                        tagDescription = 'No description';
+                    }
+                }
+                
+                return `
+                    <div class="ra-tag-item">
+                        <div class="ra-tag-name">${escapeHtml(tagName)}</div>
+                        <div class="ra-tag-description">${escapeHtml(tagDescription)}</div>
+                    </div>
+                `;
+            }
+            
+            getTagCategory(tag) {
+                const tagName = typeof tag === 'object' ? (tag.name || tag.tag || '') : String(tag);
+                
+                if (tagName.includes('COMPLETION_DRIVE')) return 'Completion Drive';
+                if (tagName.includes('SUGGEST')) return 'Suggestions';
+                if (tagName.includes('PATTERN')) return 'Pattern Recognition';
+                if (tagName.includes('CONTEXT')) return 'Context Issues';
+                if (tagName.includes('CARGO_CULT')) return 'Cargo Cult';
+                
+                return 'Other';
+            }
+            
+            filterRATags() {
+                if (!this.currentTaskData) return;
+                
+                const searchInput = document.getElementById('tagsSearchInput');
+                const activeCategory = document.querySelector('.category-filter-btn.active');
+                
+                const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+                const category = activeCategory ? activeCategory.dataset.category : 'All';
+                
+                let tags = this.currentTaskData.task.ra_tags || [];
+                
+                // Filter by category
+                if (category !== 'All') {
+                    tags = tags.filter(tag => this.getTagCategory(tag) === category);
+                }
+                
+                // Filter by search term
+                if (searchTerm) {
+                    tags = tags.filter(tag => {
+                        const tagName = typeof tag === 'object' ? (tag.name || tag.tag || '') : String(tag);
+                        const tagDescription = typeof tag === 'object' ? (tag.description || tag.content || '') : '';
+                        return tagName.toLowerCase().includes(searchTerm) || tagDescription.toLowerCase().includes(searchTerm);
+                    });
+                }
+                
+                this.displayRATags(tags);
+            }
+            
+            // #COMPLETION_DRIVE_IMPL: Execution Log tab with timeline display and filtering
+            // Assumption: Logs are provided in chronological order with different types
+            populateExecutionLogTab() {
+                if (!this.currentTaskData) return;
+                
+                const logs = this.currentTaskData.logs || [];
+                this.filteredLogs = [...logs]; // Initialize filtered logs
+                
+                this.displayExecutionLogs();
+                this.updateLogPagination();
+            }
+            
+            displayExecutionLogs() {
+                const containerElement = document.getElementById('executionLogContainer');
+                if (!containerElement) return;
+                
+                if (this.filteredLogs.length === 0) {
+                    containerElement.innerHTML = `
+                        <div style="text-align: center; color: #64748b; padding: 2rem;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+                            <div>No execution logs found</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                containerElement.innerHTML = this.filteredLogs.map(log => this.renderLogEntry(log)).join('');
+            }
+            
+            renderLogEntry(log) {
+                const logType = log.kind || log.type || 'update';
+                const timestamp = this.formatTimestamp(log.ts || log.timestamp || log.created_at);
+                
+                // Extract content from payload or other fields
+                let content = 'No content';
+                if (log.payload) {
+                    if (typeof log.payload === 'string') {
+                        content = log.payload;
+                    } else if (typeof log.payload === 'object') {
+                        // Format payload object for display
+                        if (log.payload.agent_action) {
+                            content = `Action: ${log.payload.agent_action}`;
+                            if (log.payload.original_parameters) {
+                                const params = log.payload.original_parameters;
+                                if (params.name) content += ` - Task: ${params.name}`;
+                                if (params.ra_mode) content += ` (${params.ra_mode})`;
+                                if (params.ra_score) content += ` [Score: ${params.ra_score}]`;
+                            }
+                        } else if (log.payload.prompt_snapshot) {
+                            content = 'System prompt snapshot captured';
+                        } else {
+                            content = JSON.stringify(log.payload, null, 2);
+                        }
+                    }
+                } else {
+                    content = log.content || log.message || log.data || 'No content';
+                }
+                
+                return `
+                    <div class="log-entry ${logType}">
+                        <div class="log-entry-header">
+                            <span class="log-entry-type ${logType}">${logType}</span>
+                            <span class="log-entry-timestamp">${timestamp}</span>
+                        </div>
+                        <div class="log-entry-content">${escapeHtml(content)}</div>
+                    </div>
+                `;
+            }
+            
+            filterLogs() {
+                if (!this.currentTaskData) return;
+                
+                const filterSelect = document.getElementById('logTypeFilter');
+                const filterValue = filterSelect ? filterSelect.value : 'all';
+                
+                const allLogs = this.currentTaskData.logs || [];
+                
+                if (filterValue === 'all') {
+                    this.filteredLogs = [...allLogs];
+                } else {
+                    this.filteredLogs = allLogs.filter(log => {
+                        const logType = log.kind || log.type || 'update';
+                        return logType === filterValue;
+                    });
+                }
+                
+                this.displayExecutionLogs();
+                this.updateLogPagination();
+            }
+            
+            updateLogPagination() {
+                const paginationElement = document.getElementById('logPagination');
+                if (paginationElement) {
+                    const pagination = this.currentTaskData.pagination || {};
+                    paginationElement.innerHTML = `
+                        <span style="font-size: 0.875rem; color: #64748b;">
+                            ${this.filteredLogs.length} entries
+                            ${pagination.has_more ? ' (more available)' : ''}
+                        </span>
+                        ${pagination.has_more ? `
+                            <button class="pagination-btn" onclick="taskDetailModal.loadMoreLogs()">Load More</button>
+                        ` : ''}
+                    `;
+                }
+            }
+            
+            async refreshExecutionLogs() {
+                if (!this.currentTask) return;
+                
+                try {
+                    this.showLoading();
+                    await this.loadTaskDetails(this.currentTask.id);
+                    this.hideLoading();
+                    this.populateExecutionLogTab();
+                } catch (error) {
+                    this.hideLoading();
+                    console.error('Failed to refresh logs:', error);
+                    showNotification('Failed to refresh logs', 'error');
+                }
+            }
+            
+            async loadMoreLogs() {
+                // #SUGGEST_EDGE_CASE: Implement pagination for large log histories
+                // This would require additional API calls with cursor-based pagination
+                console.log('Load more logs not yet implemented');
+                showNotification('Log pagination not yet implemented', 'info');
+            }
+            
+            // #COMPLETION_DRIVE_IMPL: System Prompt tab with syntax highlighting display
+            // Assumption: prompt_snapshot field contains the system prompt text
+            populateSystemPromptTab() {
+                if (!this.currentTaskData) return;
+                
+                const task = this.currentTaskData.task;
+                const promptSnapshot = task.prompt_snapshot || '';
+                
+                // Prompt version info
+                const versionElement = document.getElementById('promptVersion');
+                if (versionElement) {
+                    const versionInfo = task.prompt_version || 'Unknown Version';
+                    versionElement.textContent = `Version: ${versionInfo}`;
+                }
+                
+                // System prompt content
+                const contentElement = document.getElementById('systemPromptContent');
+                if (contentElement) {
+                    if (promptSnapshot) {
+                        contentElement.textContent = promptSnapshot;
+                    } else {
+                        contentElement.innerHTML = `<span style="color: #64748b; font-style: italic;">No system prompt available</span>`;
+                    }
+                }
+            }
+            
+            copySystemPrompt() {
+                const contentElement = document.getElementById('systemPromptContent');
+                if (contentElement && contentElement.textContent.trim()) {
+                    navigator.clipboard.writeText(contentElement.textContent).then(() => {
+                        showNotification('System prompt copied to clipboard', 'success');
+                    }).catch((error) => {
+                        console.error('Failed to copy prompt:', error);
+                        showNotification('Failed to copy prompt', 'error');
+                    });
+                } else {
+                    showNotification('No prompt to copy', 'info');
+                }
+            }
+            
+            // #COMPLETION_DRIVE_IMPL: Dependencies tab with task relationship visualization
+            // Assumption: Dependencies are resolved to task summaries with status information
+            populateDependenciesTab() {
+                if (!this.currentTaskData) return;
+                
+                const dependencies = this.currentTaskData.dependencies || [];
+                
+                // Dependency statistics
+                const statsElement = document.getElementById('dependencyStats');
+                if (statsElement) {
+                    const stats = this.calculateDependencyStats(dependencies);
+                    
+                    statsElement.innerHTML = Object.entries(stats).map(([status, count]) => `
+                        <div class="dependency-stat">
+                            <div class="metric-label">${status.replace('_', ' ').toUpperCase()}</div>
+                            <div class="metric-value">${count}</div>
+                        </div>
+                    `).join('');
+                }
+                
+                // Dependencies list
+                const containerElement = document.getElementById('dependenciesContainer');
+                if (containerElement) {
+                    if (dependencies.length === 0) {
+                        containerElement.innerHTML = `
+                            <div style="text-align: center; color: #64748b; padding: 2rem;">
+                                <div style="font-size: 3rem; margin-bottom: 1rem;">🔗</div>
+                                <div>No dependencies for this task</div>
+                            </div>
+                        `;
+                    } else {
+                        containerElement.innerHTML = dependencies.map(dep => this.renderDependencyItem(dep)).join('');
+                    }
+                }
+            }
+            
+            renderDependencyItem(dependency) {
+                const depId = dependency.id || dependency.task_id || 'Unknown';
+                const depName = dependency.name || dependency.task_name || 'Unnamed Task';
+                const depStatus = (dependency.status || 'unknown').toLowerCase();
+                
+                return `
+                    <div class="dependency-item" onclick="taskDetailModal.openDependencyTask(${depId})">
+                        <div class="dependency-info">
+                            <div class="dependency-name">${escapeHtml(depName)}</div>
+                            <div class="dependency-id">Task #${depId}</div>
+                        </div>
+                        <div class="dependency-status ${depStatus}">${depStatus.replace('_', ' ')}</div>
+                    </div>
+                `;
+            }
+            
+            calculateDependencyStats(dependencies) {
+                const stats = { todo: 0, in_progress: 0, review: 0, done: 0 };
+                
+                dependencies.forEach(dep => {
+                    // Use the same mapping function as the main task counts
+                    const statusKey = mapDatabaseStatusToUI(dep.status || 'pending');
+                    if (stats.hasOwnProperty(statusKey)) {
+                        stats[statusKey]++;
+                    }
+                });
+                
+                return stats;
+            }
+            
+            openDependencyTask(taskId) {
+                // #SUGGEST_EDGE_CASE: Handle circular dependencies gracefully
+                console.log(`Opening dependency task ${taskId}`);
+                
+                // Find the task in our current state
+                const dependencyTask = AppState.tasks.get(String(taskId));
+                if (dependencyTask) {
+                    // Close current modal and open new one
+                    this.close();
+                    setTimeout(() => {
+                        openTaskDetailModal(dependencyTask);
+                    }, 100);
+                } else {
+                    showNotification('Dependency task not found in current view', 'error');
+                }
+            }
+            
+            // Utility method for timestamp formatting
+            formatTimestamp(timestamp) {
+                if (!timestamp) return 'N/A';
+                
+                try {
+                    // Handle ISO timestamp formats like "2025-09-08T19:52:02.220046+00:00Z"
+                    let cleanTimestamp = timestamp;
+                    if (typeof timestamp === 'string') {
+                        // Remove trailing 'Z' if present after timezone offset
+                        cleanTimestamp = timestamp.replace(/\+00:00Z$/, '+00:00');
+                        // Also handle just 'Z' at the end
+                        cleanTimestamp = cleanTimestamp.replace(/Z$/, '');
+                    }
+                    
+                    const date = new Date(cleanTimestamp);
+                    
+                    // Validate the date is actually valid
+                    if (isNaN(date.getTime())) {
+                        return 'Invalid Date';
+                    }
+                    
+                    return date.toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                } catch (error) {
+                    console.error('Error formatting timestamp:', timestamp, error);
+                    return 'Invalid Date';
+                }
+            }
+        }
+        
+        // Initialize modal instance
+        let taskDetailModal = null;
+        
+        function openTaskDetailModal(task) {
+            if (!taskDetailModal) {
+                taskDetailModal = new TaskDetailModal();
+            }
+            taskDetailModal.open(task);
         }
         
         function updateTaskCounts() {
@@ -617,7 +2518,10 @@
             };
             
             AppState.tasks.forEach(task => {
-                const statusKey = task.status.toLowerCase().replace(' ', '_');
+                // Ensure we handle both database and UI status formats
+                const taskStatus = task.status ? task.status.toLowerCase().trim() : 'pending';
+                const statusKey = mapDatabaseStatusToUI(taskStatus);
+                
                 if (counts.hasOwnProperty(statusKey)) {
                     counts[statusKey]++;
                 }
@@ -637,8 +2541,8 @@
         function initializeDragAndDrop() {
             let draggedTask = null;
             
-            // #SUGGEST_TOUCH: Consider adding touch event support for mobile devices
-            // Current implementation focuses on desktop drag-drop interactions
+            // #COMPLETION_DRIVE_DRAGDROP: Enhanced drag support with improved event handling
+            // Pattern: Coordinate drag operations with click handlers for optimal UX
             document.addEventListener('dragstart', function(e) {
                 if (e.target.classList.contains('task-card')) {
                     // Don't allow dragging locked tasks
@@ -653,12 +2557,21 @@
                     e.dataTransfer.effectAllowed = 'move';
                     e.dataTransfer.setData('text/html', e.target.outerHTML);
                     e.dataTransfer.setData('text/plain', e.target.dataset.taskId);
+                    
+                    // Prevent click events during drag
+                    setTimeout(() => {
+                        if (draggedTask) {
+                            draggedTask.style.pointerEvents = 'none';
+                        }
+                    }, 0);
                 }
             });
             
             document.addEventListener('dragend', function(e) {
                 if (e.target.classList.contains('task-card')) {
                     e.target.classList.remove('dragging');
+                    // Restore click functionality after drag
+                    e.target.style.pointerEvents = 'auto';
                     draggedTask = null;
                 }
             });

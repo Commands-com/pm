@@ -367,18 +367,22 @@ ws.onclose = function(event) {
 ### Schema Specification
 
 ```yaml
-epics:
-  - name: string              # Epic name (required)
-    description: string       # Epic description (optional)
-    status: string           # Epic status (required) 
-    stories:                 # List of stories (required)
-      - name: string         # Story name (required)
-        description: string  # Story description (optional)
-        status: string      # Story status (required)
+projects:
+  - name: string              # Project name (required)
+    description: string       # Project description (optional)
+    epics:                   # List of epics (required)
+      - name: string         # Epic name (required)
+        description: string  # Epic description (optional)
+        status: string      # Epic status (optional, default: "pending")
         tasks:              # List of tasks (required)
           - name: string    # Task name (required)
             description: string # Task description (optional)
-            status: string  # Task status (required)
+            status: string  # Task status (optional, default: "pending")
+
+standalone_tasks:            # Tasks not associated with any epic (optional)
+  - name: string             # Task name (required)
+    description: string      # Task description (optional)
+    status: string          # Task status (optional)
 ```
 
 ### Valid Status Values
@@ -404,14 +408,13 @@ epics:
 ### Example Project
 
 ```yaml
-epics:
-  - name: "Authentication System"
-    description: "User login and registration system"
-    status: "ACTIVE"
-    stories:
-      - name: "User Registration"
-        description: "Allow new users to create accounts"
-        status: "IN_PROGRESS"
+projects:
+  - name: "User Management Platform"
+    description: "Complete user lifecycle management"
+    epics:
+      - name: "Authentication System"
+        description: "User login and registration system"
+        status: "ACTIVE"
         tasks:
           - name: "Design registration form"
             description: "Create wireframes and UI design"

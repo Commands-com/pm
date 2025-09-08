@@ -32,7 +32,7 @@ import os
 DB_PATH = os.getenv("DATABASE_PATH", "project_manager.db")
 
 # Global database instance for dependency injection
-# #COMPLETION_DRIVE_INTEGRATION: Using singleton pattern for database connections
+# VERIFIED: Singleton pattern appropriate for single database instance per FastAPI app
 # Alternative: connection pool if high concurrency needed
 db_instance: Optional[TaskDatabase] = None
 
@@ -123,13 +123,152 @@ class ConnectionManager:
             await self.disconnect(websocket)
             return False
     
+    async def broadcast_enriched_event(self, event_type: str, event_data: Dict[str, Any]):
+        """
+        Broadcast enriched event with comprehensive payload structure.
+        
+        #COMPLETION_DRIVE_INTEGRATION: Enhanced broadcasting for enriched payloads
+        Provides structured event data with project/epic context, session tracking,
+        and auto-switch flags as required by task specification.
+        
+        Args:
+            event_type: Type of event (task.created, task.updated, task.logs.appended)
+            event_data: Event-specific payload data
+        """
+        # #COMPLETION_DRIVE_IMPL: Enriched payload structure follows task specification exactly
+        enriched_payload = {
+            "type": event_type,
+            "timestamp": datetime.now(timezone.utc).isoformat() + 'Z',
+            "data": event_data
+        }
+        
+        # #SUGGEST_PERFORMANCE: Consider adding event size validation to prevent oversized payloads
+        await self.broadcast(enriched_payload)
+    
     def get_connection_count(self) -> int:
         """Get current number of active WebSocket connections."""
         return len(self.active_connections)
 
 
+# #COMPLETION_DRIVE_IMPL: Session tracking utilities for client_session_id extraction
+# MCP tools can include client_session_id parameter for dashboard auto-switch functionality
+def extract_session_id(mcp_args: Dict[str, Any]) -> Optional[str]:
+    """
+    Extract client session ID from MCP tool arguments.
+    
+    #COMPLETION_DRIVE_INTEGRATION: Session ID extraction for auto-switch logic
+    Enables dashboard clients to receive events with session context for proper
+    auto-switching behavior when multiple clients are connected.
+    
+    Args:
+        mcp_args: Dictionary of MCP tool arguments
+        
+    Returns:
+        Client session ID if present, None otherwise
+    """
+    return mcp_args.get('client_session_id')
+
+
+def generate_enriched_task_payload(task_data: Dict[str, Any], project_data: Optional[Dict[str, Any]] = None,
+                                 epic_data: Optional[Dict[str, Any]] = None, 
+                                 auto_flags: Optional[Dict[str, bool]] = None,
+                                 session_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Generate enriched task event payload with project/epic context and auto-switch flags.
+    
+    #COMPLETION_DRIVE_IMPL: Enriched payload generation as specified in task requirements
+    Creates comprehensive event payloads with all required context for dashboard
+    real-time updates and auto-switch functionality.
+    
+    Args:
+        task_data: Core task information
+        project_data: Project context (id, name)
+        epic_data: Epic context (id, name, project_id)
+        auto_flags: Auto-switch flags (project_created, epic_created)
+        session_id: Client session ID for event targeting
+        
+    Returns:
+        Enriched payload dictionary ready for WebSocket broadcasting
+    """
+    # #COMPLETION_DRIVE_IMPL: Task payload structure matches specification exactly
+    payload = {
+        "task": {
+            "id": task_data.get("id"),
+            "name": task_data.get("name"),
+            "status": task_data.get("status"),
+            "ra_score": task_data.get("ra_score"),
+            "ra_mode": task_data.get("ra_mode"),
+            "description": task_data.get("description", "")
+        }
+    }
+    
+    # Add project context if available
+    if project_data:
+        payload["project"] = {
+            "id": project_data.get("id"),
+            "name": project_data.get("name")
+        }
+    
+    # Add epic context if available 
+    if epic_data:
+        payload["epic"] = {
+            "id": epic_data.get("id"),
+            "name": epic_data.get("name"),
+            "project_id": epic_data.get("project_id")
+        }
+    
+    # Add auto-switch flags if provided
+    if auto_flags:
+        payload["flags"] = auto_flags
+    
+    # Add session context for dashboard targeting
+    if session_id:
+        payload["initiator"] = session_id
+        # #COMPLETION_DRIVE_INTEGRATION: Auto-switch recommendation based on session presence
+        payload["auto_switch_recommended"] = True
+    
+    return payload
+
+
+def generate_logs_appended_payload(task_id: int, log_entries: List[Dict[str, Any]], 
+                                 session_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Generate task.logs.appended event payload for real-time log updates.
+    
+    #COMPLETION_DRIVE_IMPL: Logs appended event as specified in task requirements
+    Provides real-time log update events for dashboard execution log display
+    with proper sequencing and task context.
+    
+    Args:
+        task_id: ID of task receiving new log entries
+        log_entries: List of new log entry dictionaries
+        session_id: Optional session ID for event targeting
+        
+    Returns:
+        Logs appended payload dictionary
+    """
+    payload = {
+        "task_id": task_id,
+        "log_entries": log_entries,
+        "log_count": len(log_entries)
+    }
+    
+    # Add sequence numbers for client synchronization
+    if log_entries:
+        payload["sequence_range"] = {
+            "start": min(entry.get("seq", 0) for entry in log_entries),
+            "end": max(entry.get("seq", 0) for entry in log_entries)
+        }
+    
+    # Add session context if provided
+    if session_id:
+        payload["initiator"] = session_id
+    
+    return payload
+
+
 # Global connection manager instance - using optimized version for better performance
-# #COMPLETION_DRIVE_INTEGRATION: Singleton pattern for WebSocket manager
+# VERIFIED: Single ConnectionManager instance needed for WebSocket broadcasting coordination
 # Alternative: dependency injection if multiple manager instances needed
 connection_manager = OptimizedConnectionManager(max_connections=50)
 
@@ -181,8 +320,8 @@ class TaskStatusResponse(BaseModel):
 class BoardStateResponse(BaseModel):
     """Response model for complete board state."""
     tasks: List[Dict[str, Any]]
-    stories: List[Dict[str, Any]]
     epics: List[Dict[str, Any]]
+    projects: List[Dict[str, Any]]
 
 
 class MetricsResponse(BaseModel):
@@ -370,13 +509,13 @@ async def websocket_updates(websocket: WebSocket):
 @app.get("/api/board/state", response_model=BoardStateResponse)
 async def get_board_state(db: TaskDatabase = Depends(get_database)):
     """
-    Get complete board state with all epics, stories, and tasks.
+    Get complete board state with all projects, epics, and tasks.
     
     Returns hierarchical project data for dashboard display including
     task lock status and all project entities.
     
     Returns:
-        BoardStateResponse: Complete board state with tasks, stories, epics
+        BoardStateResponse: Complete board state with tasks, epics, projects
         
     Raises:
         HTTPException: 500 if database error occurs
@@ -392,25 +531,28 @@ async def get_board_state(db: TaskDatabase = Depends(get_database)):
                 'in_progress': 'IN_PROGRESS',
                 'completed': 'DONE',
                 'review': 'REVIEW',
+                'blocked': 'BLOCKED',
                 'TODO': 'TODO',
                 'IN_PROGRESS': 'IN_PROGRESS',
                 'DONE': 'DONE',
-                'REVIEW': 'REVIEW'
+                'REVIEW': 'REVIEW',
+                'BLOCKED': 'BLOCKED'
             }
             return mapping.get(s, s)
         
         for t in tasks:
             if 'status' in t:
                 t['status'] = to_ui_status(t['status'])
-        stories = db.get_all_stories()  
+                
         epics = db.get_all_epics()
+        projects = db.get_all_projects()
         
-        logger.info(f"Board state: {len(epics)} epics, {len(stories)} stories, {len(tasks)} tasks")
+        logger.info(f"Board state: {len(projects)} projects, {len(epics)} epics, {len(tasks)} tasks")
         
         return BoardStateResponse(
             tasks=tasks,
-            stories=stories,
-            epics=epics
+            epics=epics,
+            projects=projects
         )
         
     except Exception as e:
@@ -517,7 +659,7 @@ async def update_task_status(
         }
         db_status = status_mapping.get(update.status, update.status)
 
-        # Proactively clear and broadcast any expired locks for fresh state
+        # Proactively clear any expired locks (best-effort); do not auto-acquire here
         try:
             expired_ids = db.cleanup_expired_locks_with_ids()
             for eid in expired_ids:
@@ -750,6 +892,314 @@ async def release_task_lock(
     except Exception as e:
         logger.error(f"Failed to release lock on task {task_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to release task lock")
+
+
+# Standard Mode: New list endpoints mirroring MCP tools for frontend UI consumption
+# Assumption: REST endpoints should return same data format as MCP tools for consistency
+
+@app.get("/api/projects")
+async def list_projects_endpoint(
+    status: Optional[str] = None,
+    limit: Optional[int] = None,
+    db: TaskDatabase = Depends(get_database)
+):
+    """
+    List all projects with optional filtering and result limiting.
+    
+    Standard Mode Implementation:
+    - Mirrors list_projects MCP tool functionality for REST API access
+    - Enables frontend UI to populate project selectors and filters
+    - Consistent response format with MCP tool output
+    
+    Args:
+        status: Optional status filter (currently ignored - projects have no status field)
+        limit: Optional maximum number of projects to return
+        
+    Returns:
+        JSON list of projects with id, name, description, created_at, updated_at
+    """
+    try:
+        # Validate limit parameter
+        if limit is not None and limit <= 0:
+            raise HTTPException(status_code=400, detail="Limit must be a positive integer")
+        
+        # Get filtered projects from database using same method as MCP tool
+        projects = db.list_projects_filtered(status=status, limit=limit)
+        
+        logger.info(f"REST API: Retrieved {len(projects)} projects")
+        return projects
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to list projects: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve projects")
+
+
+@app.get("/api/projects/{project_id}/epics") 
+async def list_epics_for_project_endpoint(
+    project_id: int,
+    limit: Optional[int] = None,
+    db: TaskDatabase = Depends(get_database)
+):
+    """
+    List epics within a specific project with optional result limiting.
+    
+    Standard Mode Implementation:
+    - Provides hierarchical filtering for epics within specific projects
+    - Mirrors list_epics MCP tool with project_id filtering
+    - Useful for frontend UI epic selectors when project is selected
+    
+    Args:
+        project_id: Project ID to filter epics within specific project
+        limit: Optional maximum number of epics to return
+        
+    Returns:
+        JSON list of epics with id, name, description, project_id, project_name, created_at
+    """
+    try:
+        # Validate parameters
+        if project_id <= 0:
+            raise HTTPException(status_code=400, detail="Project ID must be a positive integer")
+            
+        if limit is not None and limit <= 0:
+            raise HTTPException(status_code=400, detail="Limit must be a positive integer")
+        
+        # Get filtered epics using same method as MCP tool
+        epics = db.list_epics_filtered(project_id=project_id, limit=limit)
+        
+        logger.info(f"REST API: Retrieved {len(epics)} epics for project {project_id}")
+        return epics
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to list epics for project {project_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve epics")
+
+
+@app.get("/api/epics")
+async def list_all_epics_endpoint(
+    project_id: Optional[int] = None,
+    limit: Optional[int] = None, 
+    db: TaskDatabase = Depends(get_database)
+):
+    """
+    List all epics with optional project filtering and result limiting.
+    
+    Standard Mode Implementation:
+    - Mirrors list_epics MCP tool functionality exactly for REST API access
+    - Supports optional project filtering like MCP tool
+    - Consistent with MCP tool response format
+    
+    Args:
+        project_id: Optional project ID to filter epics within specific project
+        limit: Optional maximum number of epics to return
+        
+    Returns:
+        JSON list of epics with id, name, description, project_id, project_name, created_at
+    """
+    try:
+        # Validate parameters
+        if project_id is not None and project_id <= 0:
+            raise HTTPException(status_code=400, detail="Project ID must be a positive integer")
+            
+        if limit is not None and limit <= 0:
+            raise HTTPException(status_code=400, detail="Limit must be a positive integer")
+        
+        # Get filtered epics using same method as MCP tool
+        epics = db.list_epics_filtered(project_id=project_id, limit=limit)
+        
+        filter_str = f" for project {project_id}" if project_id else ""
+        logger.info(f"REST API: Retrieved {len(epics)} epics{filter_str}")
+        return epics
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to list epics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve epics")
+
+
+@app.get("/api/tasks/filtered")
+async def list_tasks_filtered_endpoint(
+    project_id: Optional[int] = None,
+    epic_id: Optional[int] = None,
+    status: Optional[str] = None,
+    limit: Optional[int] = None,
+    db: TaskDatabase = Depends(get_database) 
+):
+    """
+    List tasks with hierarchical filtering (project, epic, status) and result limiting.
+    
+    Standard Mode Implementation:
+    - Mirrors list_tasks MCP tool functionality exactly for REST API access
+    - Supports all filtering options: project_id, epic_id, status
+    - Status vocabulary mapping consistent with MCP tool (UI terms to DB values)
+    - Includes hierarchical context (project_name, epic_name) in response
+    
+    Args:
+        project_id: Optional project ID to filter tasks within specific project
+        epic_id: Optional epic ID to filter tasks within specific epic
+        status: Optional status filter (UI: TODO/IN_PROGRESS/REVIEW/DONE or DB: pending/in_progress/review/completed/blocked)
+        limit: Optional maximum number of tasks to return
+        
+    Returns:
+        JSON list of tasks with id, name, status, ra_score, epic_name, project_name
+    """
+    try:
+        # Validate parameters (same validation as MCP tool)
+        if project_id is not None and project_id <= 0:
+            raise HTTPException(status_code=400, detail="Project ID must be a positive integer")
+            
+        if epic_id is not None and epic_id <= 0:
+            raise HTTPException(status_code=400, detail="Epic ID must be a positive integer")
+            
+        if limit is not None and limit <= 0:
+            raise HTTPException(status_code=400, detail="Limit must be a positive integer")
+        
+        # Validate and map status vocabulary (same as MCP tool)
+        db_status = status
+        if status is not None:
+            valid_ui_statuses = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']
+            valid_db_statuses = ['pending', 'in_progress', 'review', 'completed', 'blocked']
+            
+            status_mapping = {
+                'TODO': 'pending',
+                'IN_PROGRESS': 'in_progress',
+                'REVIEW': 'review', 
+                'DONE': 'completed'
+            }
+            
+            if status in status_mapping:
+                db_status = status_mapping[status]
+            elif status not in valid_db_statuses:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Invalid status '{status}'. Valid options: {', '.join(valid_ui_statuses + valid_db_statuses)}"
+                )
+        
+        # Get filtered tasks using same method as MCP tool
+        tasks = db.list_tasks_filtered(
+            project_id=project_id,
+            epic_id=epic_id,
+            status=db_status,
+            limit=limit
+        )
+        
+        # Log filtering details for debugging (same as MCP tool)
+        filter_details = []
+        if project_id: filter_details.append(f"project_id={project_id}")
+        if epic_id: filter_details.append(f"epic_id={epic_id}")
+        if status: filter_details.append(f"status={status}")
+        filter_str = f" with filters: {', '.join(filter_details)}" if filter_details else ""
+        
+        logger.info(f"REST API: Retrieved {len(tasks)} tasks{filter_str}")
+        return tasks
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to list tasks: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve tasks")
+
+
+# #COMPLETION_DRIVE_INTEGRATION: Task details endpoint to integrate with MCP get_task_details tool
+# Assumption: Frontend modal needs comprehensive task details with RA metadata and logs
+class TaskDetailsRequest(BaseModel):
+    """Request model for task details with optional pagination."""
+    task_id: str
+    log_limit: Optional[int] = 100
+    before_seq: Optional[int] = None
+
+    @field_validator('log_limit')
+    @classmethod
+    def validate_log_limit(cls, v: Optional[int]) -> Optional[int]:
+        if v is not None and (v < 1 or v > 1000):
+            raise ValueError('log_limit must be between 1 and 1000')
+        return v
+        
+    @field_validator('before_seq')
+    @classmethod
+    def validate_before_seq(cls, v: Optional[int]) -> Optional[int]:
+        if v is not None and v < 1:
+            raise ValueError('before_seq must be positive')
+        return v
+
+
+@app.post("/api/task/details")
+async def get_task_details_endpoint(
+    request: TaskDetailsRequest,
+    db: TaskDatabase = Depends(get_database)
+):
+    """
+    Get comprehensive task details with RA metadata, logs, and dependencies.
+    
+    RA-Light Mode Implementation: Provides complete task detail modal data by calling
+    the get_task_details MCP tool internally and returning the comprehensive results.
+    This endpoint bridges the gap between frontend REST API expectations and MCP tool
+    functionality, ensuring consistent data format and comprehensive RA information.
+    
+    Args:
+        request: TaskDetailsRequest with task_id, optional log_limit and before_seq
+        
+    Returns:
+        JSON response containing MCP tool result or error information
+        
+    Response Structure:
+        - success case: {"result": "<JSON string with comprehensive task details>"}
+        - error case: {"error": {"message": "error description", "details": "..."}}
+    """
+    try:
+        # Import the MCP tool here to avoid circular imports
+        from .tools import GetTaskDetailsTool
+        
+        # Create tool instance with database dependency
+        # #COMPLETION_DRIVE_INTEGRATION: Use existing MCP tool infrastructure
+        task_details_tool = GetTaskDetailsTool(db, None)  # No websocket manager needed for readonly
+        
+        # Call the MCP tool with provided parameters
+        # #SUGGEST_ERROR_HANDLING: MCP tool handles all validation and error cases internally
+        result = await task_details_tool.apply(
+            task_id=request.task_id,
+            log_limit=request.log_limit or 100,
+            before_seq=request.before_seq
+        )
+        
+        # MCP tool returns JSON string, but we need to check if it contains error info
+        try:
+            # Try to parse the result to check for internal MCP tool errors
+            parsed_result = json.loads(result)
+            if isinstance(parsed_result, dict) and 'error' in parsed_result:
+                # MCP tool returned an error response
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": parsed_result['error']}
+                )
+        except json.JSONDecodeError:
+            # If result is not valid JSON, treat as error
+            return JSONResponse(
+                status_code=500,
+                content={"error": {"message": "Invalid response from task details service"}}
+            )
+        
+        # Return successful result in FastAPI-compatible format
+        logger.info(f"REST API: Retrieved comprehensive details for task {request.task_id}")
+        return JSONResponse(content={"result": result})
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get task details for {request.task_id}: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": {
+                    "message": "Failed to retrieve task details", 
+                    "details": str(e)
+                }
+            }
+        )
 
 
 # Error handlers for better API responses

@@ -33,10 +33,10 @@ def import_project(db: TaskDatabase, yaml_data: Dict[str, Any]) -> Dict[str, Any
     
     current_time_str = datetime.now(timezone.utc).isoformat() + 'Z'
     stats = {
+        "projects_created": 0,
+        "projects_updated": 0,
         "epics_created": 0,
         "epics_updated": 0, 
-        "stories_created": 0,
-        "stories_updated": 0,
         "tasks_created": 0,
         "tasks_updated": 0,
         "errors": []
@@ -49,37 +49,36 @@ def import_project(db: TaskDatabase, yaml_data: Dict[str, Any]) -> Dict[str, Any
             cursor = db._connection.cursor()
             cursor.execute("BEGIN")
             
-            # Process epics first - establish parent hierarchy
-            epics = yaml_data.get("epics", [])
-            if not isinstance(epics, list):
-                raise ValueError("YAML 'epics' must be a list")
+            # Process projects first - establish top-level hierarchy
+            projects = yaml_data.get("projects", [])
+            if not isinstance(projects, list):
+                raise ValueError("YAML 'projects' must be a list")
             
-            for epic_data in epics:
+            for project_data in projects:
                 try:
-                    epic_result = _import_epic(cursor, epic_data, current_time_str)
-                    if epic_result["created"]:
-                        stats["epics_created"] += 1
+                    project_result = _import_project(cursor, project_data, current_time_str)
+                    if project_result["created"]:
+                        stats["projects_created"] += 1
                     else:
-                        stats["epics_updated"] += 1
+                        stats["projects_updated"] += 1
                         
-                    # Process stories within this epic
-                    stories = epic_data.get("stories", [])
-                    for story_data in stories:
+                    # Process epics within this project
+                    epics = project_data.get("epics", [])
+                    for epic_data in epics:
                         try:
-                            # VERIFIED: Story-epic relationships correctly established via epic_id foreign key
-                            story_result = _import_story(cursor, story_data, epic_result["epic_id"], current_time_str)
-                            if story_result["created"]:
-                                stats["stories_created"] += 1
+                            # VERIFIED: Epic-project relationships correctly established via project_id foreign key
+                            epic_result = _import_epic(cursor, epic_data, project_result["project_id"], current_time_str)
+                            if epic_result["created"]:
+                                stats["epics_created"] += 1
                             else:
-                                stats["stories_updated"] += 1
+                                stats["epics_updated"] += 1
                                 
-                            # Process tasks within this story
-                            tasks = story_data.get("tasks", [])
+                            # Process tasks within this epic
+                            tasks = epic_data.get("tasks", [])
                             for task_data in tasks:
                                 try:
-                                    # VERIFIED: Tasks linked to both story_id and epic_id for query flexibility
-                                    task_result = _import_task(cursor, task_data, story_result["story_id"], 
-                                                             epic_result["epic_id"], current_time_str)
+                                    # VERIFIED: Tasks linked to epic_id only in new schema
+                                    task_result = _import_task(cursor, task_data, epic_result["epic_id"], current_time_str)
                                     if task_result["created"]:
                                         stats["tasks_created"] += 1
                                     else:
@@ -92,15 +91,15 @@ def import_project(db: TaskDatabase, yaml_data: Dict[str, Any]) -> Dict[str, Any
                                     stats["errors"].append(error_msg)
                                     
                         except Exception as e:
-                            # #SUGGEST_ERROR_HANDLING: Individual story failures don't stop entire import  
-                            story_name = story_data.get('name', 'unnamed') if isinstance(story_data, dict) else 'invalid'
-                            error_msg = f"Failed to import story '{story_name}': {str(e)}"
+                            # #SUGGEST_ERROR_HANDLING: Individual epic failures don't stop entire import  
+                            epic_name = epic_data.get('name', 'unnamed') if isinstance(epic_data, dict) else 'invalid'
+                            error_msg = f"Failed to import epic '{epic_name}': {str(e)}"
                             stats["errors"].append(error_msg)
                             
                 except Exception as e:
-                    # #SUGGEST_ERROR_HANDLING: Individual epic failures don't stop entire import
-                    epic_name = epic_data.get('name', 'unnamed') if isinstance(epic_data, dict) else 'invalid'
-                    error_msg = f"Failed to import epic '{epic_name}': {str(e)}"
+                    # #SUGGEST_ERROR_HANDLING: Individual project failures don't stop entire import
+                    project_name = project_data.get('name', 'unnamed') if isinstance(project_data, dict) else 'invalid'
+                    error_msg = f"Failed to import project '{project_name}': {str(e)}"
                     stats["errors"].append(error_msg)
             
             # Process standalone tasks
@@ -110,7 +109,7 @@ def import_project(db: TaskDatabase, yaml_data: Dict[str, Any]) -> Dict[str, Any
                 
             for task_data in standalone_tasks:
                 try:
-                    # Create standalone task (no story_id, no epic_id)
+                    # Create standalone task (no epic_id)
                     task_result = _import_standalone_task(cursor, task_data, current_time_str)
                     if task_result["created"]:
                         stats["tasks_created"] += 1
@@ -134,7 +133,57 @@ def import_project(db: TaskDatabase, yaml_data: Dict[str, Any]) -> Dict[str, Any
     return stats
 
 
-def _import_epic(cursor: sqlite3.Cursor, epic_data: Dict[str, Any], current_time_str: str) -> Dict[str, Any]:
+def _import_project(cursor: sqlite3.Cursor, project_data: Dict[str, Any], current_time_str: str) -> Dict[str, Any]:
+    """Import single project with UPSERT logic."""
+    if not isinstance(project_data, dict):
+        raise ValueError("Project data must be a dictionary")
+    
+    name = project_data.get("name")
+    if not name:
+        raise ValueError("Project must have 'name' field")
+    
+    description = project_data.get("description")
+    
+    # VERIFIED: INSERT + IntegrityError handling provides reliable UPSERT behavior
+    # This pattern works without requiring UNIQUE constraints and enables selective field updates
+    
+    # First, try to insert new project
+    try:
+        cursor.execute("""
+            INSERT INTO projects (name, description, created_at, updated_at)
+            VALUES (?, ?, ?, ?)
+        """, (name, description, current_time_str, current_time_str))
+        
+        project_id = cursor.lastrowid
+        return {"project_id": project_id, "created": True}
+        
+    except sqlite3.IntegrityError:
+        # Project already exists - update it preserving runtime state
+        # VERIFIED: Selective field updates preserve existing data when not specified in YAML
+        
+        update_parts = ["updated_at = ?"]
+        update_values = [current_time_str]
+        
+        if description is not None:
+            update_parts.append("description = ?")
+            update_values.append(description)
+        
+        update_values.append(name)  # WHERE clause
+        
+        cursor.execute(f"""
+            UPDATE projects 
+            SET {', '.join(update_parts)}
+            WHERE name = ?
+        """, update_values)
+        
+        # Get the project ID for relationship linking
+        cursor.execute("SELECT id FROM projects WHERE name = ?", (name,))
+        project_id = cursor.fetchone()[0]
+        
+        return {"project_id": project_id, "created": False}
+
+
+def _import_epic(cursor: sqlite3.Cursor, epic_data: Dict[str, Any], project_id: int, current_time_str: str) -> Dict[str, Any]:
     """Import single epic with UPSERT logic."""
     if not isinstance(epic_data, dict):
         raise ValueError("Epic data must be a dictionary")
@@ -146,83 +195,28 @@ def _import_epic(cursor: sqlite3.Cursor, epic_data: Dict[str, Any], current_time
     description = epic_data.get("description")
     status = epic_data.get("status")  # Optional - preserve existing if not specified
     
-    # VERIFIED: INSERT + IntegrityError handling provides reliable UPSERT behavior
-    # This pattern works without requiring UNIQUE constraints and enables selective field updates
+    # VERIFIED: Epics identified by (project_id, name) compound key
+    # Allows epic name reuse across projects while preventing duplicates within projects
     
-    # First, try to insert new epic
-    try:
-        cursor.execute("""
-            INSERT INTO epics (name, description, status, created_at, updated_at)
-            VALUES (?, ?, COALESCE(?, 'pending'), ?, ?)
-        """, (name, description, status, current_time_str, current_time_str))
-        
-        epic_id = cursor.lastrowid
-        return {"epic_id": epic_id, "created": True}
-        
-    except sqlite3.IntegrityError:
-        # Epic already exists - update it preserving runtime state
-        # VERIFIED: Selective field updates preserve existing data when not specified in YAML
-        
-        update_parts = ["updated_at = ?"]
-        update_values = [current_time_str]
-        
-        if description is not None:
-            update_parts.append("description = ?")
-            update_values.append(description)
-            
-        if status is not None:
-            update_parts.append("status = ?")
-            update_values.append(status)
-        
-        update_values.append(name)  # WHERE clause
-        
-        cursor.execute(f"""
-            UPDATE epics 
-            SET {', '.join(update_parts)}
-            WHERE name = ?
-        """, update_values)
-        
-        # Get the epic ID for relationship linking
-        cursor.execute("SELECT id FROM epics WHERE name = ?", (name,))
-        epic_id = cursor.fetchone()[0]
-        
-        return {"epic_id": epic_id, "created": False}
-
-
-def _import_story(cursor: sqlite3.Cursor, story_data: Dict[str, Any], epic_id: int, current_time_str: str) -> Dict[str, Any]:
-    """Import single story with UPSERT logic."""
-    if not isinstance(story_data, dict):
-        raise ValueError("Story data must be a dictionary")
-    
-    name = story_data.get("name")
-    if not name:
-        raise ValueError("Story must have 'name' field")
-    
-    description = story_data.get("description")
-    status = story_data.get("status")
-    
-    # VERIFIED: Stories correctly identified by (epic_id, name) compound key
-    # Allows story name reuse across epics while preventing duplicates within epics
-    
-    # Check if story already exists for this epic
+    # Check if epic already exists for this project
     cursor.execute("""
-        SELECT id FROM stories WHERE epic_id = ? AND name = ?
-    """, (epic_id, name))
+        SELECT id FROM epics WHERE project_id = ? AND name = ?
+    """, (project_id, name))
     
     existing = cursor.fetchone()
     
     if not existing:
-        # Create new story
+        # Create new epic
         cursor.execute("""
-            INSERT INTO stories (epic_id, name, description, status, created_at, updated_at)
+            INSERT INTO epics (project_id, name, description, status, created_at, updated_at)
             VALUES (?, ?, ?, COALESCE(?, 'pending'), ?, ?)
-        """, (epic_id, name, description, status, current_time_str, current_time_str))
+        """, (project_id, name, description, status, current_time_str, current_time_str))
         
-        story_id = cursor.lastrowid
-        return {"story_id": story_id, "created": True}
+        epic_id = cursor.lastrowid
+        return {"epic_id": epic_id, "created": True}
     else:
-        # Update existing story
-        story_id = existing[0]
+        # Update existing epic
+        epic_id = existing[0]
         
         update_parts = ["updated_at = ?"]
         update_values = [current_time_str]
@@ -235,18 +229,20 @@ def _import_story(cursor: sqlite3.Cursor, story_data: Dict[str, Any], epic_id: i
             update_parts.append("status = ?")
             update_values.append(status)
         
-        update_values.extend([epic_id, name])  # WHERE clause
+        update_values.extend([project_id, name])  # WHERE clause
         
         cursor.execute(f"""
-            UPDATE stories 
+            UPDATE epics 
             SET {', '.join(update_parts)}
-            WHERE epic_id = ? AND name = ?
+            WHERE project_id = ? AND name = ?
         """, update_values)
         
-        return {"story_id": story_id, "created": False}
+        return {"epic_id": epic_id, "created": False}
 
 
-def _import_task(cursor: sqlite3.Cursor, task_data: Dict[str, Any], story_id: int, epic_id: int, current_time_str: str) -> Dict[str, Any]:
+
+
+def _import_task(cursor: sqlite3.Cursor, task_data: Dict[str, Any], epic_id: int, current_time_str: str) -> Dict[str, Any]:
     """Import single task with UPSERT logic and runtime field preservation."""
     if not isinstance(task_data, dict):
         raise ValueError("Task data must be a dictionary")
@@ -258,22 +254,34 @@ def _import_task(cursor: sqlite3.Cursor, task_data: Dict[str, Any], story_id: in
     description = task_data.get("description")
     status = task_data.get("status")
     
-    # VERIFIED: Tasks identified by (story_id, name) compound key with runtime field preservation
+    # Map UI vocabulary to database vocabulary
+    status_mapping = {
+        'TODO': 'pending',
+        'IN_PROGRESS': 'in_progress',
+        'DONE': 'completed',
+        'COMPLETED': 'completed',  # Alternative form of DONE
+        'REVIEW': 'review',
+        'BLOCKED': 'blocked'
+    }
+    if status is not None:
+        status = status_mapping.get(status, status)
+    
+    # VERIFIED: Tasks identified by (epic_id, name) compound key with runtime field preservation
     # Runtime fields (lock_holder, lock_expires_at) preserved during import to maintain agent coordination
     
     cursor.execute("""
         SELECT id, lock_holder, lock_expires_at FROM tasks 
-        WHERE story_id = ? AND name = ?
-    """, (story_id, name))
+        WHERE epic_id = ? AND name = ?
+    """, (epic_id, name))
     
     existing = cursor.fetchone()
     
     if not existing:
         # Create new task - no runtime fields to preserve
         cursor.execute("""
-            INSERT INTO tasks (story_id, epic_id, name, description, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, COALESCE(?, 'pending'), ?, ?)
-        """, (story_id, epic_id, name, description, status, current_time_str, current_time_str))
+            INSERT INTO tasks (epic_id, name, description, status, created_at, updated_at)
+            VALUES (?, ?, ?, COALESCE(?, 'pending'), ?, ?)
+        """, (epic_id, name, description, status, current_time_str, current_time_str))
         
         task_id = cursor.lastrowid
         return {"task_id": task_id, "created": True}
@@ -300,19 +308,19 @@ def _import_task(cursor: sqlite3.Cursor, task_data: Dict[str, Any], story_id: in
             update_parts.append("status = ?")
             update_values.append(status)
         
-        update_values.extend([story_id, name])  # WHERE clause
+        update_values.extend([epic_id, name])  # WHERE clause
         
         cursor.execute(f"""
             UPDATE tasks 
             SET {', '.join(update_parts)}
-            WHERE story_id = ? AND name = ?
+            WHERE epic_id = ? AND name = ?
         """, update_values)
         
         return {"task_id": task_id, "created": False}
 
 
 def _import_standalone_task(cursor: sqlite3.Cursor, task_data: Dict[str, Any], current_time_str: str) -> Dict[str, Any]:
-    """Import standalone task with UPSERT logic (no story or epic association)."""
+    """Import standalone task with UPSERT logic (no epic association)."""
     if not isinstance(task_data, dict):
         raise ValueError("Task data must be a dictionary")
     
@@ -323,10 +331,22 @@ def _import_standalone_task(cursor: sqlite3.Cursor, task_data: Dict[str, Any], c
     description = task_data.get("description")
     status = task_data.get("status")
     
-    # Standalone tasks identified by name only (no story/epic constraint)
+    # Map UI vocabulary to database vocabulary
+    status_mapping = {
+        'TODO': 'pending',
+        'IN_PROGRESS': 'in_progress',
+        'DONE': 'completed',
+        'COMPLETED': 'completed',  # Alternative form of DONE
+        'REVIEW': 'review',
+        'BLOCKED': 'blocked'
+    }
+    if status is not None:
+        status = status_mapping.get(status, status)
+    
+    # Standalone tasks identified by name only (no epic constraint)
     cursor.execute("""
         SELECT id, lock_holder, lock_expires_at FROM tasks 
-        WHERE story_id IS NULL AND epic_id IS NULL AND name = ?
+        WHERE epic_id IS NULL AND name = ?
     """, (name,))
     
     existing = cursor.fetchone()
@@ -334,8 +354,8 @@ def _import_standalone_task(cursor: sqlite3.Cursor, task_data: Dict[str, Any], c
     if not existing:
         # Create new standalone task
         cursor.execute("""
-            INSERT INTO tasks (story_id, epic_id, name, description, status, created_at, updated_at)
-            VALUES (NULL, NULL, ?, ?, COALESCE(?, 'pending'), ?, ?)
+            INSERT INTO tasks (epic_id, name, description, status, created_at, updated_at)
+            VALUES (NULL, ?, ?, COALESCE(?, 'pending'), ?, ?)
         """, (name, description, status, current_time_str, current_time_str))
         
         task_id = cursor.lastrowid
@@ -360,7 +380,7 @@ def _import_standalone_task(cursor: sqlite3.Cursor, task_data: Dict[str, Any], c
         cursor.execute(f"""
             UPDATE tasks 
             SET {', '.join(update_parts)}
-            WHERE story_id IS NULL AND epic_id IS NULL AND name = ?
+            WHERE epic_id IS NULL AND name = ?
         """, update_values)
         
         return {"task_id": task_id, "created": False}

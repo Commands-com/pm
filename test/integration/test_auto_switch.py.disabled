@@ -1,0 +1,835 @@
+"""
+Multi-Session Auto-Switch Behavior Integration Tests
+
+Tests auto-switch functionality across multiple browser sessions with proper isolation,
+WebSocket event coordination, and session-specific task context switching.
+
+RA-Light Mode Implementation:
+All multi-session coordination assumptions, WebSocket event timing expectations, 
+and browser session isolation patterns are tagged for verification phase.
+"""
+
+import asyncio
+import json
+import pytest
+import time
+import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Tuple
+from unittest.mock import Mock, patch
+
+# Browser automation imports
+try:
+    from selenium import webdriver
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.chrome.options import Options as ChromeOptions
+    from selenium.webdriver.firefox.options import Options as FirefoxOptions
+    SELENIUM_AVAILABLE = True
+except ImportError:
+    SELENIUM_AVAILABLE = False
+
+try:
+    from playwright.async_api import async_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
+
+# Import project components
+import sys
+project_root = Path(__file__).parent.parent.parent / "src"
+sys.path.insert(0, str(project_root))
+
+from task_manager.database import TaskDatabase
+from task_manager.tools import GetAvailableTasks, AcquireTaskLock, UpdateTaskStatus
+from task_manager.api import ConnectionManager
+
+# Import test infrastructure  
+sys.path.insert(0, str(Path(__file__).parent.parent / "project_manager"))
+from conftest import IntegrationTestDatabase, WebSocketTestClient, CLITestProcess
+
+
+@pytest.fixture(autouse=True)
+def skip_if_server_unavailable():
+    """Skip this module's tests if the dashboard/API server isn't running.
+
+    These tests expect a live server on localhost:8080 with /healthz and /ws/updates.
+    """
+    import requests
+    try:
+        resp = requests.get("http://localhost:8080/healthz", timeout=0.5)
+        if resp.status_code != 200:
+            pytest.skip("Dashboard/API server not running on localhost:8080")
+    except Exception:
+        pytest.skip("Dashboard/API server not running on localhost:8080")
+
+class MultiSessionAutoSwitchTester:
+    """
+    Multi-session auto-switch testing framework.
+    
+    Tests auto-switch functionality across multiple concurrent browser sessions
+    with proper session isolation and WebSocket event coordination.
+    
+    # #COMPLETION_DRIVE_INTEGRATION: Multi-session testing assumes proper WebSocket
+    # session management and event broadcasting isolation between browser contexts
+    """
+    
+    def __init__(self, database: TaskDatabase, websocket_manager: ConnectionManager, dashboard_port: int = 8080):
+        """Initialize multi-session test framework."""
+        self.database = database
+        self.websocket_manager = websocket_manager
+        self.dashboard_port = dashboard_port
+        self.dashboard_url = f"http://localhost:{dashboard_port}"
+        
+        # Session tracking
+        self.active_sessions = {}
+        self.session_events = {}
+        
+        # Performance tracking
+        self.auto_switch_timings = []
+        
+    async def test_multi_session_auto_switch(self, session_count: int = 3) -> Dict[str, Any]:
+        """
+        Test auto-switch behavior across multiple concurrent sessions.
+        
+        # #COMPLETION_DRIVE_INTEGRATION: Multi-session coordination assumes proper
+        # session ID tracking and event isolation without cross-contamination
+        """
+        test_start = time.time()
+        results = {
+            "test_id": f"multi_session_{uuid.uuid4().hex[:8]}",
+            "session_count": session_count,
+            "sessions": {},
+            "coordination_tests": {},
+            "performance_metrics": {},
+            "errors": []
+        }
+        
+        try:
+            # Phase 1: Initialize multiple WebSocket sessions
+            phase1_start = time.time()
+            session_init_results = await self._initialize_websocket_sessions(session_count)
+            results["sessions"] = session_init_results
+            results["coordination_tests"]["session_initialization"] = {
+                "duration": (time.time() - phase1_start) * 1000,
+                "successful_sessions": len(session_init_results.get("active_sessions", [])),
+                "target_sessions": session_count
+            }
+            
+            if not session_init_results.get("success", False):
+                results["errors"].append("Failed to initialize required WebSocket sessions")
+                results["success"] = False
+                return results
+                
+            # Phase 2: Test isolated auto-switch triggers
+            phase2_start = time.time()
+            isolation_results = await self._test_session_isolation()
+            results["coordination_tests"]["session_isolation"] = {
+                "duration": (time.time() - phase2_start) * 1000,
+                "result": isolation_results
+            }
+            
+            # Phase 3: Test concurrent auto-switch events
+            phase3_start = time.time()
+            concurrent_results = await self._test_concurrent_auto_switch()
+            results["coordination_tests"]["concurrent_auto_switch"] = {
+                "duration": (time.time() - phase3_start) * 1000,
+                "result": concurrent_results
+            }
+            
+            # Phase 4: Test auto-switch with task context
+            phase4_start = time.time()
+            context_results = await self._test_auto_switch_with_context()
+            results["coordination_tests"]["context_switching"] = {
+                "duration": (time.time() - phase4_start) * 1000,
+                "result": context_results
+            }
+            
+            # Phase 5: Performance validation
+            results["performance_metrics"] = self._calculate_performance_metrics()
+            
+            # Overall success determination
+            results["success"] = all([
+                session_init_results.get("success", False),
+                isolation_results.get("success", False),
+                concurrent_results.get("success", False),
+                context_results.get("success", False)
+            ])
+            
+        except Exception as e:
+            results["errors"].append({
+                "phase": "multi_session_test",
+                "error": str(e),
+                "timestamp": time.time()
+            })
+            results["success"] = False
+            
+        finally:
+            # Cleanup sessions
+            await self._cleanup_sessions()
+            
+        results["total_duration"] = (time.time() - test_start) * 1000
+        return results
+        
+    async def _initialize_websocket_sessions(self, session_count: int) -> Dict[str, Any]:
+        """
+        Initialize multiple WebSocket sessions for testing.
+        
+        # #COMPLETION_DRIVE_IMPL: Session initialization assumes WebSocket server
+        # can handle multiple concurrent connections without resource exhaustion
+        """
+        init_start = time.time()
+        
+        # Create session definitions
+        sessions_to_create = []
+        for i in range(session_count):
+            session_id = f"auto_switch_test_session_{i}_{uuid.uuid4().hex[:6]}"
+            sessions_to_create.append({
+                "id": session_id,
+                "index": i,
+                "websocket_client": WebSocketTestClient(port=self.dashboard_port)
+            })
+            
+        # Connect all sessions concurrently
+        # #COMPLETION_DRIVE_INTEGRATION: Concurrent connection assumes proper connection
+        # pooling and no race conditions in WebSocket server initialization
+        connection_tasks = []
+        for session in sessions_to_create:
+            connection_tasks.append(session["websocket_client"].connect())
+            
+        connection_results = await asyncio.gather(*connection_tasks, return_exceptions=True)
+        
+        # Process connection results
+        active_sessions = []
+        failed_connections = []
+        
+        for i, result in enumerate(connection_results):
+            session = sessions_to_create[i]
+            if result is True:
+                active_sessions.append(session)
+                self.active_sessions[session["id"]] = session
+                self.session_events[session["id"]] = []
+            else:
+                failed_connections.append({
+                    "session_id": session["id"],
+                    "error": str(result) if isinstance(result, Exception) else "Connection failed"
+                })
+                
+        # Start event monitoring for active sessions
+        for session in active_sessions:
+            # #COMPLETION_DRIVE_IMPL: Event monitoring assumes WebSocket client properly
+            # captures and timestamps events without missing messages
+            asyncio.create_task(self._monitor_session_events(session))
+            
+        return {
+            "success": len(active_sessions) >= (session_count * 0.8),  # 80% success threshold
+            "active_sessions": [s["id"] for s in active_sessions],
+            "failed_connections": failed_connections,
+            "connection_success_rate": len(active_sessions) / session_count,
+            "initialization_duration": (time.time() - init_start) * 1000
+        }
+        
+    async def _monitor_session_events(self, session: Dict[str, Any]):
+        """
+        Monitor WebSocket events for a specific session.
+        
+        # #COMPLETION_DRIVE_IMPL: Event monitoring assumes proper event parsing
+        # and timestamp accuracy for performance measurement
+        """
+        session_id = session["id"]
+        websocket_client = session["websocket_client"]
+        
+        try:
+            while session_id in self.active_sessions:
+                # Get recent events
+                recent_events = websocket_client.get_events_since(
+                    time.time() - 1.0  # Last 1 second
+                )
+                
+                for event in recent_events:
+                    if event not in self.session_events[session_id]:
+                        self.session_events[session_id].append(event)
+                        
+                        # Track auto-switch events specifically
+                        if event.get("parsed", {}).get("type") == "auto_switch":
+                            self.auto_switch_timings.append({
+                                "session_id": session_id,
+                                "timestamp": event["timestamp"],
+                                "event_data": event.get("parsed", {})
+                            })
+                            
+                await asyncio.sleep(0.1)  # Poll every 100ms
+                
+        except Exception as e:
+            # #SUGGEST_ERROR_HANDLING: Event monitoring failures should be logged
+            print(f"Session event monitoring error for {session_id}: {e}")
+            
+    async def _test_session_isolation(self) -> Dict[str, Any]:
+        """
+        Test that auto-switch events are properly isolated between sessions.
+        
+        # #COMPLETION_DRIVE_INTEGRATION: Session isolation assumes proper session ID
+        # validation and event filtering to prevent cross-session contamination
+        """
+        test_start = time.time()
+        
+        if len(self.active_sessions) < 2:
+            return {
+                "success": False,
+                "error": "Insufficient active sessions for isolation testing"
+            }
+            
+        # Select two sessions for isolation testing
+        session_ids = list(self.active_sessions.keys())[:2]
+        test_session_1 = session_ids[0]
+        test_session_2 = session_ids[1]
+        
+        isolation_results = []
+        
+        # Test 1: Trigger auto-switch in session 1, verify session 2 doesn't receive it
+        trigger_start = time.time()
+        
+        # Clear existing events
+        for session_id in [test_session_1, test_session_2]:
+            self.session_events[session_id].clear()
+            
+        # Create task with auto-switch for session 1 only
+        task_id_1 = self.database.create_task(
+            epic_id=1,
+            title="Isolation test task for session 1",
+            description="Task should trigger auto-switch only in session 1",
+            ra_metadata={
+                "session_id": test_session_1,
+                "auto_switch": True,
+                "complexity_score": 7,
+                "mode": "ra-light"
+            }
+        )
+        
+        # Wait for event processing
+        await asyncio.sleep(0.5)
+        
+        # Check events in both sessions
+        session_1_events = [
+            e for e in self.session_events[test_session_1]
+            if e.get("parsed", {}).get("type") == "auto_switch"
+        ]
+        session_2_events = [
+            e for e in self.session_events[test_session_2]
+            if e.get("parsed", {}).get("type") == "auto_switch"
+        ]
+        
+        isolation_test_1 = {
+            "test_name": "session_1_isolation",
+            "task_id": task_id_1,
+            "target_session": test_session_1,
+            "other_session": test_session_2,
+            "target_session_events": len(session_1_events),
+            "other_session_events": len(session_2_events),
+            "isolation_successful": len(session_1_events) > 0 and len(session_2_events) == 0,
+            "duration": (time.time() - trigger_start) * 1000
+        }
+        isolation_results.append(isolation_test_1)
+        
+        # Test 2: Reverse test - trigger in session 2, verify session 1 doesn't receive it
+        trigger_start = time.time()
+        
+        # Clear events again
+        for session_id in [test_session_1, test_session_2]:
+            self.session_events[session_id].clear()
+            
+        task_id_2 = self.database.create_task(
+            epic_id=1,
+            title="Isolation test task for session 2",
+            description="Task should trigger auto-switch only in session 2",
+            ra_metadata={
+                "session_id": test_session_2,
+                "auto_switch": True,
+                "complexity_score": 6,
+                "mode": "standard"
+            }
+        )
+        
+        await asyncio.sleep(0.5)
+        
+        session_1_events = [
+            e for e in self.session_events[test_session_1]
+            if e.get("parsed", {}).get("type") == "auto_switch"
+        ]
+        session_2_events = [
+            e for e in self.session_events[test_session_2]
+            if e.get("parsed", {}).get("type") == "auto_switch"
+        ]
+        
+        isolation_test_2 = {
+            "test_name": "session_2_isolation",
+            "task_id": task_id_2,
+            "target_session": test_session_2,
+            "other_session": test_session_1,
+            "target_session_events": len(session_2_events),
+            "other_session_events": len(session_1_events),
+            "isolation_successful": len(session_2_events) > 0 and len(session_1_events) == 0,
+            "duration": (time.time() - trigger_start) * 1000
+        }
+        isolation_results.append(isolation_test_2)
+        
+        # Calculate overall isolation success
+        successful_isolation_tests = sum(
+            1 for test in isolation_results 
+            if test["isolation_successful"]
+        )
+        
+        return {
+            "success": successful_isolation_tests == len(isolation_results),
+            "isolation_success_rate": successful_isolation_tests / len(isolation_results),
+            "isolation_tests": isolation_results,
+            "total_duration": (time.time() - test_start) * 1000
+        }
+        
+    async def _test_concurrent_auto_switch(self) -> Dict[str, Any]:
+        """
+        Test concurrent auto-switch events across multiple sessions.
+        
+        # #COMPLETION_DRIVE_INTEGRATION: Concurrent auto-switch assumes proper event
+        # queuing and processing without race conditions or event loss
+        """
+        test_start = time.time()
+        
+        if len(self.active_sessions) < 2:
+            return {
+                "success": False,
+                "error": "Insufficient active sessions for concurrent testing"
+            }
+            
+        # Clear all session events
+        for session_id in self.active_sessions:
+            self.session_events[session_id].clear()
+            
+        # Create concurrent auto-switch tasks
+        concurrent_tasks = []
+        session_ids = list(self.active_sessions.keys())
+        
+        # #COMPLETION_DRIVE_IMPL: Concurrent task creation assumes database can handle
+        # multiple simultaneous inserts without lock contention or data corruption
+        for i, session_id in enumerate(session_ids):
+            task_creation = self._create_auto_switch_task(
+                session_id=session_id,
+                task_name=f"Concurrent auto-switch task {i}",
+                complexity=5 + (i % 3)  # Vary complexity
+            )
+            concurrent_tasks.append(task_creation)
+            
+        # Execute all task creations simultaneously
+        task_creation_start = time.time()
+        task_results = await asyncio.gather(*concurrent_tasks, return_exceptions=True)
+        task_creation_duration = (time.time() - task_creation_start) * 1000
+        
+        # Wait for auto-switch events to propagate
+        await asyncio.sleep(1.0)
+        
+        # Analyze results
+        successful_creations = []
+        failed_creations = []
+        
+        for i, result in enumerate(task_results):
+            if isinstance(result, Exception):
+                failed_creations.append({
+                    "session_id": session_ids[i],
+                    "error": str(result)
+                })
+            elif result.get("success", False):
+                successful_creations.append({
+                    "session_id": session_ids[i],
+                    "task_id": result["task_id"],
+                    "duration": result["duration"]
+                })
+            else:
+                failed_creations.append({
+                    "session_id": session_ids[i],
+                    "error": result.get("error", "Unknown error")
+                })
+                
+        # Check auto-switch events received
+        sessions_with_events = 0
+        total_auto_switch_events = 0
+        
+        for session_id in session_ids:
+            auto_switch_events = [
+                e for e in self.session_events[session_id]
+                if e.get("parsed", {}).get("type") == "auto_switch"
+            ]
+            if auto_switch_events:
+                sessions_with_events += 1
+                total_auto_switch_events += len(auto_switch_events)
+                
+        return {
+            "success": sessions_with_events == len(successful_creations),
+            "task_creation": {
+                "attempted": len(concurrent_tasks),
+                "successful": len(successful_creations),
+                "failed": len(failed_creations),
+                "duration": task_creation_duration
+            },
+            "auto_switch_events": {
+                "sessions_with_events": sessions_with_events,
+                "total_events": total_auto_switch_events,
+                "expected_sessions": len(successful_creations)
+            },
+            "successful_creations": successful_creations,
+            "failed_creations": failed_creations,
+            "total_duration": (time.time() - test_start) * 1000
+        }
+        
+    async def _create_auto_switch_task(self, session_id: str, task_name: str, complexity: int) -> Dict[str, Any]:
+        """
+        Create a task with auto-switch enabled for specific session.
+        
+        # #COMPLETION_DRIVE_IMPL: Auto-switch task creation assumes proper metadata
+        # serialization and WebSocket event triggering upon task creation
+        """
+        creation_start = time.time()
+        
+        try:
+            task_id = self.database.create_task(
+                epic_id=1,
+                title=task_name,
+                description=f"Auto-switch test task for {session_id}",
+                ra_metadata={
+                    "session_id": session_id,
+                    "auto_switch": True,
+                    "complexity_score": complexity,
+                    "mode": "ra-light" if complexity >= 7 else "standard",
+                    "created_at": datetime.utcnow().isoformat()
+                }
+            )
+            
+            return {
+                "success": task_id is not None,
+                "task_id": task_id,
+                "session_id": session_id,
+                "duration": (time.time() - creation_start) * 1000
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "session_id": session_id,
+                "duration": (time.time() - creation_start) * 1000
+            }
+            
+    async def _test_auto_switch_with_context(self) -> Dict[str, Any]:
+        """
+        Test auto-switch with proper task context and project/epic switching.
+        
+        # #COMPLETION_DRIVE_INTEGRATION: Context switching assumes proper project and epic
+        # metadata handling with WebSocket event payload including full context information
+        """
+        test_start = time.time()
+        
+        if len(self.active_sessions) < 1:
+            return {
+                "success": False,
+                "error": "No active sessions for context testing"
+            }
+            
+        session_id = list(self.active_sessions.keys())[0]
+        
+        # Clear session events
+        self.session_events[session_id].clear()
+        
+        # Create different projects and epics for context testing
+        project_1_id = self.database.create_project(
+            "Context Test Project 1",
+            "First project for auto-switch context testing"
+        )
+        
+        project_2_id = self.database.create_project(
+            "Context Test Project 2", 
+            "Second project for auto-switch context testing"
+        )
+        
+        epic_1_id = self.database.create_epic(
+            project_1_id,
+            "Authentication Epic",
+            "User authentication and authorization"
+        )
+        
+        epic_2_id = self.database.create_epic(
+            project_2_id,
+            "Dashboard Epic",
+            "Real-time dashboard implementation"
+        )
+        
+        # Test context switching across different projects/epics
+        context_tests = [
+            {
+                "name": "project_1_context_switch",
+                "epic_id": epic_1_id,
+                "expected_project_id": project_1_id,
+                "task_name": "Context switch to Project 1"
+            },
+            {
+                "name": "project_2_context_switch", 
+                "epic_id": epic_2_id,
+                "expected_project_id": project_2_id,
+                "task_name": "Context switch to Project 2"
+            }
+        ]
+        
+        context_results = []
+        
+        for test_case in context_tests:
+            test_case_start = time.time()
+            
+            # Clear events before test
+            self.session_events[session_id].clear()
+            
+            # Create task with context
+            task_id = self.database.create_task(
+                epic_id=test_case["epic_id"],
+                title=test_case["task_name"],
+                description=f"Testing context switch for {test_case['name']}",
+                ra_metadata={
+                    "session_id": session_id,
+                    "auto_switch": True,
+                    "complexity_score": 7,
+                    "mode": "ra-light",
+                    "context_test": test_case["name"]
+                }
+            )
+            
+            # Wait for auto-switch event
+            await asyncio.sleep(0.5)
+            
+            # Check for auto-switch events with context
+            auto_switch_events = [
+                e for e in self.session_events[session_id]
+                if e.get("parsed", {}).get("type") == "auto_switch"
+            ]
+            
+            # Validate context information in events
+            context_valid = False
+            if auto_switch_events:
+                latest_event = auto_switch_events[-1]
+                event_data = latest_event.get("parsed", {})
+                
+                # #COMPLETION_DRIVE_IMPL: Event payload assumes proper context serialization
+                # including project_id, epic_id, and task_id in auto-switch event data
+                context_valid = (
+                    event_data.get("task_id") == task_id and
+                    event_data.get("epic_id") == test_case["epic_id"] and
+                    event_data.get("project_id") == test_case["expected_project_id"]
+                )
+                
+            context_results.append({
+                "test_name": test_case["name"],
+                "task_id": task_id,
+                "epic_id": test_case["epic_id"],
+                "expected_project_id": test_case["expected_project_id"],
+                "auto_switch_events_received": len(auto_switch_events),
+                "context_information_valid": context_valid,
+                "success": len(auto_switch_events) > 0 and context_valid,
+                "duration": (time.time() - test_case_start) * 1000
+            })
+            
+        # Calculate overall context switching success
+        successful_context_tests = sum(
+            1 for test in context_results
+            if test["success"]
+        )
+        
+        return {
+            "success": successful_context_tests == len(context_tests),
+            "context_success_rate": successful_context_tests / len(context_tests),
+            "context_tests": context_results,
+            "total_duration": (time.time() - test_start) * 1000
+        }
+        
+    def _calculate_performance_metrics(self) -> Dict[str, Any]:
+        """
+        Calculate performance metrics for auto-switch operations.
+        
+        # #COMPLETION_DRIVE_IMPL: Performance calculation assumes accurate timestamps
+        # and proper event correlation for latency measurement
+        """
+        if not self.auto_switch_timings:
+            return {
+                "auto_switch_count": 0,
+                "average_latency": 0,
+                "min_latency": 0,
+                "max_latency": 0
+            }
+            
+        # Calculate latencies (simplified - would need task creation timestamps for accurate measurement)
+        # #SUGGEST_EDGE_CASE: Implement proper end-to-end latency measurement with task creation correlation
+        latencies = []
+        
+        # For now, use inter-event timing as approximation
+        sorted_timings = sorted(self.auto_switch_timings, key=lambda x: x["timestamp"])
+        
+        for i in range(1, len(sorted_timings)):
+            # This is not true latency but inter-event timing for performance approximation
+            inter_event_time = (sorted_timings[i]["timestamp"] - sorted_timings[i-1]["timestamp"]) * 1000
+            if inter_event_time < 5000:  # Ignore gaps > 5 seconds (likely different operations)
+                latencies.append(inter_event_time)
+                
+        if not latencies:
+            latencies = [100]  # Default assumption
+            
+        return {
+            "auto_switch_count": len(self.auto_switch_timings),
+            "average_latency": sum(latencies) / len(latencies),
+            "min_latency": min(latencies),
+            "max_latency": max(latencies),
+            "latency_distribution": {
+                "p50": sorted(latencies)[len(latencies)//2],
+                "p95": sorted(latencies)[int(len(latencies)*0.95)],
+                "p99": sorted(latencies)[int(len(latencies)*0.99)]
+            }
+        }
+        
+    async def _cleanup_sessions(self):
+        """Clean up all active WebSocket sessions."""
+        cleanup_tasks = []
+        
+        for session in self.active_sessions.values():
+            cleanup_tasks.append(session["websocket_client"].disconnect())
+            
+        if cleanup_tasks:
+            await asyncio.gather(*cleanup_tasks, return_exceptions=True)
+            
+        self.active_sessions.clear()
+        self.session_events.clear()
+        self.auto_switch_timings.clear()
+
+
+@pytest.mark.integration
+@pytest.mark.multi_session
+@pytest.mark.performance
+async def test_multi_session_auto_switch_3_sessions(integration_db):
+    """Test auto-switch behavior across 3 concurrent sessions."""
+    websocket_manager = ConnectionManager()
+    tester = MultiSessionAutoSwitchTester(integration_db.database, websocket_manager)
+    
+    results = await tester.test_multi_session_auto_switch(session_count=3)
+    
+    # Validate results
+    assert results["success"], f"Multi-session auto-switch failed: {results.get('errors', [])}"
+    
+    # Check session isolation
+    isolation_result = results["coordination_tests"]["session_isolation"]["result"]
+    assert isolation_result["success"], f"Session isolation failed: {isolation_result}"
+    
+    # Check concurrent functionality
+    concurrent_result = results["coordination_tests"]["concurrent_auto_switch"]["result"]
+    assert concurrent_result["success"], f"Concurrent auto-switch failed: {concurrent_result}"
+    
+    # Performance validation
+    performance = results["performance_metrics"]
+    assert performance["average_latency"] < 1000, f"Auto-switch latency too high: {performance['average_latency']:.0f}ms"
+    
+    print(f"\n=== Multi-Session Auto-Switch Test Results ===")
+    print(f"Sessions Tested: {results['session_count']}")
+    print(f"Overall Success: {results['success']}")
+    print(f"Auto-Switch Events: {performance['auto_switch_count']}")
+    print(f"Average Latency: {performance['average_latency']:.0f}ms")
+
+
+@pytest.mark.integration
+@pytest.mark.multi_session
+@pytest.mark.stress
+async def test_auto_switch_stress_test(integration_db):
+    """Stress test auto-switch with many concurrent sessions and rapid events."""
+    websocket_manager = ConnectionManager()
+    tester = MultiSessionAutoSwitchTester(integration_db.database, websocket_manager)
+    
+    # Test with more sessions for stress testing
+    # #SUGGEST_EDGE_CASE: Test with extreme session count to validate scalability limits
+    results = await tester.test_multi_session_auto_switch(session_count=5)
+    
+    # Stress test should still maintain basic functionality
+    assert results["success"] or results["coordination_tests"]["session_initialization"]["successful_sessions"] >= 3, \
+        "Stress test should maintain functionality with at least 3 sessions"
+        
+    # Performance should degrade gracefully under stress
+    if results["success"]:
+        performance = results["performance_metrics"]
+        assert performance["average_latency"] < 2000, \
+            f"Stress test latency acceptable: {performance['average_latency']:.0f}ms"
+
+
+@pytest.mark.integration
+@pytest.mark.multi_session
+async def test_auto_switch_session_recovery(integration_db):
+    """Test auto-switch behavior with session disconnection and recovery."""
+    websocket_manager = ConnectionManager()
+    tester = MultiSessionAutoSwitchTester(integration_db.database, websocket_manager)
+    
+    # Initialize sessions
+    init_results = await tester._initialize_websocket_sessions(2)
+    assert init_results["success"], "Failed to initialize sessions for recovery test"
+    
+    active_session_ids = list(tester.active_sessions.keys())
+    test_session = active_session_ids[0]
+    
+    # Disconnect one session
+    await tester.active_sessions[test_session]["websocket_client"].disconnect()
+    
+    # Create auto-switch task for disconnected session
+    # #COMPLETION_DRIVE_INTEGRATION: Disconnected session handling assumes proper
+    # event queueing or graceful failure when session is unavailable
+    task_id = tester.database.create_task(
+        epic_id=1,
+        title="Recovery test task",
+        description="Task created while session disconnected",
+        ra_metadata={
+            "session_id": test_session,
+            "auto_switch": True,
+            "complexity_score": 6
+        }
+    )
+    
+    # Wait and verify no errors occurred
+    await asyncio.sleep(0.5)
+    
+    # Reconnect session
+    reconnect_success = await tester.active_sessions[test_session]["websocket_client"].connect()
+    
+    # #SUGGEST_ERROR_HANDLING: Session recovery should handle missed events gracefully
+    # This test validates that system doesn't crash when sessions disconnect
+    
+    # Cleanup
+    await tester._cleanup_sessions()
+    
+    # Basic validation - system should not crash
+    assert task_id is not None, "Task creation should succeed even with disconnected session"
+    
+    print(f"\n=== Session Recovery Test ===")
+    print(f"Task created during disconnection: {task_id}")
+    print(f"Reconnection successful: {reconnect_success}")
+
+
+if __name__ == "__main__":
+    """Standalone test execution for development."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Run auto-switch multi-session tests")
+    parser.add_argument("--verbose", "-v", action="store_true")
+    parser.add_argument("--stress", action="store_true", help="Run stress tests")
+    parser.add_argument("--recovery", action="store_true", help="Run recovery tests")
+    args = parser.parse_args()
+    
+    test_args = [__file__]
+    if args.verbose:
+        test_args.append("-v")
+    if args.stress:
+        test_args.append("-k stress")
+    elif args.recovery:
+        test_args.append("-k recovery")
+        
+    pytest.main(test_args)

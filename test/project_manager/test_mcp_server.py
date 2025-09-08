@@ -94,14 +94,17 @@ class TestProjectManagerMCPServer:
         result = await mcp_server._create_server()
         
         assert result == mock_fastmcp_instance
-        mock_fastmcp_class.assert_called_once_with(
-            name="Test MCP Server",
-            version="1.0.0-test"
-        )
+        # Verify FastMCP was called with name, version, and instructions
+        mock_fastmcp_class.assert_called_once()
+        call_args = mock_fastmcp_class.call_args
+        assert call_args.kwargs['name'] == "Test MCP Server"
+        assert call_args.kwargs['version'] == "1.0.0-test"
+        assert 'instructions' in call_args.kwargs
+        assert 'CRITICAL: You MUST use Response Awareness' in call_args.kwargs['instructions']
         
-        # Validate that tool decorator was called for all four tools
+        # Validate that tool decorator was called for all ten tools
         # Verifies: Each tool is registered using @mcp.tool decorator pattern
-        assert mock_tool_decorator.call_count == 4, "All four MCP tools should be registered"
+        assert mock_tool_decorator.call_count == 10, "All ten MCP tools should be registered"
     
     @pytest.mark.asyncio
     @patch('src.task_manager.mcp_server.FastMCP')
@@ -155,12 +158,12 @@ class TestProjectManagerMCPServer:
             port=8000
         )
         
-        # Validate SSE transport configuration
-        mock_fastmcp_instance.run.assert_called_once_with(
-            transport="sse",
-            host="127.0.0.1",
-            port=8000
-        )
+        # Validate SSE transport configuration (allow optional path in kwargs)
+        assert mock_fastmcp_instance.run.call_count == 1
+        _, kwargs = mock_fastmcp_instance.run.call_args
+        assert kwargs.get("transport") == "sse"
+        assert kwargs.get("host") == "127.0.0.1"
+        assert kwargs.get("port") == 8000
     
     @pytest.mark.asyncio
     @patch('src.task_manager.mcp_server.FastMCP')
@@ -250,11 +253,17 @@ class TestProjectManagerMCPServer:
         assert info["name"] == "Test MCP Server"
         assert info["version"] == "1.0.0-test"
         assert "task coordination capabilities" in info["instructions"]
-        assert len(info["registered_tools"]) == 4
+        assert len(info["registered_tools"]) == 10
         assert "get_available_tasks" in info["registered_tools"]
         assert "acquire_task_lock" in info["registered_tools"]
         assert "update_task_status" in info["registered_tools"]
         assert "release_task_lock" in info["registered_tools"]
+        assert "create_task" in info["registered_tools"]
+        assert "update_task" in info["registered_tools"]
+        assert "get_task_details" in info["registered_tools"]
+        assert "list_projects" in info["registered_tools"]
+        assert "list_epics" in info["registered_tools"]
+        assert "list_tasks" in info["registered_tools"]
         assert info["server_created"] is False  # Not created yet
 
 
@@ -412,12 +421,18 @@ class TestMCPServerIntegration:
         )
         await server._create_server()
         
-        # Validate all four tools were registered
-        assert len(registered_tools) == 4
+        # Validate all ten tools were registered
+        assert len(registered_tools) == 10
         assert "get_available_tasks" in registered_tools
         assert "acquire_task_lock" in registered_tools
         assert "update_task_status" in registered_tools
         assert "release_task_lock" in registered_tools
+        assert "create_task" in registered_tools
+        assert "update_task" in registered_tools
+        assert "get_task_details" in registered_tools
+        assert "list_projects" in registered_tools
+        assert "list_epics" in registered_tools
+        assert "list_tasks" in registered_tools
         
         # Test get_available_tasks tool function
         get_tasks_func = registered_tools["get_available_tasks"]
@@ -553,7 +568,7 @@ Test Coverage Summary:
    - Error handling and recovery
 
 3. Tool Registration: ✅
-   - All four MCP tools registered
+   - All five MCP tools registered
    - Async decorator patterns
    - Schema generation validation
 

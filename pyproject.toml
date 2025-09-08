@@ -67,6 +67,12 @@ dev = [
     "pytest-cov>=4.0",             # Coverage reporting  
     "httpx>=0.24",                 # Async HTTP client for API testing
     "websockets>=11.0",            # WebSocket client for MCP testing
+    "selenium>=4.0",               # Browser automation for cross-browser testing
+    "requests>=2.31.0",            # HTTP requests for health checks and API calls
+    "pytest-xdist>=3.0",           # Parallel test execution
+    "pytest-html>=3.0",            # HTML test reports
+    "pytest-benchmark>=4.0",       # Performance benchmarking in tests
+    "playwright>=1.30.0",          # Modern browser automation alternative to Selenium
 ]
 
 test = [
@@ -74,6 +80,9 @@ test = [
     "pytest-asyncio>=0.21",
     "httpx>=0.24",
     "websockets>=11.0",
+    "selenium>=4.0",               # #COMPLETION_DRIVE_IMPL: Cross-browser testing requires Selenium
+    "requests>=2.31.0",            # #COMPLETION_DRIVE_IMPL: CLI health checks need requests library
+    "playwright>=1.30.0",          # #COMPLETION_DRIVE_IMPL: Modern browser automation for better reliability
 ]
 
 lint = [
@@ -173,6 +182,13 @@ testpaths = ["test"]
 asyncio_mode = "auto"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
+    "integration: marks tests as integration tests", 
     "packaging: marks tests as packaging-related tests",
+    "performance: marks tests as performance/load tests",
+    "ra_validation: marks tests as RA methodology compliance validation",
+    "browser: marks tests requiring browser automation",
+    "multi_session: marks tests requiring multiple browser sessions",
+    "stress: marks tests as stress/load testing with large datasets",
+    "cross_browser: marks tests requiring cross-browser compatibility validation",
+    "benchmark: marks tests as performance benchmarking tests",
 ]

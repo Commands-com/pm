@@ -20,7 +20,7 @@ patterns confirmed working with actual framework behavior and production require
 
 import asyncio
 import logging
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, List
 from contextlib import asynccontextmanager
 
 from fastmcp import FastMCP
@@ -28,11 +28,18 @@ from fastapi import FastAPI
 
 from .database import TaskDatabase
 from .api import ConnectionManager
+from .ra_instructions import get_ra_instructions
 from .tools import (
     GetAvailableTasks, 
     AcquireTaskLock, 
     UpdateTaskStatus, 
     ReleaseTaskLock,
+    CreateTaskTool,
+    UpdateTaskTool,
+    GetTaskDetailsTool,
+    ListProjectsTool,
+    ListEpicsTool,
+    ListTasksTool,
     create_tool_instance
 )
 
@@ -77,11 +84,13 @@ class ProjectManagerMCPServer:
         
         # Verified: Server instructions provide essential context for AI agents to understand
         # the purpose and capabilities of this MCP server for coordinated task workflows.
+        # Standard Mode: Server description updated to reflect RA methodology integration
         self._server_instructions = (
-            f"{server_name} provides AI agents with task coordination capabilities "
-            "including task discovery, atomic locking, status updates, and lock management. "
-            "Use these tools to implement coordinated multi-agent workflows with proper "
-            "conflict prevention and real-time dashboard synchronization."
+            f"{server_name} provides AI agents with Response Awareness (RA) methodology "
+            "integration and task coordination capabilities including task discovery, atomic locking, "
+            "status updates, and lock management. Complete RA workflow guidance and assumption "
+            "tracking tools enable coordinated multi-agent development with proper conflict prevention "
+            "and real-time dashboard synchronization."
         )
     
     async def _create_server(self) -> FastMCP:
@@ -99,11 +108,17 @@ class ProjectManagerMCPServer:
         # function type hints and registers tools with the MCP server instance.
         """
         try:
-            # Create FastMCP server instance
+            # Get RA methodology instructions for client agents
+            # Standard Mode: Full RA instructions provide comprehensive workflow guidance
+            ra_instructions = get_ra_instructions(format_type="full")
+            
+            # Create FastMCP server instance with RA instructions
             # Verified: FastMCP(name, version) constructor pattern confirmed working in v2.12.2
+            # Standard Mode: Instructions parameter integration follows Serena reference pattern
             mcp = FastMCP(
                 name=self.server_name,
                 version=self.server_version,
+                instructions=ra_instructions,
                 # Enhancement opportunity: Add description field (see MCP_ENHANCEMENT_SUGGESTIONS.md #4)
             )
             
@@ -227,7 +242,316 @@ class ProjectManagerMCPServer:
                     agent_id=agent_id
                 )
             
-            logger.info(f"FastMCP server '{self.server_name}' created with 4 registered tools")
+            # CreateTaskTool tool registration
+            create_task_tool = create_tool_instance("create_task", self.database, self.websocket_manager)
+            
+            @mcp.tool
+            async def create_task(
+                name: str,
+                description: str = "",
+                epic_id: Optional[int] = None,
+                epic_name: Optional[str] = None,
+                project_id: Optional[int] = None,
+                project_name: Optional[str] = None,
+                ra_mode: Optional[str] = None,
+                ra_score: Optional[str] = None,  # Changed to str to handle MCP validation
+                ra_tags: Optional[str] = None,  # Changed to str to accept JSON
+                ra_metadata: Optional[str] = None,  # Changed to str to accept JSON
+                prompt_snapshot: Optional[str] = None,
+                dependencies: Optional[str] = None,  # Changed to str to accept JSON
+                client_session_id: Optional[str] = None
+            ) -> str:
+                """
+                Create a task with project/epic upsert and full RA metadata support.
+                
+                Supports both existing ID-based epic specification and name-based
+                project/epic creation. Automatically handles project/epic upsert logic,
+                RA complexity assessment, prompt snapshots, and WebSocket broadcasting.
+                
+                Args:
+                    name: Task name (required)
+                    description: Task description (optional)
+                    epic_id: ID of existing epic (either epic_id or epic_name required)
+                    epic_name: Name of epic (created if not found, with project)
+                    project_id: ID of existing project (used with epic_name)
+                    project_name: Name of project (created if not found)
+                    ra_mode: RA mode (simple, standard, ra-light, ra-full)
+                    ra_score: RA complexity score as string (1-10, auto-assessed if not provided)
+                    ra_tags: JSON string of RA assumption tags list (e.g., '["#TAG1: desc", "#TAG2: desc"]')
+                    ra_metadata: JSON string of RA metadata dictionary (e.g., '{"key": "value"}')
+                    prompt_snapshot: System prompt snapshot (auto-captured if not provided)
+                    dependencies: JSON string of task ID list (e.g., '[1, 2, 3]')
+                    client_session_id: Client session for dashboard auto-switch
+                    
+                Returns:
+                    JSON string with created task information and success status
+                """
+                # Parse JSON string parameters if provided
+                parsed_ra_score = None
+                if ra_score:
+                    try:
+                        parsed_ra_score = int(ra_score)
+                        if parsed_ra_score < 1 or parsed_ra_score > 10:
+                            return json.dumps({"success": False, "error": "ra_score must be between 1 and 10"})
+                    except ValueError:
+                        return json.dumps({"success": False, "error": "ra_score must be a valid integer"})
+                
+                parsed_ra_tags = None
+                if ra_tags:
+                    try:
+                        import json
+                        parsed_ra_tags = json.loads(ra_tags)
+                        if not isinstance(parsed_ra_tags, list):
+                            raise ValueError("ra_tags must be a JSON array")
+                    except (json.JSONDecodeError, ValueError) as e:
+                        return json.dumps({"success": False, "error": f"Invalid ra_tags JSON: {e}"})
+                
+                parsed_ra_metadata = None
+                if ra_metadata:
+                    try:
+                        import json
+                        parsed_ra_metadata = json.loads(ra_metadata)
+                        if not isinstance(parsed_ra_metadata, dict):
+                            raise ValueError("ra_metadata must be a JSON object")
+                    except (json.JSONDecodeError, ValueError) as e:
+                        return json.dumps({"success": False, "error": f"Invalid ra_metadata JSON: {e}"})
+                
+                parsed_dependencies = None
+                if dependencies:
+                    try:
+                        import json
+                        deps_list = json.loads(dependencies)
+                        if not isinstance(deps_list, list):
+                            raise ValueError("dependencies must be a JSON array")
+                        # Convert string IDs to integers
+                        parsed_dependencies = []
+                        for dep in deps_list:
+                            if isinstance(dep, str) and dep.isdigit():
+                                parsed_dependencies.append(int(dep))
+                            elif isinstance(dep, int):
+                                parsed_dependencies.append(dep)
+                            else:
+                                raise ValueError(f"Invalid dependency ID: {dep} - must be integer or numeric string")
+                    except (json.JSONDecodeError, ValueError) as e:
+                        return json.dumps({"success": False, "error": f"Invalid dependencies JSON: {e}"})
+                
+                return await create_task_tool.apply(
+                    name=name,
+                    description=description,
+                    epic_id=epic_id,
+                    epic_name=epic_name,
+                    project_id=project_id,
+                    project_name=project_name,
+                    ra_mode=ra_mode,
+                    ra_score=parsed_ra_score,
+                    ra_tags=parsed_ra_tags,
+                    ra_metadata=parsed_ra_metadata,
+                    prompt_snapshot=prompt_snapshot,
+                    dependencies=parsed_dependencies,
+                    client_session_id=client_session_id
+                )
+            
+            # UpdateTaskTool tool registration
+            # Update task tool registration follows same pattern
+            # as other tools for consistency with FastMCP framework requirements
+            update_task_tool = create_tool_instance("update_task", self.database, self.websocket_manager)
+            
+            @mcp.tool
+            async def update_task(
+                task_id: str,
+                agent_id: str,
+                name: Optional[str] = None,
+                description: Optional[str] = None,
+                status: Optional[str] = None,
+                ra_mode: Optional[str] = None,
+                ra_score: Optional[str] = None,  # Changed to str to handle MCP validation
+                ra_tags: Optional[str] = None,  # Changed to str to accept JSON
+                ra_metadata: Optional[str] = None,  # Changed to str to accept JSON
+                ra_tags_mode: str = "merge",
+                ra_metadata_mode: str = "merge",
+                log_entry: Optional[str] = None
+            ) -> str:
+                """
+                Update task fields atomically with comprehensive RA metadata support.
+                
+                Provides atomic multi-field updates with RA metadata merge/replace logic,
+                integrated logging, lock coordination, and real-time WebSocket broadcasting.
+                Supports both UI and database status vocabularies for compatibility.
+                
+                Args:
+                    task_id: ID of the task to update (string, converted to int)
+                    agent_id: ID of the agent performing the update (required for lock validation)
+                    name: New task name (optional)
+                    description: New task description (optional)
+                    status: New task status (optional - TODO/IN_PROGRESS/DONE/REVIEW or DB vocabulary)
+                    ra_mode: New RA mode (optional - simple, standard, ra-light, ra-full)
+                    ra_score: New RA complexity score as string (optional - 1-10)
+                    ra_tags: JSON string of RA tags to merge or replace (e.g., '["#TAG1: desc"]')
+                    ra_metadata: JSON string of RA metadata to merge or replace (e.g., '{"key": "value"}')
+                    ra_tags_mode: How to handle ra_tags - "merge" or "replace" (default: merge)
+                    ra_metadata_mode: How to handle ra_metadata - "merge" or "replace" (default: merge)
+                    log_entry: Optional log message to append with sequence numbering
+                    
+                Returns:
+                    JSON string with success status, updated fields summary, and metadata
+                """
+                # Parse JSON string parameters if provided
+                parsed_ra_score = None
+                if ra_score:
+                    try:
+                        parsed_ra_score = int(ra_score)
+                        if parsed_ra_score < 1 or parsed_ra_score > 10:
+                            return json.dumps({"success": False, "error": "ra_score must be between 1 and 10"})
+                    except ValueError:
+                        return json.dumps({"success": False, "error": "ra_score must be a valid integer"})
+                
+                parsed_ra_tags = None
+                if ra_tags:
+                    try:
+                        import json
+                        parsed_ra_tags = json.loads(ra_tags)
+                        if not isinstance(parsed_ra_tags, list):
+                            raise ValueError("ra_tags must be a JSON array")
+                    except (json.JSONDecodeError, ValueError) as e:
+                        return json.dumps({"success": False, "error": f"Invalid ra_tags JSON: {e}"})
+                
+                parsed_ra_metadata = None
+                if ra_metadata:
+                    try:
+                        import json
+                        parsed_ra_metadata = json.loads(ra_metadata)
+                        if not isinstance(parsed_ra_metadata, dict):
+                            raise ValueError("ra_metadata must be a JSON object")
+                    except (json.JSONDecodeError, ValueError) as e:
+                        return json.dumps({"success": False, "error": f"Invalid ra_metadata JSON: {e}"})
+                
+                return await update_task_tool.apply(
+                    task_id=task_id,
+                    agent_id=agent_id,
+                    name=name,
+                    description=description,
+                    status=status,
+                    ra_mode=ra_mode,
+                    ra_score=parsed_ra_score,
+                    ra_tags=parsed_ra_tags,
+                    ra_metadata=parsed_ra_metadata,
+                    ra_tags_mode=ra_tags_mode,
+                    ra_metadata_mode=ra_metadata_mode,
+                    log_entry=log_entry
+                )
+            
+            # GetTaskDetailsTool tool registration
+            get_task_details_tool = create_tool_instance("get_task_details", self.database, self.websocket_manager)
+            
+            @mcp.tool
+            async def get_task_details(
+                task_id: str,
+                log_limit: int = 100,
+                before_seq: Optional[int] = None
+            ) -> str:
+                """
+                Get comprehensive task details with log pagination and dependency resolution.
+                
+                Retrieves complete task information including project/epic context, all RA metadata,
+                paginated task logs, and resolved dependency summaries. Designed for dashboard
+                task detail modal display with efficient database queries and pagination support.
+                
+                Args:
+                    task_id: ID of the task to retrieve details for (string, converted to int)
+                    log_limit: Maximum number of log entries to return (default: 100, max: 1000)
+                    before_seq: Get logs before this sequence number for pagination (optional)
+                    
+                Returns:
+                    JSON string with comprehensive task details including:
+                    - Complete task data with all RA metadata fields
+                    - Project and epic context information 
+                    - Paginated task logs in chronological order
+                    - Resolved dependency summaries (id, name, status)
+                    - Pagination metadata for client navigation
+                """
+                return await get_task_details_tool.apply(
+                    task_id=task_id,
+                    log_limit=log_limit,
+                    before_seq=before_seq
+                )
+            
+            # Standard Mode: Three new list MCP tools for dashboard enhancement
+            # Assumption: These tools provide data for UI selectors and filters with minimal MCP overhead
+            
+            @mcp.tool
+            async def list_projects(
+                status: Optional[str] = None,
+                limit: Optional[int] = None
+            ) -> str:
+                """
+                List all projects with optional filtering and result limiting.
+                
+                Provides project data for UI selectors and filtering. Currently status
+                parameter is ignored as projects table lacks status field.
+                
+                Args:
+                    status: Optional status filter (currently ignored - no status field)
+                    limit: Optional maximum number of projects to return
+                    
+                Returns:
+                    JSON list of projects with id, name, description, created_at, updated_at
+                """
+                list_projects_tool = ListProjectsTool(database, websocket_manager)
+                return await list_projects_tool.apply(status=status, limit=limit)
+            
+            @mcp.tool  
+            async def list_epics(
+                project_id: Optional[int] = None,
+                limit: Optional[int] = None
+            ) -> str:
+                """
+                List epics with optional project filtering and result limiting.
+                
+                Supports hierarchical filtering by project and includes project context
+                in response for better UX. Useful for populating epic selectors in UI.
+                
+                Args:
+                    project_id: Optional project ID to filter epics within specific project
+                    limit: Optional maximum number of epics to return
+                    
+                Returns:
+                    JSON list of epics with id, name, description, project_id, project_name, created_at
+                """
+                list_epics_tool = ListEpicsTool(database, websocket_manager)
+                return await list_epics_tool.apply(project_id=project_id, limit=limit)
+            
+            @mcp.tool
+            async def list_tasks(
+                project_id: Optional[int] = None,
+                epic_id: Optional[int] = None,
+                status: Optional[str] = None,
+                limit: Optional[int] = None
+            ) -> str:
+                """
+                List tasks with hierarchical filtering (project, epic, status) and result limiting.
+                
+                Supports multi-level filtering and status vocabulary mapping between UI terms
+                (TODO/DONE) and database values (pending/completed). Includes hierarchical 
+                context and RA score for Response Awareness workflow integration.
+                
+                Args:
+                    project_id: Optional project ID to filter tasks within specific project
+                    epic_id: Optional epic ID to filter tasks within specific epic  
+                    status: Optional status filter (UI: TODO/IN_PROGRESS/REVIEW/DONE or DB: pending/in_progress/review/completed/blocked)
+                    limit: Optional maximum number of tasks to return
+                    
+                Returns:
+                    JSON list of tasks with id, name, status, ra_score, epic_name, project_name
+                """
+                list_tasks_tool = ListTasksTool(database, websocket_manager)
+                return await list_tasks_tool.apply(
+                    project_id=project_id, 
+                    epic_id=epic_id, 
+                    status=status, 
+                    limit=limit
+                )
+            
+            logger.info(f"FastMCP server '{self.server_name}' created with 10 registered tools")
             return mcp
             
         except Exception as e:
@@ -367,7 +691,13 @@ class ProjectManagerMCPServer:
                 "get_available_tasks",
                 "acquire_task_lock", 
                 "update_task_status",
-                "release_task_lock"
+                "release_task_lock",
+                "create_task",
+                "update_task",
+                "get_task_details",
+                "list_projects",
+                "list_epics", 
+                "list_tasks"
             ],
             "server_created": self.mcp_server is not None,
             # Enhancement opportunity: Add health check capabilities

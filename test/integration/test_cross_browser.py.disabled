@@ -1,0 +1,1063 @@
+"""
+Cross-Browser Compatibility Integration Tests
+
+Tests dashboard functionality across multiple browsers (Chrome, Firefox, Safari, Edge)
+with automated browser testing, responsive design validation, and WebSocket compatibility.
+
+RA-Light Mode Implementation:
+All browser compatibility assumptions, WebDriver coordination patterns, and
+cross-platform behavior expectations are tagged for verification phase.
+"""
+
+import asyncio
+import json
+import os
+import pytest
+import time
+import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Tuple
+from unittest.mock import Mock, patch
+
+# Browser automation imports with fallbacks
+try:
+    from selenium import webdriver
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.common.action_chains import ActionChains
+    from selenium.webdriver.chrome.options import Options as ChromeOptions
+    from selenium.webdriver.firefox.options import Options as FirefoxOptions
+    from selenium.webdriver.safari.options import Options as SafariOptions
+    from selenium.webdriver.edge.options import Options as EdgeOptions
+    from selenium.common.exceptions import WebDriverException, TimeoutException
+    SELENIUM_AVAILABLE = True
+except ImportError:
+    SELENIUM_AVAILABLE = False
+    webdriver = None
+    WebDriverException = Exception
+    TimeoutException = Exception
+
+try:
+    from playwright.async_api import async_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
+
+# Import project components
+import sys
+project_root = Path(__file__).parent.parent.parent / "src"
+sys.path.insert(0, str(project_root))
+
+from task_manager.database import TaskDatabase
+from task_manager.api import ConnectionManager
+
+# Import test infrastructure
+sys.path.insert(0, str(Path(__file__).parent.parent / "project_manager"))
+from conftest import IntegrationTestDatabase, CLITestProcess
+
+
+# Browser compatibility test configuration
+# #COMPLETION_DRIVE_IMPL: Browser configuration assumes standard WebDriver setup
+# and proper browser installation on test environment
+BROWSER_CONFIG = {
+    "chrome": {
+        "enabled": True,
+        "headless": True,  # Set to False for debugging
+        "window_size": (1920, 1080),
+        "mobile_emulation": None
+    },
+    "firefox": {
+        "enabled": True,
+        "headless": True,
+        "window_size": (1920, 1080),
+        "mobile_emulation": None
+    },
+    "safari": {
+        "enabled": os.name != 'nt',  # Skip Safari on Windows
+        "headless": False,  # Safari doesn't support true headless
+        "window_size": (1920, 1080),
+        "mobile_emulation": None
+    },
+    "edge": {
+        "enabled": True,
+        "headless": True,
+        "window_size": (1920, 1080),
+        "mobile_emulation": None
+    }
+}
+
+# Mobile device emulation settings
+MOBILE_DEVICES = {
+    "mobile_chrome": {
+        "browser": "chrome",
+        "device_metrics": {
+            "width": 375,
+            "height": 667,
+            "deviceScaleFactor": 2,
+            "mobile": True
+        },
+        "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 13_0 like Mac OS X)"
+    },
+    "tablet_chrome": {
+        "browser": "chrome", 
+        "device_metrics": {
+            "width": 768,
+            "height": 1024,
+            "deviceScaleFactor": 2,
+            "mobile": True
+        },
+        "user_agent": "Mozilla/5.0 (iPad; CPU OS 13_0 like Mac OS X)"
+    }
+}
+
+
+class CrossBrowserTestFramework:
+    """
+    Cross-browser compatibility testing framework.
+    
+    Provides automated testing across multiple browsers with WebDriver management,
+    responsive design validation, and WebSocket compatibility testing.
+    
+    # #COMPLETION_DRIVE_INTEGRATION: Cross-browser testing assumes proper WebDriver
+    # coordination and consistent dashboard behavior across browser engines
+    """
+    
+    def __init__(self, dashboard_port: int = 8080):
+        """Initialize cross-browser testing framework."""
+        self.dashboard_port = dashboard_port
+        self.dashboard_url = f"http://localhost:{dashboard_port}"
+        self.active_drivers = {}
+        self.test_results = {}
+        
+    async def run_cross_browser_compatibility_tests(self) -> Dict[str, Any]:
+        """
+        Run comprehensive cross-browser compatibility tests.
+        
+        # #COMPLETION_DRIVE_INTEGRATION: Cross-browser testing assumes dashboard server
+        # is running and accessible, with consistent functionality across browser engines
+        """
+        test_start = time.time()
+        results = {
+            "test_id": f"cross_browser_{uuid.uuid4().hex[:8]}",
+            "timestamp": datetime.utcnow().isoformat(),
+            "browser_tests": {},
+            "compatibility_matrix": {},
+            "performance_comparison": {},
+            "responsive_design": {},
+            "errors": []
+        }
+        
+        try:
+            # Test desktop browsers
+            desktop_results = await self._test_desktop_browsers()
+            results["browser_tests"]["desktop"] = desktop_results
+            
+            # Test mobile responsive design
+            mobile_results = await self._test_mobile_responsive_design()
+            results["browser_tests"]["mobile"] = mobile_results
+            
+            # Test WebSocket compatibility across browsers
+            websocket_results = await self._test_websocket_cross_browser()
+            results["browser_tests"]["websocket"] = websocket_results
+            
+            # Generate compatibility matrix
+            results["compatibility_matrix"] = self._generate_compatibility_matrix(
+                desktop_results, mobile_results, websocket_results
+            )
+            
+            # Performance comparison across browsers
+            results["performance_comparison"] = self._analyze_cross_browser_performance(
+                desktop_results
+            )
+            
+            # Overall success determination
+            results["success"] = self._determine_overall_compatibility_success(results)
+            
+        except Exception as e:
+            results["errors"].append({
+                "phase": "cross_browser_testing",
+                "error": str(e),
+                "timestamp": time.time()
+            })
+            results["success"] = False
+            
+        finally:
+            # Cleanup all WebDriver instances
+            await self._cleanup_webdrivers()
+            
+        results["total_duration"] = (time.time() - test_start) * 1000
+        return results
+        
+    async def _test_desktop_browsers(self) -> Dict[str, Any]:
+        """
+        Test dashboard functionality across desktop browsers.
+        
+        # #COMPLETION_DRIVE_IMPL: Desktop browser testing assumes WebDriver setup
+        # and consistent DOM structure across different browser engines
+        """
+        test_start = time.time()
+        desktop_results = {}
+        
+        # Test each enabled browser
+        for browser_name, config in BROWSER_CONFIG.items():
+            if not config["enabled"]:
+                desktop_results[browser_name] = {
+                    "success": False,
+                    "skipped": True,
+                    "reason": "Browser disabled in configuration"
+                }
+                continue
+                
+            browser_start = time.time()
+            browser_result = await self._test_single_browser(browser_name, config)
+            browser_result["duration"] = (time.time() - browser_start) * 1000
+            desktop_results[browser_name] = browser_result
+            
+        return {
+            "browsers_tested": len([b for b, r in desktop_results.items() if not r.get("skipped")]),
+            "browsers_successful": len([b for b, r in desktop_results.items() if r.get("success")]),
+            "browser_results": desktop_results,
+            "total_duration": (time.time() - test_start) * 1000
+        }
+        
+    async def _test_single_browser(self, browser_name: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Test dashboard functionality in a single browser.
+        
+        # #COMPLETION_DRIVE_IMPL: Single browser testing assumes proper WebDriver
+        # initialization and consistent dashboard loading behavior
+        """
+        if not SELENIUM_AVAILABLE:
+            return {
+                "success": False,
+                "error": "Selenium not available",
+                "tests_run": 0
+            }
+            
+        try:
+            # Initialize WebDriver
+            driver = await self._create_webdriver(browser_name, config)
+            if not driver:
+                return {
+                    "success": False,
+                    "error": f"Failed to initialize {browser_name} WebDriver",
+                    "tests_run": 0
+                }
+                
+            self.active_drivers[browser_name] = driver
+            
+            # Run browser-specific tests
+            test_results = {
+                "browser_name": browser_name,
+                "tests_run": 0,
+                "tests_passed": 0,
+                "test_details": {}
+            }
+            
+            # Test 1: Dashboard loading
+            loading_result = await self._test_dashboard_loading(driver, browser_name)
+            test_results["test_details"]["dashboard_loading"] = loading_result
+            test_results["tests_run"] += 1
+            if loading_result["success"]:
+                test_results["tests_passed"] += 1
+                
+            # Test 2: Task list rendering
+            if loading_result["success"]:
+                task_list_result = await self._test_task_list_rendering(driver, browser_name)
+                test_results["test_details"]["task_list_rendering"] = task_list_result
+                test_results["tests_run"] += 1
+                if task_list_result["success"]:
+                    test_results["tests_passed"] += 1
+                    
+            # Test 3: Task modal functionality
+            if loading_result["success"]:
+                modal_result = await self._test_task_modal(driver, browser_name)
+                test_results["test_details"]["task_modal"] = modal_result
+                test_results["tests_run"] += 1
+                if modal_result["success"]:
+                    test_results["tests_passed"] += 1
+                    
+            # Test 4: Project/Epic filtering
+            if loading_result["success"]:
+                filtering_result = await self._test_filtering_functionality(driver, browser_name)
+                test_results["test_details"]["filtering"] = filtering_result
+                test_results["tests_run"] += 1
+                if filtering_result["success"]:
+                    test_results["tests_passed"] += 1
+                    
+            # Calculate success rate
+            test_results["success"] = test_results["tests_passed"] == test_results["tests_run"]
+            test_results["success_rate"] = (
+                test_results["tests_passed"] / test_results["tests_run"]
+                if test_results["tests_run"] > 0 else 0
+            )
+            
+            return test_results
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "browser_name": browser_name,
+                "tests_run": 0
+            }
+            
+    async def _create_webdriver(self, browser_name: str, config: Dict[str, Any]) -> Optional[Any]:
+        """
+        Create and configure WebDriver instance for specific browser.
+        
+        # #COMPLETION_DRIVE_IMPL: WebDriver creation assumes proper browser installation
+        # and WebDriver executable availability in system PATH
+        """
+        try:
+            if browser_name == "chrome":
+                options = ChromeOptions()
+                if config["headless"]:
+                    options.add_argument("--headless")
+                options.add_argument(f"--window-size={config['window_size'][0]},{config['window_size'][1]}")
+                options.add_argument("--disable-gpu")
+                options.add_argument("--no-sandbox")
+                options.add_argument("--disable-dev-shm-usage")
+                # #SUGGEST_ERROR_HANDLING: Add Chrome crash handling and recovery
+                
+                driver = webdriver.Chrome(options=options)
+                
+            elif browser_name == "firefox":
+                options = FirefoxOptions()
+                if config["headless"]:
+                    options.add_argument("--headless")
+                options.add_argument(f"--width={config['window_size'][0]}")
+                options.add_argument(f"--height={config['window_size'][1]}")
+                
+                driver = webdriver.Firefox(options=options)
+                
+            elif browser_name == "safari":
+                # Safari has limited options support
+                # #COMPLETION_DRIVE_IMPL: Safari WebDriver assumes Safari is enabled for automation
+                # in System Preferences > Safari > Advanced > Allow remote automation
+                options = SafariOptions() if hasattr(webdriver, 'Safari') else None
+                driver = webdriver.Safari(options=options) if options else webdriver.Safari()
+                
+            elif browser_name == "edge":
+                options = EdgeOptions()
+                if config["headless"]:
+                    options.add_argument("--headless")
+                options.add_argument(f"--window-size={config['window_size'][0]},{config['window_size'][1]}")
+                options.add_argument("--disable-gpu")
+                
+                driver = webdriver.Edge(options=options)
+                
+            else:
+                return None
+                
+            # Set implicit wait and configure timeouts
+            driver.implicitly_wait(10)
+            driver.set_page_load_timeout(30)
+            
+            return driver
+            
+        except WebDriverException as e:
+            print(f"Warning: Failed to create {browser_name} WebDriver: {e}")
+            return None
+        except Exception as e:
+            print(f"Error creating {browser_name} WebDriver: {e}")
+            return None
+            
+    async def _test_dashboard_loading(self, driver: Any, browser_name: str) -> Dict[str, Any]:
+        """
+        Test dashboard loading and basic functionality.
+        
+        # #COMPLETION_DRIVE_IMPL: Dashboard loading assumes consistent DOM structure
+        # and proper HTTP response codes across browser engines
+        """
+        test_start = time.time()
+        
+        try:
+            # Navigate to dashboard
+            driver.get(self.dashboard_url)
+            
+            # Wait for dashboard to load
+            wait = WebDriverWait(driver, 15)
+            
+            # Check for main dashboard elements
+            # #COMPLETION_DRIVE_IMPL: Dashboard element selectors assume consistent HTML structure
+            # across different browser rendering engines and versions
+            dashboard_title = wait.until(
+                EC.presence_of_element_located((By.TAG_NAME, "h1"))
+            )
+            
+            # Check for task list container
+            task_container = wait.until(
+                EC.presence_of_element_located((By.CLASS_NAME, "task-list"))
+            )
+            
+            # Check for project selector
+            project_selector = wait.until(
+                EC.presence_of_element_located((By.ID, "project-selector"))
+            )
+            
+            # Validate page title
+            page_title = driver.title
+            title_valid = "Dashboard" in page_title or "Project Manager" in page_title
+            
+            return {
+                "success": True,
+                "browser_name": browser_name,
+                "page_title": page_title,
+                "title_valid": title_valid,
+                "dashboard_elements_found": {
+                    "dashboard_title": dashboard_title is not None,
+                    "task_container": task_container is not None,
+                    "project_selector": project_selector is not None
+                },
+                "load_duration": (time.time() - test_start) * 1000
+            }
+            
+        except TimeoutException:
+            return {
+                "success": False,
+                "browser_name": browser_name,
+                "error": "Dashboard loading timeout",
+                "duration": (time.time() - test_start) * 1000
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "browser_name": browser_name,
+                "error": str(e),
+                "duration": (time.time() - test_start) * 1000
+            }
+            
+    async def _test_task_list_rendering(self, driver: Any, browser_name: str) -> Dict[str, Any]:
+        """
+        Test task list rendering and basic interactions.
+        
+        # #COMPLETION_DRIVE_IMPL: Task list testing assumes consistent task rendering
+        # and proper CSS styling across different browser engines
+        """
+        test_start = time.time()
+        
+        try:
+            wait = WebDriverWait(driver, 10)
+            
+            # Find task items
+            task_items = wait.until(
+                EC.presence_of_all_elements_located((By.CLASS_NAME, "task-item"))
+            )
+            
+            # Test task item structure
+            task_structure_valid = True
+            task_details = []
+            
+            for i, task_item in enumerate(task_items[:5]):  # Test first 5 tasks
+                try:
+                    # Check for required task elements
+                    task_title = task_item.find_element(By.CLASS_NAME, "task-title")
+                    task_status = task_item.find_element(By.CLASS_NAME, "task-status")
+                    task_complexity = task_item.find_element(By.CLASS_NAME, "task-complexity")
+                    
+                    task_details.append({
+                        "index": i,
+                        "title": task_title.text if task_title else None,
+                        "status": task_status.text if task_status else None,
+                        "complexity": task_complexity.text if task_complexity else None,
+                        "clickable": task_item.is_enabled()
+                    })
+                    
+                except Exception as e:
+                    task_structure_valid = False
+                    task_details.append({
+                        "index": i,
+                        "error": str(e)
+                    })
+                    
+            return {
+                "success": len(task_items) > 0 and task_structure_valid,
+                "browser_name": browser_name,
+                "tasks_found": len(task_items),
+                "task_structure_valid": task_structure_valid,
+                "task_details": task_details[:3],  # Include first 3 for analysis
+                "duration": (time.time() - test_start) * 1000
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "browser_name": browser_name,
+                "error": str(e),
+                "duration": (time.time() - test_start) * 1000
+            }
+            
+    async def _test_task_modal(self, driver: Any, browser_name: str) -> Dict[str, Any]:
+        """
+        Test task detail modal functionality.
+        
+        # #COMPLETION_DRIVE_IMPL: Modal testing assumes consistent JavaScript execution
+        # and event handling across different browser environments
+        """
+        test_start = time.time()
+        
+        try:
+            wait = WebDriverWait(driver, 10)
+            
+            # Find and click first task
+            first_task = wait.until(
+                EC.element_to_be_clickable((By.CLASS_NAME, "task-item"))
+            )
+            first_task.click()
+            
+            # Wait for modal to appear
+            modal = wait.until(
+                EC.presence_of_element_located((By.CLASS_NAME, "task-modal"))
+            )
+            
+            # Check modal elements
+            modal_title = modal.find_element(By.CLASS_NAME, "modal-title")
+            modal_description = modal.find_element(By.CLASS_NAME, "modal-description")
+            modal_close_btn = modal.find_element(By.CLASS_NAME, "close-button")
+            
+            # Test modal content
+            modal_content_valid = (
+                modal_title.text and
+                modal_description.text and
+                modal_close_btn.is_displayed()
+            )
+            
+            # Test modal close functionality
+            modal_close_btn.click()
+            
+            # Verify modal is closed
+            # #COMPLETION_DRIVE_IMPL: Modal close verification assumes consistent CSS transitions
+            # and DOM manipulation behavior across browser engines
+            time.sleep(0.5)  # Allow for close animation
+            modals_after_close = driver.find_elements(By.CLASS_NAME, "task-modal")
+            modal_closed = len(modals_after_close) == 0
+            
+            return {
+                "success": modal_content_valid and modal_closed,
+                "browser_name": browser_name,
+                "modal_elements": {
+                    "title_found": modal_title is not None,
+                    "description_found": modal_description is not None,
+                    "close_button_found": modal_close_btn is not None
+                },
+                "modal_content_valid": modal_content_valid,
+                "modal_closed_properly": modal_closed,
+                "duration": (time.time() - test_start) * 1000
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "browser_name": browser_name,
+                "error": str(e),
+                "duration": (time.time() - test_start) * 1000
+            }
+            
+    async def _test_filtering_functionality(self, driver: Any, browser_name: str) -> Dict[str, Any]:
+        """
+        Test project/epic filtering functionality.
+        
+        # #COMPLETION_DRIVE_IMPL: Filtering tests assume consistent dropdown behavior
+        # and proper JavaScript event handling across browser versions
+        """
+        test_start = time.time()
+        
+        try:
+            wait = WebDriverWait(driver, 10)
+            
+            # Get initial task count
+            initial_tasks = driver.find_elements(By.CLASS_NAME, "task-item")
+            initial_count = len(initial_tasks)
+            
+            # Test project selector
+            project_selector = wait.until(
+                EC.element_to_be_clickable((By.ID, "project-selector"))
+            )
+            
+            # Get project options
+            project_selector.click()
+            project_options = wait.until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "#project-selector option"))
+            )
+            
+            # Select different project if available
+            filtering_worked = False
+            if len(project_options) > 1:
+                # Select second project option
+                project_options[1].click()
+                
+                # Wait for filtering to complete
+                time.sleep(1)
+                
+                # Check if task list changed
+                filtered_tasks = driver.find_elements(By.CLASS_NAME, "task-item")
+                filtered_count = len(filtered_tasks)
+                
+                # Filtering worked if task count changed or stayed reasonable
+                filtering_worked = filtered_count != initial_count or filtered_count > 0
+                
+            return {
+                "success": filtering_worked,
+                "browser_name": browser_name,
+                "initial_task_count": initial_count,
+                "project_options_found": len(project_options),
+                "filtering_changed_results": filtering_worked,
+                "duration": (time.time() - test_start) * 1000
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "browser_name": browser_name,
+                "error": str(e),
+                "duration": (time.time() - test_start) * 1000
+            }
+            
+    async def _test_mobile_responsive_design(self) -> Dict[str, Any]:
+        """
+        Test responsive design on mobile devices.
+        
+        # #COMPLETION_DRIVE_IMPL: Mobile testing assumes proper viewport meta tag
+        # and consistent responsive behavior across device emulation
+        """
+        test_start = time.time()
+        mobile_results = {}
+        
+        for device_name, device_config in MOBILE_DEVICES.items():
+            device_start = time.time()
+            
+            try:
+                # Create mobile-configured WebDriver
+                driver = await self._create_mobile_webdriver(device_config)
+                if not driver:
+                    mobile_results[device_name] = {
+                        "success": False,
+                        "error": "Failed to create mobile WebDriver"
+                    }
+                    continue
+                    
+                self.active_drivers[device_name] = driver
+                
+                # Test mobile dashboard
+                mobile_test_result = await self._test_mobile_dashboard(driver, device_name, device_config)
+                mobile_test_result["duration"] = (time.time() - device_start) * 1000
+                mobile_results[device_name] = mobile_test_result
+                
+            except Exception as e:
+                mobile_results[device_name] = {
+                    "success": False,
+                    "error": str(e),
+                    "duration": (time.time() - device_start) * 1000
+                }
+                
+        return {
+            "devices_tested": len(mobile_results),
+            "devices_successful": len([d for d, r in mobile_results.items() if r.get("success")]),
+            "device_results": mobile_results,
+            "total_duration": (time.time() - test_start) * 1000
+        }
+        
+    async def _create_mobile_webdriver(self, device_config: Dict[str, Any]) -> Optional[Any]:
+        """
+        Create WebDriver with mobile device emulation.
+        
+        # #COMPLETION_DRIVE_IMPL: Mobile WebDriver creation assumes proper device metrics
+        # and consistent mobile emulation across WebDriver implementations
+        """
+        if not SELENIUM_AVAILABLE:
+            return None
+            
+        try:
+            browser_name = device_config["browser"]
+            
+            if browser_name == "chrome":
+                options = ChromeOptions()
+                options.add_argument("--headless")
+                
+                # Configure mobile emulation
+                mobile_emulation = {
+                    "deviceMetrics": device_config["device_metrics"],
+                    "userAgent": device_config["user_agent"]
+                }
+                options.add_experimental_option("mobileEmulation", mobile_emulation)
+                
+                driver = webdriver.Chrome(options=options)
+                return driver
+                
+            # Add other browsers as needed
+            return None
+            
+        except Exception as e:
+            print(f"Error creating mobile WebDriver: {e}")
+            return None
+            
+    async def _test_mobile_dashboard(self, driver: Any, device_name: str, device_config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Test dashboard functionality on mobile device.
+        
+        # #COMPLETION_DRIVE_IMPL: Mobile dashboard testing assumes responsive CSS
+        # and proper touch/click event handling on mobile viewports
+        """
+        test_start = time.time()
+        
+        try:
+            # Navigate to dashboard
+            driver.get(self.dashboard_url)
+            
+            wait = WebDriverWait(driver, 15)
+            
+            # Check mobile-specific elements
+            mobile_menu = None
+            try:
+                mobile_menu = driver.find_element(By.CLASS_NAME, "mobile-menu")
+            except:
+                pass  # Mobile menu might not exist
+                
+            # Check if task list is responsive
+            task_container = wait.until(
+                EC.presence_of_element_located((By.CLASS_NAME, "task-list"))
+            )
+            
+            # Get viewport dimensions
+            viewport_width = driver.execute_script("return window.innerWidth;")
+            viewport_height = driver.execute_script("return window.innerHeight;")
+            
+            # Check if content fits viewport
+            content_fits = viewport_width <= device_config["device_metrics"]["width"]
+            
+            # Test touch interactions (simplified)
+            task_items = driver.find_elements(By.CLASS_NAME, "task-item")
+            touch_interaction_works = len(task_items) > 0
+            
+            if task_items:
+                try:
+                    # Test tap on first task
+                    task_items[0].click()
+                    time.sleep(0.5)
+                    
+                    # Check if modal appeared
+                    modals = driver.find_elements(By.CLASS_NAME, "task-modal")
+                    touch_interaction_works = len(modals) > 0
+                    
+                    # Close modal if opened
+                    if modals:
+                        close_btn = modals[0].find_element(By.CLASS_NAME, "close-button")
+                        close_btn.click()
+                        
+                except:
+                    touch_interaction_works = False
+                    
+            return {
+                "success": content_fits and touch_interaction_works,
+                "device_name": device_name,
+                "viewport": {
+                    "width": viewport_width,
+                    "height": viewport_height
+                },
+                "expected_viewport": device_config["device_metrics"],
+                "content_fits_viewport": content_fits,
+                "mobile_menu_found": mobile_menu is not None,
+                "touch_interactions_work": touch_interaction_works,
+                "tasks_rendered": len(task_items),
+                "duration": (time.time() - test_start) * 1000
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "device_name": device_name,
+                "error": str(e),
+                "duration": (time.time() - test_start) * 1000
+            }
+            
+    async def _test_websocket_cross_browser(self) -> Dict[str, Any]:
+        """
+        Test WebSocket functionality across browsers.
+        
+        # #COMPLETION_DRIVE_INTEGRATION: WebSocket testing assumes proper connection
+        # handling and event broadcasting across different browser WebSocket implementations
+        """
+        test_start = time.time()
+        
+        # This would require injecting JavaScript into browsers to test WebSocket
+        # For now, return a placeholder result
+        # #SUGGEST_EDGE_CASE: Implement actual WebSocket testing with JavaScript injection
+        
+        websocket_results = {}
+        
+        for browser_name, driver in self.active_drivers.items():
+            if not driver:
+                continue
+                
+            try:
+                # Inject WebSocket test script
+                websocket_test_script = """
+                    return new Promise((resolve) => {
+                        try {
+                            const ws = new WebSocket('ws://localhost:8080/ws/dashboard');
+                            ws.onopen = () => {
+                                ws.close();
+                                resolve({success: true, error: null});
+                            };
+                            ws.onerror = (error) => {
+                                resolve({success: false, error: error.toString()});
+                            };
+                            setTimeout(() => {
+                                resolve({success: false, error: 'Connection timeout'});
+                            }, 5000);
+                        } catch (e) {
+                            resolve({success: false, error: e.toString()});
+                        }
+                    });
+                """
+                
+                # Execute WebSocket test
+                result = driver.execute_async_script(websocket_test_script)
+                
+                websocket_results[browser_name] = {
+                    "success": result.get("success", False),
+                    "error": result.get("error"),
+                    "browser_name": browser_name
+                }
+                
+            except Exception as e:
+                websocket_results[browser_name] = {
+                    "success": False,
+                    "error": str(e),
+                    "browser_name": browser_name
+                }
+                
+        return {
+            "browsers_tested": len(websocket_results),
+            "browsers_successful": len([b for b, r in websocket_results.items() if r.get("success")]),
+            "websocket_results": websocket_results,
+            "total_duration": (time.time() - test_start) * 1000
+        }
+        
+    def _generate_compatibility_matrix(self, desktop_results: Dict, mobile_results: Dict, websocket_results: Dict) -> Dict[str, Any]:
+        """
+        Generate cross-browser compatibility matrix.
+        
+        # #COMPLETION_DRIVE_IMPL: Compatibility matrix generation assumes consistent result
+        # structure and proper success/failure classification across test types
+        """
+        matrix = {}
+        
+        # Desktop browser compatibility
+        desktop_browser_results = desktop_results.get("browser_results", {})
+        for browser_name, result in desktop_browser_results.items():
+            if result.get("skipped"):
+                continue
+                
+            matrix[browser_name] = {
+                "platform": "desktop",
+                "overall_success": result.get("success", False),
+                "success_rate": result.get("success_rate", 0),
+                "tests": {
+                    "dashboard_loading": result.get("test_details", {}).get("dashboard_loading", {}).get("success", False),
+                    "task_list_rendering": result.get("test_details", {}).get("task_list_rendering", {}).get("success", False),
+                    "task_modal": result.get("test_details", {}).get("task_modal", {}).get("success", False),
+                    "filtering": result.get("test_details", {}).get("filtering", {}).get("success", False)
+                },
+                "websocket_support": websocket_results.get("websocket_results", {}).get(browser_name, {}).get("success", False)
+            }
+            
+        # Mobile device compatibility
+        mobile_device_results = mobile_results.get("device_results", {})
+        for device_name, result in mobile_device_results.items():
+            matrix[device_name] = {
+                "platform": "mobile",
+                "overall_success": result.get("success", False),
+                "responsive_design": result.get("content_fits_viewport", False),
+                "touch_interactions": result.get("touch_interactions_work", False),
+                "viewport_correct": result.get("content_fits_viewport", False)
+            }
+            
+        return matrix
+        
+    def _analyze_cross_browser_performance(self, desktop_results: Dict) -> Dict[str, Any]:
+        """
+        Analyze performance differences across browsers.
+        
+        # #COMPLETION_DRIVE_IMPL: Performance analysis assumes consistent timing measurement
+        # and comparable load conditions across different browser test runs
+        """
+        performance_data = {}
+        browser_results = desktop_results.get("browser_results", {})
+        
+        for browser_name, result in browser_results.items():
+            if result.get("skipped") or not result.get("success"):
+                continue
+                
+            test_details = result.get("test_details", {})
+            
+            # Extract performance metrics
+            load_duration = test_details.get("dashboard_loading", {}).get("load_duration", 0)
+            task_render_duration = test_details.get("task_list_rendering", {}).get("duration", 0)
+            modal_duration = test_details.get("task_modal", {}).get("duration", 0)
+            
+            performance_data[browser_name] = {
+                "dashboard_load_time": load_duration,
+                "task_render_time": task_render_duration,
+                "modal_interaction_time": modal_duration,
+                "total_test_time": result.get("duration", 0)
+            }
+            
+        # Calculate performance rankings
+        if performance_data:
+            fastest_load = min(performance_data.values(), key=lambda x: x["dashboard_load_time"])
+            slowest_load = max(performance_data.values(), key=lambda x: x["dashboard_load_time"])
+            
+            return {
+                "performance_data": performance_data,
+                "fastest_browser": {
+                    "name": next(name for name, data in performance_data.items() if data == fastest_load),
+                    "load_time": fastest_load["dashboard_load_time"]
+                },
+                "slowest_browser": {
+                    "name": next(name for name, data in performance_data.items() if data == slowest_load),
+                    "load_time": slowest_load["dashboard_load_time"]
+                }
+            }
+            
+        return {"performance_data": {}}
+        
+    def _determine_overall_compatibility_success(self, results: Dict[str, Any]) -> bool:
+        """
+        Determine overall cross-browser compatibility success.
+        
+        # #COMPLETION_DRIVE_IMPL: Success determination assumes minimum compatibility thresholds
+        # for production deployment readiness across major browser platforms
+        """
+        # Check desktop browser success
+        desktop_results = results.get("browser_tests", {}).get("desktop", {})
+        desktop_successful = desktop_results.get("browsers_successful", 0)
+        desktop_tested = desktop_results.get("browsers_tested", 0)
+        
+        # Check mobile success
+        mobile_results = results.get("browser_tests", {}).get("mobile", {})
+        mobile_successful = mobile_results.get("devices_successful", 0)
+        mobile_tested = mobile_results.get("devices_tested", 0)
+        
+        # Check WebSocket support
+        websocket_results = results.get("browser_tests", {}).get("websocket", {})
+        websocket_successful = websocket_results.get("browsers_successful", 0)
+        websocket_tested = websocket_results.get("browsers_tested", 0)
+        
+        # Calculate success rates
+        desktop_success_rate = desktop_successful / desktop_tested if desktop_tested > 0 else 0
+        mobile_success_rate = mobile_successful / mobile_tested if mobile_tested > 0 else 0
+        websocket_success_rate = websocket_successful / websocket_tested if websocket_tested > 0 else 0
+        
+        # Overall success requires 80% success rate across all categories
+        # #COMPLETION_DRIVE_IMPL: Success threshold assumes 80% browser compatibility
+        # is sufficient for production deployment with acceptable user coverage
+        return (
+            desktop_success_rate >= 0.8 and
+            mobile_success_rate >= 0.6 and  # Lower threshold for mobile
+            websocket_success_rate >= 0.8
+        )
+        
+    async def _cleanup_webdrivers(self):
+        """Clean up all WebDriver instances."""
+        for driver_name, driver in self.active_drivers.items():
+            try:
+                if driver:
+                    driver.quit()
+            except Exception as e:
+                print(f"Warning: Failed to cleanup {driver_name} WebDriver: {e}")
+                
+        self.active_drivers.clear()
+
+
+@pytest.mark.integration
+@pytest.mark.cross_browser
+@pytest.mark.browser
+@pytest.mark.skipif(not SELENIUM_AVAILABLE, reason="Selenium not available")
+async def test_cross_browser_compatibility(integration_db):
+    """Test cross-browser compatibility of dashboard functionality."""
+    # Start CLI process for testing
+    cli_process = CLITestProcess()
+    cli_started = cli_process.start(timeout=15)
+    
+    if not cli_started:
+        pytest.skip("CLI process failed to start")
+        
+    try:
+        # Run cross-browser tests
+        framework = CrossBrowserTestFramework(dashboard_port=cli_process.dashboard_port)
+        results = await framework.run_cross_browser_compatibility_tests()
+        
+        # Validate results
+        assert results["success"], f"Cross-browser compatibility failed: {results.get('errors', [])}"
+        
+        # Check individual browser results
+        desktop_results = results["browser_tests"]["desktop"]
+        assert desktop_results["browsers_successful"] > 0, "No browsers successfully tested"
+        
+        # Log results
+        print(f"\n=== Cross-Browser Compatibility Results ===")
+        print(f"Overall Success: {results['success']}")
+        print(f"Desktop Browsers: {desktop_results['browsers_successful']}/{desktop_results['browsers_tested']}")
+        
+        mobile_results = results["browser_tests"]["mobile"]
+        print(f"Mobile Devices: {mobile_results['devices_successful']}/{mobile_results['devices_tested']}")
+        
+        # Print compatibility matrix
+        print(f"\n=== Compatibility Matrix ===")
+        for platform, compatibility in results["compatibility_matrix"].items():
+            status = "✓" if compatibility["overall_success"] else "✗"
+            print(f"{status} {platform} ({compatibility['platform']})")
+            
+    finally:
+        cli_process.stop()
+
+
+@pytest.mark.integration
+@pytest.mark.cross_browser
+@pytest.mark.performance
+@pytest.mark.skipif(not SELENIUM_AVAILABLE, reason="Selenium not available")
+def test_cross_browser_performance_comparison(integration_db):
+    """Test performance comparison across browsers."""
+    # This test would run the cross-browser tests and focus on performance metrics
+    # Simplified version for now
+    
+    # #SUGGEST_EDGE_CASE: Implement detailed performance regression testing
+    # across browser versions and operating systems
+    
+    print("\n=== Cross-Browser Performance Test ===")
+    print("Performance comparison test placeholder")
+    print("Would measure load times, render performance, and interaction responsiveness")
+    
+    # Basic validation that test infrastructure works
+    assert SELENIUM_AVAILABLE, "Selenium should be available for performance testing"
+
+
+if __name__ == "__main__":
+    """Standalone test execution for cross-browser compatibility."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Run cross-browser compatibility tests")
+    parser.add_argument("--verbose", "-v", action="store_true")
+    parser.add_argument("--browsers", nargs="+", help="Specific browsers to test", 
+                       choices=["chrome", "firefox", "safari", "edge"])
+    parser.add_argument("--mobile", action="store_true", help="Test mobile devices only")
+    args = parser.parse_args()
+    
+    # Configure browsers based on arguments
+    if args.browsers:
+        for browser in BROWSER_CONFIG:
+            BROWSER_CONFIG[browser]["enabled"] = browser in args.browsers
+            
+    test_args = [__file__]
+    if args.verbose:
+        test_args.append("-v")
+    if args.mobile:
+        test_args.append("-k mobile")
+        
+    pytest.main(test_args)

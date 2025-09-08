@@ -30,7 +30,9 @@ from task_manager.database import TaskDatabase
 from task_manager.api import ConnectionManager
 from task_manager.tools import (
     BaseTool, GetAvailableTasks, AcquireTaskLock, 
-    UpdateTaskStatus, ReleaseTaskLock, create_tool_instance, AVAILABLE_TOOLS
+    UpdateTaskStatus, ReleaseTaskLock, CreateTaskTool,
+    ListProjectsTool, ListEpicsTool, ListTasksTool,
+    create_tool_instance, AVAILABLE_TOOLS
 )
 
 
@@ -131,24 +133,24 @@ class TestDatabaseIntegration:
     @pytest.fixture
     def sample_data(self, temp_db):
         """Create sample data for testing."""
-        # Create epic
-        epic_id = temp_db.create_epic("Test Epic", "Test epic description")
+        # Create project
+        project_id = temp_db.create_project("Test Project", "Test project description")
         
-        # Create story
-        story_id = temp_db.create_story(epic_id, "Test Story", "Test story description")
+        # Create epic
+        epic_id = temp_db.create_epic(project_id, "Test Epic", "Test epic description")
         
         # Create tasks with different statuses
-        task1_id = temp_db.create_task("Task 1", "Test task 1", story_id=story_id)
-        task2_id = temp_db.create_task("Task 2", "Test task 2", story_id=story_id)
-        task3_id = temp_db.create_task("Task 3", "Test task 3", story_id=story_id)
+        task1_id = temp_db.create_task(epic_id, "Task 1", "Test task 1")
+        task2_id = temp_db.create_task(epic_id, "Task 2", "Test task 2")
+        task3_id = temp_db.create_task(epic_id, "Task 3", "Test task 3")
         
         # Set different statuses
         temp_db.update_task_status(task2_id, "in_progress", "test_agent")
         temp_db.update_task_status(task3_id, "completed", "test_agent")
         
         return {
+            "project_id": project_id,
             "epic_id": epic_id,
-            "story_id": story_id,
             "task_ids": [task1_id, task2_id, task3_id]
         }
     
@@ -227,15 +229,18 @@ class TestDatabaseIntegration:
     
     @pytest.mark.asyncio
     async def test_update_status_without_lock(self, temp_db, mock_websocket_manager, sample_data):
-        """Test status update failure without lock."""
+        """Test status update auto-acquires lock when unlocked."""
         tool = UpdateTaskStatus(temp_db, mock_websocket_manager)
         task_id = str(sample_data["task_ids"][0])
         
         result = await tool.apply(task_id=task_id, status="DONE", agent_id="test_agent")
         response = json.loads(result)
         
-        assert response["success"] is False
-        assert "must be locked" in response["message"]
+        assert response["success"] is True
+        # DB vocabulary in tool response
+        assert response["status"] == "completed"
+        # Auto-acquired lock should be released on DONE
+        assert response.get("lock_released") is True
     
     @pytest.mark.asyncio
     async def test_release_lock_integration(self, temp_db, mock_websocket_manager, sample_data):
@@ -464,7 +469,13 @@ class TestToolRegistry:
             "get_available_tasks",
             "acquire_task_lock", 
             "update_task_status",
-            "release_task_lock"
+            "release_task_lock",
+            "create_task",
+            "update_task",
+            "get_task_details",
+            "list_projects",
+            "list_epics",
+            "list_tasks"
         }
         
         assert set(AVAILABLE_TOOLS.keys()) == expected_tools
@@ -552,7 +563,508 @@ class TestWebSocketIntegration:
         
         assert len(status_events) >= 1
         assert status_events[0]["task_id"] == task_id
-        assert status_events[0]["status"] == "completed"
+        # UI vocabulary is broadcast in events
+        assert status_events[0]["status"] == "DONE"
+
+
+class TestCreateTaskTool:
+    """Test CreateTaskTool with comprehensive RA-Light testing."""
+    
+    @pytest.fixture
+    def mock_database(self):
+        """Mock database with all necessary methods for CreateTaskTool."""
+        db = MagicMock(spec=TaskDatabase)
+        
+        # Mock upsert methods
+        db.upsert_project.return_value = 1
+        db.upsert_epic.return_value = 1
+        db.get_epic_with_project_info.return_value = {
+            'epic_id': 1, 'epic_name': 'Test Epic',
+            'project_id': 1, 'project_name': 'Test Project'
+        }
+        
+        # Mock task creation
+        db.create_task_with_ra_metadata.return_value = 123
+        db.add_task_log_entry.return_value = 1
+        
+        return db
+    
+    @pytest.fixture
+    def mock_websocket_manager(self):
+        """Mock WebSocket manager for testing."""
+        ws_manager = AsyncMock(spec=ConnectionManager)
+        ws_manager.optimized_broadcast = AsyncMock()
+        ws_manager.broadcast_enriched_event = AsyncMock()
+        return ws_manager
+    
+    @pytest.fixture
+    def create_task_tool(self, mock_database, mock_websocket_manager):
+        """CreateTaskTool instance with mocked dependencies."""
+        return CreateTaskTool(mock_database, mock_websocket_manager)
+    
+    @pytest.mark.asyncio
+    async def test_create_task_with_epic_id_success(self, create_task_tool, mock_database, mock_websocket_manager):
+        """Test successful task creation using existing epic_id."""
+        result = await create_task_tool.apply(
+            name="Test Task",
+            description="Test Description", 
+            epic_id=1,
+            ra_mode="ra-light",
+            ra_score=7
+        )
+        
+        # Parse JSON response
+        response = json.loads(result)
+        assert response["success"] is True
+        assert "Test Task" in response["message"]
+        assert response["task_id"] == 123
+        assert response["ra_score"] == 7
+        assert response["ra_mode"] == "ra-light"
+        
+        # Verify database calls
+        mock_database.get_epic_with_project_info.assert_called_once_with(1)
+        mock_database.create_task_with_ra_metadata.assert_called_once()
+        # Verify two log entries are created: task creation + prompt snapshot
+        assert mock_database.add_task_log_entry.call_count == 2
+        
+        # Verify task creation log entry
+        create_call = mock_database.add_task_log_entry.call_args_list[0]
+        assert create_call[0][0] == 123  # task_id
+        assert create_call[0][1] == 'create'  # entry_type
+        assert create_call[0][2]['agent_action'] == 'task_created'  # entry_data
+        
+        # Verify prompt snapshot log entry  
+        prompt_call = mock_database.add_task_log_entry.call_args_list[1]
+        assert prompt_call[0][0] == 123  # task_id
+        assert prompt_call[0][1] == 'prompt'  # entry_type
+        assert 'prompt_snapshot' in prompt_call[0][2]  # entry_data
+        
+        # Verify WebSocket broadcast
+        mock_websocket_manager.broadcast_enriched_event.assert_called_once()
+        event_type, broadcast_data = mock_websocket_manager.broadcast_enriched_event.call_args[0]
+        assert event_type == "task.created"
+        assert broadcast_data["task"]["id"] == 123
+        assert broadcast_data["task"]["name"] == "Test Task"
+    
+    @pytest.mark.asyncio
+    async def test_create_task_with_project_epic_names_success(self, create_task_tool, mock_database, mock_websocket_manager):
+        """Test successful task creation with project/epic upsert."""
+        result = await create_task_tool.apply(
+            name="New Task",
+            description="New Description",
+            project_name="New Project",
+            epic_name="New Epic", 
+            ra_mode="ra-full"
+        )
+        
+        response = json.loads(result)
+        assert response["success"] is True
+        assert response["task_id"] == 123
+        
+        # Verify upsert calls
+        mock_database.upsert_project.assert_called_once_with("New Project", "")
+        mock_database.upsert_epic.assert_called_once_with(1, "New Epic", "")
+        mock_database.create_task_with_ra_metadata.assert_called_once()
+    
+    @pytest.mark.asyncio
+    async def test_create_task_ra_complexity_auto_assessment(self, create_task_tool, mock_database, mock_websocket_manager):
+        """Test RA complexity auto-assessment algorithm."""
+        # Test with complex task characteristics
+        long_description = "x" * 600  # Long description adds complexity
+        dependencies = [1, 2, 3, 4, 5, 6]  # Many dependencies add complexity
+        ra_tags = ["tag" + str(i) for i in range(12)]  # Many tags add complexity
+        
+        result = await create_task_tool.apply(
+            name="Complex Task",
+            description=long_description,
+            epic_id=1,
+            ra_mode="ra-full",  # RA-full adds complexity
+            dependencies=dependencies,
+            ra_tags=ra_tags
+        )
+        
+        response = json.loads(result)
+        assert response["success"] is True
+        
+        # Verify auto-assessed complexity is high (should be close to max due to all factors)
+        assert response["ra_score"] >= 8  # Should be high complexity
+        assert response["ra_score"] <= 10  # Clamped to max
+        
+        # Verify database was called with auto-assessed score
+        create_call = mock_database.create_task_with_ra_metadata.call_args
+        assert create_call[1]["ra_score"] >= 8
+    
+    @pytest.mark.asyncio
+    async def test_create_task_parameter_validation_errors(self, create_task_tool):
+        """Test parameter validation error cases."""
+        # Test empty name
+        result = await create_task_tool.apply(name="")
+        response = json.loads(result)
+        assert response["success"] is False
+        assert "Task name is required" in response["message"]
+        
+        # Test missing epic identification
+        result = await create_task_tool.apply(name="Test")
+        response = json.loads(result)
+        assert response["success"] is False
+        assert "Either epic_id or epic_name must be provided" in response["message"]
+        
+        # Test conflicting epic parameters
+        result = await create_task_tool.apply(name="Test", epic_id=1, epic_name="Epic")
+        response = json.loads(result)
+        assert response["success"] is False
+        assert "Provide either epic_id or epic_name, not both" in response["message"]
+        
+        # Test invalid RA score
+        result = await create_task_tool.apply(name="Test", epic_id=1, ra_score=11)
+        response = json.loads(result)
+        assert response["success"] is False
+        assert "ra_score must be between 1 and 10" in response["message"]
+        
+        # Test invalid RA mode
+        result = await create_task_tool.apply(name="Test", epic_id=1, ra_mode="invalid")
+        response = json.loads(result)
+        assert response["success"] is False
+        assert "ra_mode must be one of" in response["message"]
+    
+    @pytest.mark.asyncio
+    async def test_create_task_database_integrity_error(self, create_task_tool, mock_database, mock_websocket_manager):
+        """Test handling of database integrity errors."""
+        import sqlite3
+        mock_database.create_task_with_ra_metadata.side_effect = sqlite3.IntegrityError("Foreign key constraint failed")
+        
+        result = await create_task_tool.apply(
+            name="Test Task",
+            epic_id=999  # Non-existent epic
+        )
+        
+        response = json.loads(result)
+        assert response["success"] is False
+        assert "Database constraint violation" in response["message"]
+        assert "error_details" in response
+    
+    @pytest.mark.asyncio
+    async def test_create_task_websocket_broadcast_with_session(self, create_task_tool, mock_database, mock_websocket_manager):
+        """Test WebSocket broadcasting with client session for auto-switch."""
+        result = await create_task_tool.apply(
+            name="Session Task",
+            epic_id=1,
+            client_session_id="client123"
+        )
+        
+        response = json.loads(result)
+        assert response["success"] is True
+        
+        # Verify WebSocket broadcast includes session data
+        mock_websocket_manager.broadcast_enriched_event.assert_called_once()
+        event_type, broadcast_data = mock_websocket_manager.broadcast_enriched_event.call_args[0]
+        assert event_type == "task.created"
+        assert broadcast_data["initiator"] == "client123"
+        assert broadcast_data["flags"]["project_created"] is False
+        assert broadcast_data["flags"]["epic_created"] is False
+    
+    @pytest.mark.asyncio
+    async def test_create_task_prompt_snapshot_auto_capture(self, create_task_tool, mock_database, mock_websocket_manager):
+        """Test automatic prompt snapshot capture for RA modes."""
+        result = await create_task_tool.apply(
+            name="RA Task",
+            epic_id=1,
+            ra_mode="ra-light"
+        )
+        
+        response = json.loads(result)
+        assert response["success"] is True
+        
+        # Verify task creation was called with auto-captured prompt
+        create_call = mock_database.create_task_with_ra_metadata.call_args
+        assert create_call[1]["prompt_snapshot"] is not None
+        assert "RA methodology system instructions active" in create_call[1]["prompt_snapshot"]
+
+
+class TestListProjectsTool:
+    """Test ListProjectsTool functionality."""
+    
+    @pytest.fixture
+    def mock_database(self):
+        """Mock TaskDatabase for testing."""
+        return MagicMock(spec=TaskDatabase)
+    
+    @pytest.fixture
+    def mock_websocket_manager(self):
+        """Mock ConnectionManager for testing."""
+        manager = MagicMock(spec=ConnectionManager)
+        manager.broadcast = AsyncMock()
+        return manager
+    
+    @pytest.fixture
+    def list_projects_tool(self, mock_database, mock_websocket_manager):
+        """Create ListProjectsTool instance for testing."""
+        from task_manager.tools import ListProjectsTool
+        return ListProjectsTool(mock_database, mock_websocket_manager)
+    
+    @pytest.mark.asyncio
+    async def test_list_projects_basic(self, list_projects_tool, mock_database):
+        """Test basic project listing without filters."""
+        mock_database.list_projects_filtered.return_value = [
+            {"id": 1, "name": "Project A", "description": "Description A", "created_at": "2023-01-01", "updated_at": "2023-01-01"},
+            {"id": 2, "name": "Project B", "description": "Description B", "created_at": "2023-01-02", "updated_at": "2023-01-02"}
+        ]
+        
+        result = await list_projects_tool.apply()
+        
+        projects = json.loads(result)
+        assert len(projects) == 2
+        assert projects[0]["name"] == "Project A"
+        assert projects[1]["name"] == "Project B"
+        mock_database.list_projects_filtered.assert_called_once_with(status=None, limit=None)
+    
+    @pytest.mark.asyncio
+    async def test_list_projects_with_limit(self, list_projects_tool, mock_database):
+        """Test project listing with limit parameter."""
+        mock_database.list_projects_filtered.return_value = [
+            {"id": 1, "name": "Project A", "description": "Description A", "created_at": "2023-01-01", "updated_at": "2023-01-01"}
+        ]
+        
+        result = await list_projects_tool.apply(limit=1)
+        
+        projects = json.loads(result)
+        assert len(projects) == 1
+        mock_database.list_projects_filtered.assert_called_once_with(status=None, limit=1)
+    
+    @pytest.mark.asyncio
+    async def test_list_projects_invalid_limit(self, list_projects_tool):
+        """Test error handling for invalid limit."""
+        result = await list_projects_tool.apply(limit=0)
+        
+        response = json.loads(result)
+        assert "success" in response
+        assert response["success"] == False
+        assert "Limit must be a positive integer" in response["message"]
+    
+    @pytest.mark.asyncio
+    async def test_list_projects_database_error(self, list_projects_tool, mock_database):
+        """Test error handling for database errors."""
+        mock_database.list_projects_filtered.side_effect = Exception("Database error")
+        
+        result = await list_projects_tool.apply()
+        
+        response = json.loads(result)
+        assert "success" in response
+        assert response["success"] == False
+        assert "Failed to list projects" in response["message"]
+
+
+class TestListEpicsTool:
+    """Test ListEpicsTool functionality."""
+    
+    @pytest.fixture
+    def mock_database(self):
+        """Mock TaskDatabase for testing."""
+        return MagicMock(spec=TaskDatabase)
+    
+    @pytest.fixture
+    def mock_websocket_manager(self):
+        """Mock ConnectionManager for testing."""
+        manager = MagicMock(spec=ConnectionManager)
+        manager.broadcast = AsyncMock()
+        return manager
+    
+    @pytest.fixture
+    def list_epics_tool(self, mock_database, mock_websocket_manager):
+        """Create ListEpicsTool instance for testing."""
+        from task_manager.tools import ListEpicsTool
+        return ListEpicsTool(mock_database, mock_websocket_manager)
+    
+    @pytest.mark.asyncio
+    async def test_list_epics_basic(self, list_epics_tool, mock_database):
+        """Test basic epic listing without filters."""
+        mock_database.list_epics_filtered.return_value = [
+            {"id": 1, "name": "Epic A", "description": "Description A", "project_id": 1, "project_name": "Project 1", "created_at": "2023-01-01"},
+            {"id": 2, "name": "Epic B", "description": "Description B", "project_id": 1, "project_name": "Project 1", "created_at": "2023-01-02"}
+        ]
+        
+        result = await list_epics_tool.apply()
+        
+        epics = json.loads(result)
+        assert len(epics) == 2
+        assert epics[0]["name"] == "Epic A"
+        assert epics[1]["name"] == "Epic B"
+        assert epics[0]["project_name"] == "Project 1"
+        mock_database.list_epics_filtered.assert_called_once_with(project_id=None, limit=None)
+    
+    @pytest.mark.asyncio
+    async def test_list_epics_with_project_filter(self, list_epics_tool, mock_database):
+        """Test epic listing with project filtering."""
+        mock_database.list_epics_filtered.return_value = [
+            {"id": 1, "name": "Epic A", "description": "Description A", "project_id": 2, "project_name": "Project 2", "created_at": "2023-01-01"}
+        ]
+        
+        result = await list_epics_tool.apply(project_id=2)
+        
+        epics = json.loads(result)
+        assert len(epics) == 1
+        assert epics[0]["project_id"] == 2
+        mock_database.list_epics_filtered.assert_called_once_with(project_id=2, limit=None)
+    
+    @pytest.mark.asyncio
+    async def test_list_epics_invalid_project_id(self, list_epics_tool):
+        """Test error handling for invalid project_id."""
+        result = await list_epics_tool.apply(project_id=0)
+        
+        response = json.loads(result)
+        assert "success" in response
+        assert response["success"] == False
+        assert "Project ID must be a positive integer" in response["message"]
+    
+    @pytest.mark.asyncio
+    async def test_list_epics_with_limit(self, list_epics_tool, mock_database):
+        """Test epic listing with limit parameter."""
+        mock_database.list_epics_filtered.return_value = [
+            {"id": 1, "name": "Epic A", "description": "Description A", "project_id": 1, "project_name": "Project 1", "created_at": "2023-01-01"}
+        ]
+        
+        result = await list_epics_tool.apply(limit=1)
+        
+        epics = json.loads(result)
+        assert len(epics) == 1
+        mock_database.list_epics_filtered.assert_called_once_with(project_id=None, limit=1)
+
+
+class TestListTasksTool:
+    """Test ListTasksTool functionality."""
+    
+    @pytest.fixture
+    def mock_database(self):
+        """Mock TaskDatabase for testing."""
+        return MagicMock(spec=TaskDatabase)
+    
+    @pytest.fixture
+    def mock_websocket_manager(self):
+        """Mock ConnectionManager for testing."""
+        manager = MagicMock(spec=ConnectionManager)
+        manager.broadcast = AsyncMock()
+        return manager
+    
+    @pytest.fixture
+    def list_tasks_tool(self, mock_database, mock_websocket_manager):
+        """Create ListTasksTool instance for testing."""
+        from task_manager.tools import ListTasksTool
+        return ListTasksTool(mock_database, mock_websocket_manager)
+    
+    @pytest.mark.asyncio
+    async def test_list_tasks_basic(self, list_tasks_tool, mock_database):
+        """Test basic task listing without filters."""
+        mock_database.list_tasks_filtered.return_value = [
+            {"id": 1, "name": "Task A", "status": "pending", "ra_score": 5, "epic_name": "Epic 1", "project_name": "Project 1"},
+            {"id": 2, "name": "Task B", "status": "in_progress", "ra_score": 7, "epic_name": "Epic 1", "project_name": "Project 1"}
+        ]
+        
+        result = await list_tasks_tool.apply()
+        
+        tasks = json.loads(result)
+        assert len(tasks) == 2
+        assert tasks[0]["name"] == "Task A"
+        assert tasks[1]["name"] == "Task B"
+        assert tasks[0]["ra_score"] == 5
+        mock_database.list_tasks_filtered.assert_called_once_with(project_id=None, epic_id=None, status=None, limit=None)
+    
+    @pytest.mark.asyncio
+    async def test_list_tasks_with_all_filters(self, list_tasks_tool, mock_database):
+        """Test task listing with all filtering options."""
+        mock_database.list_tasks_filtered.return_value = [
+            {"id": 1, "name": "Task A", "status": "pending", "ra_score": 5, "epic_name": "Epic 1", "project_name": "Project 1"}
+        ]
+        
+        result = await list_tasks_tool.apply(project_id=1, epic_id=2, status="pending", limit=10)
+        
+        tasks = json.loads(result)
+        assert len(tasks) == 1
+        mock_database.list_tasks_filtered.assert_called_once_with(project_id=1, epic_id=2, status="pending", limit=10)
+    
+    @pytest.mark.asyncio
+    async def test_list_tasks_status_vocabulary_mapping(self, list_tasks_tool, mock_database):
+        """Test status vocabulary mapping from UI terms to DB terms."""
+        mock_database.list_tasks_filtered.return_value = []
+        
+        # Test UI status mapping
+        await list_tasks_tool.apply(status="TODO")
+        mock_database.list_tasks_filtered.assert_called_with(project_id=None, epic_id=None, status="pending", limit=None)
+        
+        await list_tasks_tool.apply(status="IN_PROGRESS")
+        mock_database.list_tasks_filtered.assert_called_with(project_id=None, epic_id=None, status="in_progress", limit=None)
+        
+        await list_tasks_tool.apply(status="REVIEW")
+        mock_database.list_tasks_filtered.assert_called_with(project_id=None, epic_id=None, status="review", limit=None)
+        
+        await list_tasks_tool.apply(status="DONE")
+        mock_database.list_tasks_filtered.assert_called_with(project_id=None, epic_id=None, status="completed", limit=None)
+    
+    @pytest.mark.asyncio
+    async def test_list_tasks_invalid_status(self, list_tasks_tool):
+        """Test error handling for invalid status."""
+        result = await list_tasks_tool.apply(status="INVALID_STATUS")
+        
+        response = json.loads(result)
+        assert "success" in response
+        assert response["success"] == False
+        assert "Invalid status 'INVALID_STATUS'" in response["message"]
+    
+    @pytest.mark.asyncio
+    async def test_list_tasks_invalid_parameters(self, list_tasks_tool):
+        """Test error handling for invalid parameters."""
+        # Test invalid project_id
+        result = await list_tasks_tool.apply(project_id=0)
+        response = json.loads(result)
+        assert "success" in response
+        assert response["success"] == False
+        assert "Project ID must be a positive integer" in response["message"]
+        
+        # Test invalid epic_id
+        result = await list_tasks_tool.apply(epic_id=-1)
+        response = json.loads(result)
+        assert "success" in response
+        assert response["success"] == False
+        assert "Epic ID must be a positive integer" in response["message"]
+        
+        # Test invalid limit
+        result = await list_tasks_tool.apply(limit=0)
+        response = json.loads(result)
+        assert "success" in response
+        assert response["success"] == False
+        assert "Limit must be a positive integer" in response["message"]
+
+
+class TestListToolsIntegration:
+    """Integration tests for list tools with AVAILABLE_TOOLS registry."""
+    
+    @pytest.fixture
+    def mock_database(self):
+        """Mock TaskDatabase for testing."""
+        return MagicMock(spec=TaskDatabase)
+    
+    @pytest.fixture
+    def mock_websocket_manager(self):
+        """Mock ConnectionManager for testing."""
+        manager = MagicMock(spec=ConnectionManager)
+        manager.broadcast = AsyncMock()
+        return manager
+    
+    def test_list_tools_registered(self):
+        """Test that new list tools are properly registered."""
+        assert "list_projects" in AVAILABLE_TOOLS
+        assert "list_epics" in AVAILABLE_TOOLS 
+        assert "list_tasks" in AVAILABLE_TOOLS
+    
+    def test_create_list_tool_instances(self, mock_database, mock_websocket_manager):
+        """Test creating list tool instances via factory."""
+        list_projects = create_tool_instance("list_projects", mock_database, mock_websocket_manager)
+        list_epics = create_tool_instance("list_epics", mock_database, mock_websocket_manager)
+        list_tasks = create_tool_instance("list_tasks", mock_database, mock_websocket_manager)
+        
+        from task_manager.tools import ListProjectsTool, ListEpicsTool, ListTasksTool
+        assert isinstance(list_projects, ListProjectsTool)
+        assert isinstance(list_epics, ListEpicsTool)
+        assert isinstance(list_tasks, ListTasksTool)
 
 
 if __name__ == "__main__":

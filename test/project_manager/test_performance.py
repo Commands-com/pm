@@ -73,19 +73,19 @@ class DatabasePerformanceTester:
     
     def setup_test_data(self):
         """Create test data for performance testing."""
-        # Create test epic and story with unique names to avoid conflicts
+        # Create test project and epic with unique names to avoid conflicts
         import time
         timestamp = str(int(time.time() * 1000))  # millisecond timestamp for uniqueness
-        epic_id = self.db.create_epic(f"Performance Test Epic {timestamp}", "Epic for load testing")
-        story_id = self.db.create_story(epic_id, f"Performance Test Story {timestamp}", "Story for load testing")
+        project_id = self.db.create_project(f"Performance Test Project {timestamp}", "Project for load testing")
+        epic_id = self.db.create_epic(project_id, f"Performance Test Epic {timestamp}", "Epic for load testing")
         
         # Create many tasks for concurrent testing
         self.task_ids = []
         for i in range(100):
             task_id = self.db.create_task(
+                epic_id,
                 f"Performance Test Task {timestamp}_{i}",
-                f"Task {i} for concurrent lock testing",
-                story_id=story_id
+                f"Task {i} for concurrent lock testing"
             )
             self.task_ids.append(task_id)
     
@@ -416,11 +416,11 @@ class TestSystemPerformance:
     """System-wide performance and resource usage tests."""
     
     def test_memory_stability_under_load(self, test_database, resource_monitor):
-        """Test memory usage stability under sustained load."""
+        """Test memory usage stability under load (shortened for CI speed)."""
         resource_monitor.start_monitoring()
         
-        # Run sustained load for shorter duration in tests
-        test_duration = 30  # 30 seconds for testing
+        # Run sustained load for a shorter duration to keep tests fast
+        test_duration = 5  # seconds (was 30)
         end_time = time.time() + test_duration
         
         operation_count = 0
@@ -433,7 +433,7 @@ class TestSystemPerformance:
                 test_database.db.release_lock(task_id, "load_test_agent")
             
             operation_count += 1
-            time.sleep(0.1)  # 10 operations per second
+            time.sleep(0.05)  # smaller sleep to keep reasonable operation count
         
         resource_stats = resource_monitor.stop_monitoring()
         

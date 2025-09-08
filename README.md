@@ -1,6 +1,6 @@
 # Project Manager MCP
 
-A comprehensive project management system with Model Context Protocol (MCP) support, enabling AI agents to manage tasks, epics, and stories through both programmatic interfaces and a web dashboard.
+A comprehensive project management system with Model Context Protocol (MCP) support, enabling AI agents to manage projects, epics, and tasks through both programmatic interfaces and a web dashboard.
 
 ## Features
 
@@ -68,8 +68,8 @@ project-manager-mcp --mcp-transport stdio
 ### Data Model
 
 ```
-Epics (high-level initiatives)
-├── Stories (user-focused features)
+Projects (top-level containers)
+├── Epics (high-level initiatives)
     ├── Tasks (specific work items)
 ```
 
@@ -132,13 +132,16 @@ WebSocket events keep all clients synchronized:
 Define projects in YAML and import on startup:
 
 ```yaml
-epics:
-  - name: "User Authentication"
-    status: "ACTIVE"
-    stories:
-      - name: "User Registration"
+projects:
+  - name: "User Management System"
+    description: "Complete user lifecycle management"
+    epics:
+      - name: "User Authentication"
+        status: "ACTIVE"
         tasks:
           - name: "Create registration form"
+            status: "TODO"
+          - name: "Implement login validation"
             status: "TODO"
 ```
 
@@ -160,7 +163,7 @@ epics:
 
 ### Dashboard Management
 
-- **Project visualization**: Epic → Story → Task hierarchy
+- **Project visualization**: Project → Epic → Task hierarchy
 - **Real-time monitoring**: Live updates from agent activity
 - **Manual intervention**: Override task states when needed
 - **Project import**: Load new projects without restart

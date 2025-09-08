@@ -17,12 +17,14 @@ Key Features:
 
 import json
 import logging
+import sqlite3
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
 
 from .database import TaskDatabase
 from .api import ConnectionManager
+from .ra_instructions import ra_instructions_manager
 
 # Configure logging for tool operations
 logger = logging.getLogger(__name__)
@@ -640,13 +642,995 @@ class ReleaseTaskLock(BaseTool):
             )
 
 
+class CreateTaskTool(BaseTool):
+    """
+    MCP tool for creating tasks with project/epic upsert and RA metadata support.
+    
+    # RA-Light Mode Implementation:
+    # Comprehensive task creation tool that handles project/epic upsert logic,
+    # RA complexity auto-assessment, full RA metadata support, system prompt snapshots,
+    # and WebSocket broadcasting with enriched payloads for dashboard synchronization.
+    
+    Key Features:
+    - Project upsert: creates project by name if not found
+    - Epic upsert: creates epic by name within project if not found  
+    - RA complexity auto-assessment when ra_score not provided
+    - Full RA metadata support (mode, tags, metadata, prompt snapshot)
+    - Initial task log entry with "create" kind
+    - WebSocket broadcasting with enriched project/epic data
+    - Comprehensive parameter validation with helpful error messages
+    """
+    
+    async def apply(
+        self,
+        name: str,
+        description: str = "",
+        epic_id: Optional[int] = None,
+        epic_name: Optional[str] = None,
+        project_id: Optional[int] = None,
+        project_name: Optional[str] = None,
+        ra_mode: Optional[str] = None,
+        ra_score: Optional[int] = None,
+        ra_tags: Optional[List[str]] = None,
+        ra_metadata: Optional[Dict[str, Any]] = None,
+        prompt_snapshot: Optional[str] = None,
+        dependencies: Optional[List[int]] = None,
+        client_session_id: Optional[str] = None
+    ) -> str:
+        """
+        Create a task with project/epic upsert and full RA metadata support.
+        
+        # RA-Light Mode: Comprehensive parameter validation and error handling
+        # with detailed RA tag documentation of all assumptions and integration points.
+        
+        Args:
+            name: Task name (required)
+            description: Task description (optional, defaults to empty string)
+            epic_id: ID of existing epic (either epic_id or epic_name required)
+            epic_name: Name of epic (created if not found, with project)
+            project_id: ID of existing project (used with epic_name)
+            project_name: Name of project (created if not found)
+            ra_mode: RA mode (simple, standard, ra-light, ra-full)
+            ra_score: RA complexity score (1-10, auto-assessed if not provided)
+            ra_tags: List of RA assumption tags
+            ra_metadata: Additional RA metadata dictionary
+            prompt_snapshot: System prompt snapshot (auto-captured if not provided)
+            dependencies: List of task IDs this task depends on
+            client_session_id: Client session for dashboard auto-switch functionality
+            
+        Returns:
+            JSON string with created task information and success status
+        """
+        try:
+            # === PARAMETER VALIDATION ===
+            
+            # Validate required parameters
+            if not name or not name.strip():
+                return self._format_error_response("Task name is required and cannot be empty")
+            
+            name = name.strip()
+            
+            # Validate epic identification parameters
+            # VERIFIED: Task specification requires "either epic_id or epic_name" for epic identification
+            if not epic_id and not epic_name:
+                return self._format_error_response(
+                    "Either epic_id or epic_name must be provided to identify the epic"
+                )
+            
+            if epic_id and epic_name:
+                return self._format_error_response(
+                    "Provide either epic_id or epic_name, not both"
+                )
+            
+            # Validate project identification when using epic_name
+            if epic_name and not project_id and not project_name:
+                return self._format_error_response(
+                    "When using epic_name, either project_id or project_name must be provided"
+                )
+            
+            if epic_name and project_id and project_name:
+                return self._format_error_response(
+                    "When using epic_name, provide either project_id or project_name, not both"
+                )
+            
+            # Validate RA parameters
+            if ra_score is not None and (ra_score < 1 or ra_score > 10):
+                return self._format_error_response(
+                    "ra_score must be between 1 and 10 if provided"
+                )
+            
+            if ra_mode and ra_mode not in ['simple', 'standard', 'ra-light', 'ra-full']:
+                return self._format_error_response(
+                    "ra_mode must be one of: simple, standard, ra-light, ra-full"
+                )
+            
+            # === PROJECT/EPIC UPSERT LOGIC ===
+            
+            resolved_project_id = None
+            resolved_epic_id = None
+            project_data = None
+            epic_data = None
+            
+            if epic_id:
+                # Use existing epic_id directly
+                # VERIFIED: Task specification accepts epic_id as existing identifier
+                # Database foreign key constraint enforces referential integrity per schema design
+                resolved_epic_id = epic_id
+                
+                # Get project and epic data for WebSocket event enrichment
+                # #SUGGEST_ERROR_HANDLING: Handle case where epic_id doesn't exist
+                try:
+                    epic_info = self.db.get_epic_with_project_info(epic_id)
+                    if epic_info:
+                        resolved_project_id = epic_info.get('project_id')
+                        project_data = {
+                            'id': epic_info.get('project_id'),
+                            'name': epic_info.get('project_name')
+                        }
+                        epic_data = {
+                            'id': epic_info.get('epic_id'),
+                            'name': epic_info.get('epic_name')
+                        }
+                except Exception:
+                    # VERIFIED: Epic info retrieval is for WebSocket enrichment only
+                    # Task creation validates epic_id via foreign key constraint
+                    pass
+                    
+            else:
+                # Upsert project first
+                if project_name:
+                    # Project upsert is atomic and race-condition safe per task requirements
+                    resolved_project_id = self.db.upsert_project(project_name, "")
+                    project_data = {'id': resolved_project_id, 'name': project_name}
+                else:
+                    # Use existing project_id
+                    resolved_project_id = project_id
+                    # #SUGGEST_VALIDATION: Could validate that project_id exists
+                    project_data = {'id': resolved_project_id, 'name': 'Unknown'}
+                
+                # Upsert epic within the project
+                # Epic upsert handles race conditions with SELECT + INSERT pattern as required by task spec
+                resolved_epic_id = self.db.upsert_epic(resolved_project_id, epic_name, "")
+                epic_data = {'id': resolved_epic_id, 'name': epic_name}
+            
+            # === RA COMPLEXITY AUTO-ASSESSMENT ===
+            
+            if ra_score is None and ra_mode in ['ra-light', 'ra-full']:
+                # Auto-assess complexity based on task characteristics
+                # VERIFIED: Task specification requires "RA complexity auto-assessment works when ra_score not provided"
+                # Algorithm uses task characteristics per acceptance criteria
+                
+                base_score = 5  # Default middle complexity
+                
+                # Description complexity factor
+                if description and len(description) > 500:
+                    base_score += 1
+                elif description and len(description) > 200:
+                    base_score += 0.5
+                
+                # Dependency complexity factor
+                if dependencies and len(dependencies) > 5:
+                    base_score += 2
+                elif dependencies and len(dependencies) > 2:
+                    base_score += 1
+                elif dependencies and len(dependencies) > 0:
+                    base_score += 0.5
+                
+                # RA mode complexity factor
+                if ra_mode == 'ra-full':
+                    base_score += 2
+                elif ra_mode == 'ra-light':
+                    base_score += 1
+                
+                # RA tags complexity factor (high tag count suggests complex implementation)
+                if ra_tags and len(ra_tags) > 10:
+                    base_score += 1
+                elif ra_tags and len(ra_tags) > 5:
+                    base_score += 0.5
+                
+                # VERIFIED: Score range 1-10 per parameter validation requirements
+                ra_score = max(1, min(10, round(base_score)))
+            
+            # === PROMPT SNAPSHOT CAPTURE ===
+            
+            if prompt_snapshot is None:
+                # VERIFIED: Task specification requires "Prompt snapshot stored from current system instructions"
+                # Standard Mode: Integrate with RA instructions manager for proper prompt capture
+                prompt_snapshot = ra_instructions_manager.capture_prompt_snapshot("task_creation")
+            
+            # === TASK CREATION ===
+            
+            # Create task with all RA metadata
+            task_id = self.db.create_task_with_ra_metadata(
+                epic_id=resolved_epic_id,
+                name=name,
+                description=description,
+                ra_mode=ra_mode,
+                ra_score=ra_score,
+                ra_tags=ra_tags,
+                ra_metadata=ra_metadata,
+                prompt_snapshot=prompt_snapshot,
+                dependencies=dependencies
+            )
+            
+            # === INITIAL TASK LOG ENTRY ===
+            
+            # Create initial log entry for task creation
+            # VERIFIED: Task specification requires "Initial task log entry created with 'create' kind"
+            creation_payload = {
+                'agent_action': 'task_created',
+                'original_parameters': {
+                    'name': name,
+                    'description': description,
+                    'ra_mode': ra_mode,
+                    'ra_score': ra_score,
+                    'dependencies': dependencies
+                },
+                'resolved_ids': {
+                    'project_id': resolved_project_id,
+                    'epic_id': resolved_epic_id,
+                    'task_id': task_id
+                }
+            }
+            
+            log_seq = self.db.add_task_log_entry(task_id, 'create', creation_payload)
+            
+            # === PROMPT SNAPSHOT LOG ENTRY ===
+            
+            # Create additional log entry for prompt tracking audit trail
+            # Standard Mode: Task specification requires log entry with kind="prompt"
+            prompt_log_payload = {
+                'prompt_snapshot': prompt_snapshot,
+                'ra_mode': ra_mode,
+                'ra_score': ra_score,
+                'instructions_version': ra_instructions_manager.version,
+                'capture_context': 'task_creation'
+            }
+            
+            prompt_log_seq = self.db.add_task_log_entry(task_id, 'prompt', prompt_log_payload)
+            
+            # === WEBSOCKET EVENT BROADCASTING ===
+            
+            # Broadcast enriched task.created event with comprehensive payload
+            # VERIFIED: Task specification requires "WebSocket event broadcasted with enriched payload"
+            # Using new enriched payload generation functions from api.py
+            
+            # #COMPLETION_DRIVE_INTEGRATION: Import enriched payload functions
+            from .api import generate_enriched_task_payload, extract_session_id
+            
+            # Prepare task data for enriched payload
+            task_data = {
+                "id": task_id,
+                "name": name,
+                "description": description,
+                "status": "pending",
+                "ra_score": ra_score,
+                "ra_mode": ra_mode
+            }
+            
+            # Determine auto-switch flags based on creation context
+            # #COMPLETION_DRIVE_IMPL: Flag generation logic for project/epic creation detection
+            auto_flags = {
+                "project_created": bool(project_name),  # True if we created a project
+                "epic_created": bool(epic_name)  # True if we created an epic
+            }
+            
+            # Extract session ID for auto-switch functionality
+            session_id = client_session_id
+            
+            # Generate enriched payload with all context
+            enriched_data = generate_enriched_task_payload(
+                task_data=task_data,
+                project_data=project_data,
+                epic_data=epic_data,
+                auto_flags=auto_flags,
+                session_id=session_id
+            )
+            
+            # Broadcast enriched event using ConnectionManager's new method
+            if hasattr(self.websocket_manager, "broadcast_enriched_event"):
+                await self.websocket_manager.broadcast_enriched_event("task.created", enriched_data)
+            else:
+                # Fallback to existing broadcast method with enriched structure
+                await self._broadcast_event("task.created", **enriched_data)
+            
+            # === SUCCESS RESPONSE ===
+            
+            logger.info(f"Created task '{name}' (ID: {task_id}) in epic {resolved_epic_id}")
+            
+            return self._format_success_response(
+                f"Task '{name}' created successfully",
+                task_id=task_id,
+                project_id=resolved_project_id,
+                epic_id=resolved_epic_id,
+                ra_score=ra_score,
+                ra_mode=ra_mode,
+                log_sequence=log_seq
+            )
+            
+        except sqlite3.IntegrityError as e:
+            # Database constraint violations (foreign key, unique constraints, etc.)
+            # #SUGGEST_ERROR_HANDLING: More specific error messages based on constraint type
+            logger.error(f"Database integrity error creating task: {e}")
+            return self._format_error_response(
+                "Database constraint violation. Check that project/epic IDs exist and are valid.",
+                error_details=str(e)
+            )
+            
+        except Exception as e:
+            # Comprehensive error handling for all other exceptions
+            logger.error(f"Unexpected error creating task '{name}': {e}")
+            return self._format_error_response(
+                f"Failed to create task '{name}'",
+                error_details=str(e)
+            )
+    
+    # Helper method for epic info retrieval with project context
+    # Helper method for epic info retrieval with project context
+    # Current implementation requires this functionality to be added to TaskDatabase
+    def _get_epic_with_project_info(self, epic_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get epic information with associated project data.
+        
+        # #SUGGEST_IMPLEMENTATION: Add this method to TaskDatabase class
+        # Returns epic and project information in a single query for efficiency
+        """
+        # For now, return None to indicate method needs implementation
+        # Real implementation would join epics and projects tables
+        return None
+
+
+class UpdateTaskTool(BaseTool):
+    """
+    MCP tool for comprehensive task field updates with RA metadata support.
+    
+    # RA-Light Mode Implementation:
+    # Comprehensive task update tool that handles atomic field updates, RA metadata
+    # merge/replace logic, integrated logging, WebSocket broadcasting, and lock coordination.
+    # Provides single-call interface for agents to update multiple task fields safely.
+    
+    Key Features:
+    - Atomic multi-field updates (all succeed or all fail)
+    - RA tags merge/replace with intelligent JSON handling
+    - RA metadata merge/replace with dict.update() semantics
+    - Integrated task logging with sequence management
+    - Status vocabulary mapping (TODO/DONE/etc <-> pending/completed/etc)
+    - Auto-locking for unlocked tasks with smart release logic
+    - WebSocket broadcasting with detailed change payloads
+    - Lock validation for concurrent agent coordination
+    """
+    
+    async def apply(
+        self,
+        task_id: str,
+        agent_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        status: Optional[str] = None,
+        ra_mode: Optional[str] = None,
+        ra_score: Optional[int] = None,
+        ra_tags: Optional[List[str]] = None,
+        ra_metadata: Optional[Dict[str, Any]] = None,
+        ra_tags_mode: str = "merge",
+        ra_metadata_mode: str = "merge",
+        log_entry: Optional[str] = None
+    ) -> str:
+        """
+        Update task fields atomically with comprehensive RA metadata support.
+        
+        # RA-Light Mode: Comprehensive parameter validation and atomic update logic
+        # with extensive assumption tracking for all implementation and integration decisions.
+        
+        Args:
+            task_id: ID of the task to update (string, converted to int)
+            agent_id: ID of the agent performing the update
+            name: New task name (optional)
+            description: New task description (optional)
+            status: New task status (optional - supports both UI and DB vocabulary)
+            ra_mode: New RA mode (optional - simple, standard, ra-light, ra-full)
+            ra_score: New RA complexity score (optional - 1-10)
+            ra_tags: RA tags to merge or replace (optional list)
+            ra_metadata: RA metadata to merge or replace (optional dict)
+            ra_tags_mode: How to handle ra_tags - "merge" or "replace" (default: merge)
+            ra_metadata_mode: How to handle ra_metadata - "merge" or "replace" (default: merge)
+            log_entry: Optional log message to append with sequence numbering
+            
+        Returns:
+            JSON string with success status, updated fields summary, and metadata
+            
+        # Single-call interface provides atomic operations as required by task specification
+        # Reduces coordination complexity compared to multiple separate update calls
+        
+        # WebSocket broadcasting integration provides detailed field change information
+        # for dashboard clients' real-time UI updates as required
+        """
+        try:
+            # === PARAMETER VALIDATION ===
+            
+            # Validate and convert task_id
+            # Task ID validation uses string-to-int conversion pattern
+            # consistent with other MCP tools in the system
+            try:
+                task_id_int = int(task_id)
+            except ValueError:
+                return self._format_error_response(f"Invalid task_id '{task_id}'. Must be a number.")
+            
+            # Validate agent_id
+            if not agent_id or not agent_id.strip():
+                return self._format_error_response("agent_id cannot be empty")
+            
+            agent_id = agent_id.strip()
+            
+            # Validate status values using existing vocabulary mapping
+            # Status vocabulary mapping provides bidirectional
+            # compatibility between UI terminology and database storage format
+            if status is not None:
+                valid_statuses = ['pending', 'in_progress', 'completed', 'blocked', 'review', 
+                                'TODO', 'DONE', 'IN_PROGRESS', 'REVIEW']
+                if status not in valid_statuses:
+                    return self._format_error_response(
+                        f"Invalid status '{status}'. Valid options: {', '.join(valid_statuses)}"
+                    )
+                
+                # Normalize status to database vocabulary
+                # Status normalization uses consistent mapping logic
+                # with other status-handling tools for system-wide compatibility
+                status_mapping = {
+                    'TODO': 'pending',
+                    'DONE': 'completed', 
+                    'IN_PROGRESS': 'in_progress',
+                    'REVIEW': 'review'
+                }
+                status = status_mapping.get(status, status)
+            
+            # Validate RA parameters
+            # RA parameter validation uses same constraints
+            # as CreateTaskTool for consistency across task management operations
+            if ra_score is not None and (ra_score < 1 or ra_score > 10):
+                return self._format_error_response("ra_score must be between 1 and 10")
+            
+            if ra_mode is not None and ra_mode not in ['simple', 'standard', 'ra-light', 'ra-full']:
+                return self._format_error_response(
+                    "ra_mode must be one of: simple, standard, ra-light, ra-full"
+                )
+            
+            # Validate merge/replace mode parameters
+            # Mode validation uses "merge" and "replace" as the only valid options
+            # for RA metadata handling based on common data merging patterns
+            if ra_tags_mode not in ['merge', 'replace']:
+                return self._format_error_response(
+                    "ra_tags_mode must be 'merge' or 'replace'"
+                )
+            
+            if ra_metadata_mode not in ['merge', 'replace']:
+                return self._format_error_response(
+                    "ra_metadata_mode must be 'merge' or 'replace'"
+                )
+            
+            # Validate at least one field is provided for update
+            # Empty update validation requires agents to specify
+            # at least one field to update to prevent accidental no-op calls
+            update_fields_provided = any([
+                name is not None, description is not None, status is not None,
+                ra_mode is not None, ra_score is not None, ra_tags is not None,
+                ra_metadata is not None, log_entry is not None
+            ])
+            
+            if not update_fields_provided:
+                return self._format_error_response(
+                    "At least one field must be provided for update"
+                )
+            
+            # === ATOMIC DATABASE UPDATE ===
+            
+            # Clear expired locks before attempting update
+            # Expired lock cleanup follows consistent pattern
+            # with other locking tools for system-wide lock hygiene
+            try:
+                expired_ids = self.db.cleanup_expired_locks_with_ids()
+                for eid in expired_ids:
+                    await self._broadcast_event(
+                        "task.unlocked",
+                        task_id=eid,
+                        agent_id=None,
+                        reason="lock_expired"
+                    )
+            except Exception:
+                # #SUGGEST_ERROR_HANDLING: Lock cleanup errors should not block update operations
+                pass
+            
+            # Execute atomic database update with all parameters
+            # Database integration uses update_task_atomic method which
+            # handles all complexity of field validation, JSON merging, and transaction management
+            update_result = self.db.update_task_atomic(
+                task_id=task_id_int,
+                agent_id=agent_id,
+                name=name,
+                description=description,
+                status=status,
+                ra_mode=ra_mode,
+                ra_score=ra_score,
+                ra_tags=ra_tags,
+                ra_metadata=ra_metadata,
+                ra_tags_mode=ra_tags_mode,
+                ra_metadata_mode=ra_metadata_mode,
+                log_entry=log_entry
+            )
+            
+            if not update_result["success"]:
+                # Database update failed - return error with details
+                return self._format_error_response(
+                    update_result["error"],
+                    **{k: v for k, v in update_result.items() if k not in ["success", "error"]}
+                )
+            
+            # === WEBSOCKET EVENT BROADCASTING ===
+            
+            # Broadcast enriched task.updated event with comprehensive payload
+            # #COMPLETION_DRIVE_INTEGRATION: Enhanced task.updated events as specified in task requirements
+            # Provides comprehensive change information with project/epic context for dashboard updates
+            updated_fields = update_result.get("updated_fields", {})
+            
+            if updated_fields:  # Only broadcast if actual changes were made
+                # Import enriched payload functions
+                from .api import generate_enriched_task_payload, extract_session_id
+                
+                # Get complete task data for enriched payload
+                # #COMPLETION_DRIVE_IMPL: Need full task context for enriched events
+                task_details = self.db.get_task_details_with_relations(task_id_int)
+                
+                if task_details:
+                    task_data = task_details["task"]
+                    project_data = task_details.get("project")
+                    epic_data = task_details.get("epic")
+                    
+                    # Map database status to UI vocabulary for consistency
+                    if "status" in updated_fields:
+                        ui_status_map = {
+                            'pending': 'TODO',
+                            'in_progress': 'IN_PROGRESS', 
+                            'completed': 'DONE',
+                            'review': 'REVIEW'
+                        }
+                        db_status = updated_fields["status"]["new"]
+                        ui_status = ui_status_map.get(db_status, db_status)
+                        task_data["status"] = ui_status
+                    
+                    # Generate enriched task payload
+                    enriched_data = generate_enriched_task_payload(
+                        task_data=task_data,
+                        project_data=project_data,
+                        epic_data=epic_data
+                    )
+                    
+                    # Add update-specific fields to enriched payload
+                    enriched_data.update({
+                        "changed_fields": list(updated_fields.keys()),
+                        "field_changes": updated_fields,
+                        "fields_count": update_result.get("fields_updated_count", 0),
+                        "agent_id": agent_id,
+                        "auto_locked": update_result.get("auto_locked", False),
+                        "lock_released": update_result.get("lock_released", False)
+                    })
+                    
+                    # Add log sequence if logging was performed
+                    if update_result.get("log_sequence"):
+                        enriched_data["log_sequence"] = update_result["log_sequence"]
+                    
+                    # Broadcast enriched task.updated event
+                    if hasattr(self.websocket_manager, "broadcast_enriched_event"):
+                        await self.websocket_manager.broadcast_enriched_event("task.updated", enriched_data)
+                    else:
+                        await self._broadcast_event("task.updated", **enriched_data)
+                    
+                    # === TASK.LOGS.APPENDED EVENT BROADCASTING ===
+                    
+                    # If a log entry was added, broadcast task.logs.appended event
+                    # #COMPLETION_DRIVE_IMPL: Real-time log updates as specified in task requirements
+                    if update_result.get("log_sequence") and log_entry:
+                        from .api import generate_logs_appended_payload
+                        
+                        # Get the new log entry that was just added
+                        new_log_entries = [{
+                            "seq": update_result["log_sequence"],
+                            "kind": "update",
+                            "content": log_entry,
+                            "timestamp": update_result.get("timestamp"),
+                            "agent_id": agent_id
+                        }]
+                        
+                        # Generate logs appended payload
+                        logs_payload = generate_logs_appended_payload(
+                            task_id=task_id_int,
+                            log_entries=new_log_entries
+                        )
+                        
+                        # Broadcast task.logs.appended event
+                        if hasattr(self.websocket_manager, "broadcast_enriched_event"):
+                            await self.websocket_manager.broadcast_enriched_event("task.logs.appended", logs_payload)
+                        else:
+                            await self._broadcast_event("task.logs.appended", **logs_payload)
+                
+                # Broadcast additional lock events if relevant
+                # Lock event broadcasting provides separate lock state notifications
+                # for dashboard's proper UI state management
+                if update_result.get("auto_locked"):
+                    await self._broadcast_event(
+                        "task.locked",
+                        task_id=task_id_int,
+                        agent_id=agent_id,
+                        reason="auto_lock_for_update"
+                    )
+                
+                if update_result.get("lock_released"):
+                    await self._broadcast_event(
+                        "task.unlocked", 
+                        task_id=task_id_int,
+                        agent_id=agent_id,
+                        reason="auto_release_after_update"
+                    )
+            
+            # === SUCCESS RESPONSE ===
+            
+            logger.info(f"Task {task_id} updated by agent {agent_id}: {len(updated_fields)} fields changed")
+            
+            # Prepare comprehensive success response
+            # Response structure provides detailed feedback
+            # about what changed for debugging and coordination purposes
+            response_data = {
+                "task_id": task_id_int,
+                "agent_id": agent_id,
+                "fields_updated": list(updated_fields.keys()),
+                "fields_updated_count": update_result.get("fields_updated_count", 0),
+                "log_sequence": update_result.get("log_sequence"),
+                "auto_locked": update_result.get("auto_locked", False),
+                "lock_released": update_result.get("lock_released", False),
+                "timestamp": update_result.get("timestamp")
+            }
+            
+            # Add field change details for debugging
+            # #SUGGEST_VALIDATION: Consider filtering sensitive information from field details
+            if updated_fields:
+                response_data["field_changes"] = updated_fields
+            
+            message = f"Task {task_id} updated successfully"
+            if update_result.get("fields_updated_count", 0) == 0:
+                message += " (no changes needed)"
+            else:
+                message += f" ({update_result.get('fields_updated_count', 0)} fields changed)"
+            
+            return self._format_success_response(message, **response_data)
+            
+        except Exception as e:
+            # #SUGGEST_ERROR_HANDLING: Comprehensive error handling should provide context
+            # while avoiding exposure of internal system details
+            logger.error(f"Unexpected error updating task {task_id}: {e}")
+            return self._format_error_response(
+                f"Failed to update task {task_id}",
+                error_details=str(e)
+            )
+
+
+class GetTaskDetailsTool(BaseTool):
+    """
+    MCP tool for retrieving comprehensive task details with log pagination.
+    
+    Standard Mode Implementation: Provides comprehensive task data including
+    project/epic context, RA metadata, paginated task logs, and resolved
+    dependencies for dashboard task detail modal display.
+    
+    Key Features:
+    - Complete task data with all RA metadata fields
+    - Project and epic context information
+    - Cursor-based log pagination (last 100 by default)
+    - Dependency resolution to task summaries
+    - Efficient database queries with JOINs
+    - Comprehensive error handling for missing tasks
+    """
+    
+    async def apply(self, task_id: str, log_limit: int = 100, 
+                   before_seq: Optional[int] = None) -> str:
+        """
+        Get comprehensive task details with related data and paginated logs.
+        
+        Standard Mode Implementation: Single-call interface for all task detail
+        requirements with efficient database access and comprehensive error handling.
+        
+        Args:
+            task_id: ID of the task to retrieve details for (string, converted to int)
+            log_limit: Maximum number of log entries to return (default: 100, max: 1000)
+            before_seq: Get logs before this sequence number for pagination (optional)
+            
+        Returns:
+            JSON string with comprehensive task details or error response
+            
+        Response Structure Assumptions:
+        - Task data includes all RA fields (mode, score, tags, metadata, prompt_snapshot)
+        - Project and epic context provided for breadcrumb navigation
+        - Task logs in chronological order with pagination metadata
+        - Dependencies resolved to summaries (id, name, status)
+        - Error responses follow standard MCP tool format
+        """
+        try:
+            # Validate and convert task_id
+            try:
+                task_id_int = int(task_id)
+            except ValueError:
+                return self._format_error_response(f"Invalid task_id '{task_id}'. Must be a number.")
+            
+            # Validate log_limit parameter
+            if log_limit < 1 or log_limit > 1000:
+                return self._format_error_response(
+                    f"log_limit must be between 1 and 1000, got {log_limit}"
+                )
+            
+            # Validate before_seq parameter  
+            if before_seq is not None and before_seq < 1:
+                return self._format_error_response(
+                    f"before_seq must be positive, got {before_seq}"
+                )
+            
+            # Get comprehensive task details with project/epic information
+            task_details = self.db.get_task_details_with_relations(task_id_int)
+            if not task_details:
+                return self._format_error_response(f"Task {task_id} not found")
+            
+            # Get paginated task logs
+            task_logs = self.db.get_task_logs_paginated(
+                task_id_int, 
+                limit=log_limit,
+                before_seq=before_seq
+            )
+            
+            # Resolve dependencies to summaries if task has dependencies
+            dependencies_resolved = []
+            if task_details["task"]["dependencies"]:
+                try:
+                    # Standard Mode: Handle invalid dependency data gracefully
+                    dependency_ids = task_details["task"]["dependencies"]
+                    if isinstance(dependency_ids, list) and all(isinstance(x, int) for x in dependency_ids):
+                        dependencies_resolved = self.db.resolve_task_dependencies(dependency_ids)
+                    else:
+                        # Handle corrupted dependency data
+                        logger.warning(f"Task {task_id} has invalid dependencies format: {dependency_ids}")
+                        dependencies_resolved = []
+                except Exception as e:
+                    # Standard Mode: Dependency resolution errors don't fail entire request
+                    logger.warning(f"Failed to resolve dependencies for task {task_id}: {e}")
+                    dependencies_resolved = []
+            
+            # Prepare pagination metadata for client
+            pagination_info = {
+                "log_count": len(task_logs),
+                "log_limit": log_limit,
+                "has_more": len(task_logs) == log_limit,  # Estimate based on returned count
+                "before_seq": before_seq
+            }
+            
+            # Add cursor for next page if logs are at limit
+            if task_logs and len(task_logs) == log_limit:
+                # Next page cursor is the sequence number of oldest returned log
+                pagination_info["next_cursor"] = task_logs[0]["seq"]
+            
+            # Assemble comprehensive response
+            response_data = {
+                "task_id": task_id_int,
+                "task": task_details["task"],
+                "project": task_details["project"], 
+                "epic": task_details["epic"],
+                "dependencies": dependencies_resolved,
+                "logs": task_logs,
+                "pagination": pagination_info
+            }
+            
+            logger.info(f"Retrieved task details for {task_id}: {len(task_logs)} logs, {len(dependencies_resolved)} dependencies")
+            
+            return json.dumps(response_data)
+            
+        except Exception as e:
+            # Standard Mode: Comprehensive error handling with logging
+            logger.error(f"Failed to get task details for {task_id}: {e}")
+            return self._format_error_response(
+                f"Failed to retrieve task details for {task_id}",
+                error_details=str(e)
+            )
+
+
+class ListProjectsTool(BaseTool):
+    """
+    MCP tool to list all projects with optional filtering and result limiting.
+    
+    Standard Mode Implementation:
+    - Provides basic project listing functionality for UI selectors
+    - Supports limiting results to prevent overwhelming responses  
+    - Consistent response format compatible with REST API endpoints
+    - Error handling for database connectivity issues
+    
+    Future Enhancement Areas:
+    - Add status filtering when projects table gains status field
+    - Add search/text filtering capabilities
+    """
+    
+    async def apply(self, status: Optional[str] = None, limit: Optional[int] = None) -> str:
+        """
+        List projects with optional filtering and result limiting.
+        
+        Standard Mode Assumptions:
+        - Projects don't currently have status field, so status parameter ignored
+        - Limit parameter helps with performance for large project datasets
+        - Results ordered consistently for pagination support
+        
+        Args:
+            status: Optional status filter (currently ignored - no status field)
+            limit: Optional maximum number of projects to return
+            
+        Returns:
+            JSON string with list of projects or error response
+        """
+        try:
+            # Validate limit parameter if provided
+            if limit is not None and limit <= 0:
+                return self._format_error_response("Limit must be a positive integer")
+            
+            # Get filtered projects from database
+            projects = self.db.list_projects_filtered(status=status, limit=limit)
+            
+            logger.info(f"Retrieved {len(projects)} projects")
+            return json.dumps(projects)
+            
+        except Exception as e:
+            logger.error(f"Error listing projects: {str(e)}")
+            return self._format_error_response(f"Failed to list projects: {str(e)}")
+
+
+class ListEpicsTool(BaseTool):
+    """
+    MCP tool to list epics with optional project filtering and result limiting.
+    
+    Standard Mode Implementation:
+    - Supports project-based filtering for hierarchical organization
+    - Includes project context (project_name) for better UX
+    - Consistent response format matching other list tools
+    - Proper parameter validation with helpful error messages
+    """
+    
+    async def apply(self, project_id: Optional[int] = None, limit: Optional[int] = None) -> str:
+        """
+        List epics with optional project filtering and result limiting.
+        
+        Standard Mode Assumptions:
+        - project_id filtering enables showing epics within specific projects
+        - Including project_name in response reduces frontend data fetching
+        - Results ordered by project then creation date for consistency
+        
+        Args:
+            project_id: Optional project ID to filter epics within specific project
+            limit: Optional maximum number of epics to return
+            
+        Returns:
+            JSON string with list of epics including project context or error response
+        """
+        try:
+            # Validate parameters
+            if limit is not None and limit <= 0:
+                return self._format_error_response("Limit must be a positive integer")
+                
+            if project_id is not None and project_id <= 0:
+                return self._format_error_response("Project ID must be a positive integer")
+            
+            # Get filtered epics from database
+            epics = self.db.list_epics_filtered(project_id=project_id, limit=limit)
+            
+            logger.info(f"Retrieved {len(epics)} epics" + 
+                       (f" for project {project_id}" if project_id else ""))
+            return json.dumps(epics)
+            
+        except Exception as e:
+            logger.error(f"Error listing epics: {str(e)}")
+            return self._format_error_response(f"Failed to list epics: {str(e)}")
+
+
+class ListTasksTool(BaseTool):
+    """
+    MCP tool to list tasks with hierarchical filtering (project, epic, status) and result limiting.
+    
+    Standard Mode Implementation:
+    - Supports multi-level filtering: project → epic → status
+    - Status vocabulary mapping from UI terms to database values
+    - Includes hierarchical context (project_name, epic_name) in response
+    - RA score included for Response Awareness workflow integration
+    - Comprehensive parameter validation with clear error messages
+    """
+    
+    async def apply(self, project_id: Optional[int] = None, epic_id: Optional[int] = None, 
+                   status: Optional[str] = None, limit: Optional[int] = None) -> str:
+        """
+        List tasks with hierarchical filtering and result limiting.
+        
+        Standard Mode Assumptions:
+        - Multiple filtering options can be combined (project AND epic AND status)
+        - Status mapping handles UI vocabulary (TODO/DONE) to DB vocabulary (pending/completed)
+        - Hierarchical context included to reduce frontend data fetching
+        - RA score field included for Response Awareness workflow support
+        
+        Args:
+            project_id: Optional project ID to filter tasks within specific project
+            epic_id: Optional epic ID to filter tasks within specific epic
+            status: Optional status filter using UI vocabulary (TODO/IN_PROGRESS/REVIEW/DONE) 
+                   or database vocabulary (pending/in_progress/review/completed/blocked)
+            limit: Optional maximum number of tasks to return
+            
+        Returns:
+            JSON string with list of tasks including hierarchy context or error response
+        """
+        try:
+            # Validate parameters
+            if limit is not None and limit <= 0:
+                return self._format_error_response("Limit must be a positive integer")
+                
+            if project_id is not None and project_id <= 0:
+                return self._format_error_response("Project ID must be a positive integer")
+                
+            if epic_id is not None and epic_id <= 0:
+                return self._format_error_response("Epic ID must be a positive integer")
+            
+            # Validate and map status vocabulary
+            db_status = status
+            if status is not None:
+                # Standard Mode: Status vocabulary mapping for UI compatibility
+                valid_ui_statuses = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']
+                valid_db_statuses = ['pending', 'in_progress', 'review', 'completed', 'blocked']
+                
+                status_mapping = {
+                    'TODO': 'pending',
+                    'IN_PROGRESS': 'in_progress', 
+                    'REVIEW': 'review',
+                    'DONE': 'completed'
+                }
+                
+                if status in status_mapping:
+                    db_status = status_mapping[status]
+                elif status not in valid_db_statuses:
+                    return self._format_error_response(
+                        f"Invalid status '{status}'. Valid options: {', '.join(valid_ui_statuses + valid_db_statuses)}"
+                    )
+            
+            # Get filtered tasks from database
+            tasks = self.db.list_tasks_filtered(
+                project_id=project_id, 
+                epic_id=epic_id, 
+                status=db_status, 
+                limit=limit
+            )
+            
+            # Log filtering details for debugging
+            filter_details = []
+            if project_id: filter_details.append(f"project_id={project_id}")
+            if epic_id: filter_details.append(f"epic_id={epic_id}")  
+            if status: filter_details.append(f"status={status}")
+            filter_str = f" with filters: {', '.join(filter_details)}" if filter_details else ""
+            
+            logger.info(f"Retrieved {len(tasks)} tasks{filter_str}")
+            return json.dumps(tasks)
+            
+        except Exception as e:
+            logger.error(f"Error listing tasks: {str(e)}")
+            return self._format_error_response(f"Failed to list tasks: {str(e)}")
+
+
 # Tool registry for MCP server integration
 # Standard Mode: Provide clear interface for tool registration and discovery
 AVAILABLE_TOOLS = {
     "get_available_tasks": GetAvailableTasks,
     "acquire_task_lock": AcquireTaskLock,
     "update_task_status": UpdateTaskStatus,
-    "release_task_lock": ReleaseTaskLock
+    "release_task_lock": ReleaseTaskLock,
+    "create_task": CreateTaskTool,
+    "update_task": UpdateTaskTool,
+    "get_task_details": GetTaskDetailsTool,
+    "list_projects": ListProjectsTool,
+    "list_epics": ListEpicsTool,
+    "list_tasks": ListTasksTool
 }
 
 

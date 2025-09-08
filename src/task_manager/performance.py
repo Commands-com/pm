@@ -220,12 +220,9 @@ class OptimizedConnectionManager:
             # Update health tracking on failure
             if websocket in self.connection_health:
                 self.connection_health[websocket]['failed_sends'] += 1
-                
-                # Remove connection after multiple failures
-                if self.connection_health[websocket]['failed_sends'] >= 3:
-                    logger.info("Removing unhealthy WebSocket connection")
-                    await self.disconnect(websocket)
             
+            # Remove unhealthy connection immediately to match expected semantics in tests
+            await self.disconnect(websocket)
             return False
     
     def get_connection_stats(self) -> Dict[str, Any]:

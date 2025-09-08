@@ -75,78 +75,64 @@ class IntegrationTestDatabase:
         
     def _seed_test_data(self):
         """Create comprehensive test project structure."""
+        # Create test project
+        self.project_id = self.database.create_project(
+            "Integration Test Project",
+            "Complete project for integration testing"
+        )
+        
         # Create test epics
         self.epic1_id = self.database.create_epic(
+            self.project_id,
             "User Authentication System",
             "Complete user authentication and authorization system"
         )
         self.epic2_id = self.database.create_epic(
+            self.project_id,
             "Dashboard Implementation", 
             "Real-time project management dashboard"
-        )
-        
-        # Create test stories
-        self.story1_id = self.database.create_story(
-            self.epic1_id,
-            "User Login Flow",
-            "Implement secure user login and session management"
-        )
-        self.story2_id = self.database.create_story(
-            self.epic1_id,
-            "Password Management",
-            "Password reset and update functionality"
-        )
-        self.story3_id = self.database.create_story(
-            self.epic2_id,
-            "Kanban Board",
-            "Interactive drag-and-drop task board"
         )
         
         # Create test tasks with varying complexity
         self.task_ids = []
         
-        # Epic 1, Story 1 tasks
+        # Epic 1 tasks
         self.task_ids.append(self.database.create_task(
+            self.epic1_id,
             "Implement login API endpoint",
-            "Create FastAPI endpoint for user authentication",
-            story_id=self.story1_id,
-            epic_id=self.epic1_id
+            "Create FastAPI endpoint for user authentication"
         ))
         self.task_ids.append(self.database.create_task(
+            self.epic1_id,
             "Add JWT token generation",
-            "Implement secure JWT token creation and validation", 
-            story_id=self.story1_id,
-            epic_id=self.epic1_id
+            "Implement secure JWT token creation and validation"
         ))
-        
-        # Epic 1, Story 2 tasks
         self.task_ids.append(self.database.create_task(
+            self.epic1_id,
             "Password reset email flow",
-            "Send reset emails with secure tokens",
-            story_id=self.story2_id, 
-            epic_id=self.epic1_id
+            "Send reset emails with secure tokens"
         ))
         
-        # Epic 2, Story 3 tasks
+        # Epic 2 tasks
         self.task_ids.append(self.database.create_task(
+            self.epic2_id,
             "WebSocket real-time updates",
-            "Implement WebSocket broadcasting for task changes",
-            story_id=self.story3_id,
-            epic_id=self.epic2_id
+            "Implement WebSocket broadcasting for task changes"
         ))
         self.task_ids.append(self.database.create_task(
+            self.epic2_id,
             "Drag and drop interface",
-            "Frontend drag-and-drop task management",
-            story_id=self.story3_id,
-            epic_id=self.epic2_id
+            "Frontend drag-and-drop task management"
         ))
         
         # Create some standalone tasks for testing
         self.task_ids.append(self.database.create_task(
+            self.epic1_id,
             "Database performance optimization",
             "Optimize SQLite queries and indexing"
         ))
         self.task_ids.append(self.database.create_task(
+            self.epic2_id,
             "API documentation updates", 
             "Update OpenAPI documentation for new endpoints"
         ))
@@ -194,15 +180,15 @@ class WebSocketTestClient:
         Returns:
             bool: True if connection successful, False otherwise
         """
-        max_retries = 10
-        retry_delay = 0.5
+        # Keep this fast to avoid hanging tests when server isn't running
+        max_retries = 3
+        retry_delay = 0.2
         
         for attempt in range(max_retries):
             try:
-                # VERIFIED: WebSocket URL pattern correctly matches FastAPI endpoint
-                # /ws/dashboard endpoint is the actual WebSocket route in the API.
-                uri = f"ws://{self.host}:{self.port}/ws/dashboard"
-                self.websocket = await websockets.connect(uri, timeout=5)
+                # Match current API WebSocket endpoint
+                uri = f"ws://{self.host}:{self.port}/ws/updates"
+                self.websocket = await websockets.connect(uri, timeout=2)
                 
                 # Start event capture task
                 self.event_capture_task = asyncio.create_task(self._capture_events())

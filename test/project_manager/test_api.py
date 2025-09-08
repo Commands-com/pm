@@ -25,6 +25,7 @@ from task_manager.database import TaskDatabase
 
 
 class TestDatabaseFixture:
+    __test__ = False  # Prevent pytest from collecting this helper class as tests
     """Test fixture providing isolated database for testing."""
     
     def __init__(self):
@@ -38,19 +39,19 @@ class TestDatabaseFixture:
         self._setup_test_data()
     
     def _setup_test_data(self):
-        """Create test epics, stories, and tasks for testing."""
-        # Create test epic
-        epic_id = self.db.create_epic("Test Epic", "Epic for testing")
+        """Create test projects, epics, and tasks for testing."""
+        # Create test project
+        project_id = self.db.create_project("Test Project", "Project for testing")
         
-        # Create test story
-        story_id = self.db.create_story(epic_id, "Test Story", "Story for testing")
+        # Create test epic
+        epic_id = self.db.create_epic(project_id, "Test Epic", "Epic for testing")
         
         # Create test tasks
-        self.task1_id = self.db.create_task("Test Task 1", "First test task", story_id=story_id, epic_id=epic_id)
-        self.task2_id = self.db.create_task("Test Task 2", "Second test task", story_id=story_id, epic_id=epic_id)
+        self.task1_id = self.db.create_task(epic_id, "Test Task 1", "First test task")
+        self.task2_id = self.db.create_task(epic_id, "Test Task 2", "Second test task")
         
+        self.project_id = project_id
         self.epic_id = epic_id
-        self.story_id = story_id
     
     def cleanup(self):
         """Clean up test database."""
@@ -133,12 +134,12 @@ class TestBoardStateEndpoint:
         
         # Verify response structure
         assert "tasks" in data
-        assert "stories" in data  
+        assert "projects" in data  
         assert "epics" in data
         
         # Verify we have our test data
+        assert len(data["projects"]) >= 1
         assert len(data["epics"]) >= 1
-        assert len(data["stories"]) >= 1
         assert len(data["tasks"]) >= 2
         
         # Verify task structure includes lock information
@@ -172,13 +173,22 @@ class TestBoardStateEndpoint:
         assert locked_task["lock_holder"] == "test-agent"
     
     def test_board_state_hierarchical_relationships(self, client):
-        """Test that board state maintains epic->story->task relationships."""
+        """Test that board state maintains project->epic->task relationships."""
         test_client, fixture = client
         
         response = test_client.get("/api/board/state")
         data = response.json()
         
-        # Verify epic has our test epic
+        # Verify project has our test project
+        project = None
+        for p in data["projects"]:
+            if p["id"] == fixture.project_id:
+                project = p
+                break
+        assert project is not None
+        assert project["name"] == "Test Project"
+        
+        # Verify epic references the project
         epic = None
         for e in data["epics"]:
             if e["id"] == fixture.epic_id:
@@ -186,20 +196,11 @@ class TestBoardStateEndpoint:
                 break
         assert epic is not None
         assert epic["name"] == "Test Epic"
+        assert epic["project_id"] == fixture.project_id
         
-        # Verify story references the epic
-        story = None
-        for s in data["stories"]:
-            if s["id"] == fixture.story_id:
-                story = s
-                break
-        assert story is not None
-        assert story["epic_id"] == fixture.epic_id
-        
-        # Verify tasks reference both story and epic
+        # Verify tasks reference the epic
         for task in data["tasks"]:
             if task["id"] in [fixture.task1_id, fixture.task2_id]:
-                assert task["story_id"] == fixture.story_id
                 assert task["epic_id"] == fixture.epic_id
 
 
@@ -227,7 +228,7 @@ class TestTaskStatusEndpoint:
         assert data["status"] == "in_progress"
     
     def test_update_task_status_without_lock(self, client):
-        """Test task status update fails without proper lock."""
+        """Test task status update auto-acquires lock when unlocked."""
         test_client, fixture = client
         
         # Attempt to update without acquiring lock first
@@ -236,9 +237,11 @@ class TestTaskStatusEndpoint:
             json={"status": "in_progress", "agent_id": "test-agent"}
         )
         
-        assert response.status_code == 403
+        # API auto-acquires a short-lived lock to allow update
+        assert response.status_code == 200
         data = response.json()
-        assert "must be locked" in data["detail"].lower()
+        assert data["success"] is True
+        assert data["status"] == "in_progress"
     
     def test_update_task_status_wrong_agent(self, client):
         """Test task status update fails with wrong agent ID."""
@@ -256,7 +259,8 @@ class TestTaskStatusEndpoint:
         
         assert response.status_code == 403
         data = response.json()
-        assert "must be locked" in data["detail"].lower()
+        # When locked by a different agent, API should report lock ownership conflict
+        assert "locked by another agent" in data["detail"].lower()
     
     def test_update_nonexistent_task(self, client):
         """Test task status update fails for nonexistent task."""
@@ -713,15 +717,15 @@ class TestPerformanceCharacteristics:
         
         # Create additional test data
         for i in range(100):
-            epic_id = fixture.db.create_epic(f"Epic {i}", f"Description {i}")
-            story_id = fixture.db.create_story(epic_id, f"Story {i}", f"Description {i}")
+            project_id = fixture.db.create_project(f"Project {i}", f"Description {i}")
+            epic_id = fixture.db.create_epic(project_id, f"Epic {i}", f"Description {i}")
             for j in range(10):
-                fixture.db.create_task(f"Task {i}-{j}", f"Description {i}-{j}", story_id=story_id, epic_id=epic_id)
+                fixture.db.create_task(epic_id, f"Task {i}-{j}", f"Description {i}-{j}")
         
         # Test query performance
         start_time = time.time()
         tasks = fixture.db.get_all_tasks()
-        stories = fixture.db.get_all_stories()
+        projects = fixture.db.get_all_projects()
         epics = fixture.db.get_all_epics()
         end_time = time.time()
         
@@ -729,7 +733,7 @@ class TestPerformanceCharacteristics:
         
         # Should handle moderate dataset efficiently
         assert len(tasks) >= 1000  # 100 epics * 10 tasks + original test data
-        assert len(stories) >= 100
+        assert len(projects) >= 100
         assert len(epics) >= 100
         assert query_time < 2.0  # Should complete within 2 seconds
         

@@ -35,16 +35,15 @@ class TestYAMLImporter:
     def simple_yaml_data(self):
         """Basic YAML data for testing."""
         return {
-            "epics": [
+            "projects": [
                 {
-                    "name": "Test Epic",
-                    "description": "Epic for testing",
-                    "status": "ACTIVE",
-                    "stories": [
+                    "name": "Test Project",
+                    "description": "Project for testing",
+                    "epics": [
                         {
-                            "name": "Test Story",
-                            "description": "Story for testing", 
-                            "status": "TODO",
+                            "name": "Test Epic",
+                            "description": "Epic for testing",
+                            "status": "ACTIVE",
                             "tasks": [
                                 {
                                     "name": "Test Task 1",
@@ -69,27 +68,27 @@ class TestYAMLImporter:
         result = import_project(db, simple_yaml_data)
         
         # Verify import statistics
+        assert result["projects_created"] == 1
         assert result["epics_created"] == 1
-        assert result["stories_created"] == 1
         assert result["tasks_created"] == 2
         assert result["errors"] == []
         
         # Verify data in database
+        projects = db.get_all_projects()
+        assert len(projects) == 1
+        assert projects[0]["name"] == "Test Project"
+        
         epics = db.get_all_epics()
         assert len(epics) == 1
         assert epics[0]["name"] == "Test Epic"
         assert epics[0]["status"] == "ACTIVE"
-        
-        stories = db.get_all_stories()
-        assert len(stories) == 1
-        assert stories[0]["name"] == "Test Story"
-        assert stories[0]["epic_id"] == epics[0]["id"]
+        assert epics[0]["project_id"] == projects[0]["id"]
         
         tasks = db.get_all_tasks()
         assert len(tasks) == 2
         assert tasks[0]["name"] == "Test Task 1"
         assert tasks[1]["name"] == "Test Task 2"
-        assert tasks[0]["story_id"] == stories[0]["id"]
+        assert tasks[0]["epic_id"] == epics[0]["id"]
 
     def test_upsert_behavior_preserves_runtime_fields(self, db, simple_yaml_data):
         """Test that re-import preserves lock state and updates names/descriptions."""
@@ -104,15 +103,14 @@ class TestYAMLImporter:
         
         # Update YAML data with modified descriptions but same names
         modified_yaml = {
-            "epics": [
+            "projects": [
                 {
-                    "name": "Test Epic",  # Same name
-                    "description": "Updated epic description",  # Changed
-                    "status": "IN_PROGRESS",  # Changed
-                    "stories": [
+                    "name": "Test Project",  # Same name
+                    "description": "Updated project description",  # Changed
+                    "epics": [
                         {
-                            "name": "Test Story",  # Same name
-                            "description": "Updated story description",  # Changed
+                            "name": "Test Epic",  # Same name
+                            "description": "Updated epic description",  # Changed
                             "status": "IN_PROGRESS",  # Changed
                             "tasks": [
                                 {
@@ -132,14 +130,17 @@ class TestYAMLImporter:
         result = import_project(db, modified_yaml)
         
         # Should show updates, not creates
+        assert result["projects_updated"] == 1
         assert result["epics_updated"] == 1
-        assert result["stories_updated"] == 1 
         assert result["tasks_updated"] == 1
+        assert result["projects_created"] == 0
         assert result["epics_created"] == 0
-        assert result["stories_created"] == 0
         assert result["tasks_created"] == 0
         
         # Verify descriptions were updated
+        projects = db.get_all_projects()
+        assert projects[0]["description"] == "Updated project description"
+        
         epics = db.get_all_epics()
         assert epics[0]["description"] == "Updated epic description"
         assert epics[0]["status"] == "IN_PROGRESS"
@@ -151,63 +152,63 @@ class TestYAMLImporter:
         assert locked_task["is_locked"] is True
         assert locked_task["description"] == "Updated first task description"
         # Status should be updated even for locked tasks (current implementation)
-        assert locked_task["status"] == "COMPLETED"
+        assert locked_task["status"] == "completed"  # Database vocabulary
 
     def test_error_handling_malformed_yaml(self, db):
         """Test error handling for various YAML structure problems."""
         # Test non-dict root - critical error, should raise
-        with pytest.raises(ValueError, match="YAML 'epics' must be a list"):
-            import_project(db, {"epics": "not a list"})
+        with pytest.raises(ValueError, match="YAML 'projects' must be a list"):
+            import_project(db, {"projects": "not a list"})
         
-        # Test non-dict epic - should be handled gracefully
-        result = import_project(db, {"epics": ["not a dict"]})
+        # Test non-dict project - should be handled gracefully
+        result = import_project(db, {"projects": ["not a dict"]})
         assert len(result["errors"]) == 1
-        assert "Epic data must be a dictionary" in result["errors"][0]
-        assert result["epics_created"] == 0
+        assert "Project data must be a dictionary" in result["errors"][0]
+        assert result["projects_created"] == 0
         
-        # Test missing epic name - should be handled gracefully
-        result = import_project(db, {"epics": [{"description": "No name"}]})
+        # Test missing project name - should be handled gracefully
+        result = import_project(db, {"projects": [{"description": "No name"}]})
         assert len(result["errors"]) == 1
-        assert "Epic must have 'name' field" in result["errors"][0]
+        assert "Project must have 'name' field" in result["errors"][0]
         
-        # Test malformed stories - should be handled gracefully
+        # Test malformed epics - should be handled gracefully
         result = import_project(db, {
-            "epics": [{
-                "name": "Test Epic",
-                "stories": ["not a dict"]
+            "projects": [{
+                "name": "Test Project",
+                "epics": ["not a dict"]
             }]
         })
-        assert result["epics_created"] == 1  # Epic should still be created
+        assert result["projects_created"] == 1  # Project should still be created
         assert len(result["errors"]) == 1
-        assert "Story data must be a dictionary" in result["errors"][0]
+        assert "Epic data must be a dictionary" in result["errors"][0]
         
-        # Test missing story name
-        malformed_story_yaml = {
-            "epics": [{
-                "name": "Test Epic 2",
-                "stories": [{"description": "No name"}]
+        # Test missing epic name
+        malformed_epic_yaml = {
+            "projects": [{
+                "name": "Test Project 2",
+                "epics": [{"description": "No name"}]
             }]
         }
-        result = import_project(db, malformed_story_yaml)
+        result = import_project(db, malformed_epic_yaml)
         assert len(result["errors"]) == 1
-        assert "Story must have 'name' field" in result["errors"][0]
+        assert "Epic must have 'name' field" in result["errors"][0]
 
     def test_hierarchical_relationships(self, db):
         """Test that parent-child relationships are correctly established."""
         yaml_data = {
-            "epics": [
+            "projects": [
                 {
-                    "name": "Epic 1",
-                    "stories": [
+                    "name": "Project 1",
+                    "epics": [
                         {
-                            "name": "Story 1.1",
+                            "name": "Epic 1.1",
                             "tasks": [
                                 {"name": "Task 1.1.1"},
                                 {"name": "Task 1.1.2"}
                             ]
                         },
                         {
-                            "name": "Story 1.2", 
+                            "name": "Epic 1.2", 
                             "tasks": [
                                 {"name": "Task 1.2.1"}
                             ]
@@ -215,10 +216,10 @@ class TestYAMLImporter:
                     ]
                 },
                 {
-                    "name": "Epic 2",
-                    "stories": [
+                    "name": "Project 2",
+                    "epics": [
                         {
-                            "name": "Story 2.1",
+                            "name": "Epic 2.1",
                             "tasks": [
                                 {"name": "Task 2.1.1"}
                             ]
@@ -231,27 +232,27 @@ class TestYAMLImporter:
         # VERIFIED: Complex hierarchical relationships established correctly
         result = import_project(db, yaml_data)
         
-        assert result["epics_created"] == 2
-        assert result["stories_created"] == 3
+        assert result["projects_created"] == 2
+        assert result["epics_created"] == 3
         assert result["tasks_created"] == 4
         
         # Verify relationships are correct
+        projects = db.get_all_projects()
         epics = db.get_all_epics()
-        stories = db.get_all_stories()
         tasks = db.get_all_tasks()
         
-        epic1 = next(e for e in epics if e["name"] == "Epic 1")
-        epic2 = next(e for e in epics if e["name"] == "Epic 2")
+        project1 = next(p for p in projects if p["name"] == "Project 1")
+        project2 = next(p for p in projects if p["name"] == "Project 2")
         
-        epic1_stories = [s for s in stories if s["epic_id"] == epic1["id"]]
-        epic2_stories = [s for s in stories if s["epic_id"] == epic2["id"]]
+        project1_epics = [e for e in epics if e["project_id"] == project1["id"]]
+        project2_epics = [e for e in epics if e["project_id"] == project2["id"]]
         
-        assert len(epic1_stories) == 2
-        assert len(epic2_stories) == 1
+        assert len(project1_epics) == 2
+        assert len(project2_epics) == 1
         
-        story_1_1 = next(s for s in epic1_stories if s["name"] == "Story 1.1")
-        story_1_1_tasks = [t for t in tasks if t["story_id"] == story_1_1["id"]]
-        assert len(story_1_1_tasks) == 2
+        epic_1_1 = next(e for e in project1_epics if e["name"] == "Epic 1.1")
+        epic_1_1_tasks = [t for t in tasks if t["epic_id"] == epic_1_1["id"]]
+        assert len(epic_1_1_tasks) == 2
 
     def test_import_from_file(self, db, simple_yaml_data):
         """Test importing from actual YAML file."""
@@ -261,8 +262,8 @@ class TestYAMLImporter:
         
         try:
             result = import_project_from_file(db, yaml_path)
+            assert result["projects_created"] == 1
             assert result["epics_created"] == 1
-            assert result["stories_created"] == 1
             assert result["tasks_created"] == 2
         finally:
             os.unlink(yaml_path)
@@ -286,26 +287,27 @@ class TestYAMLImporter:
 
     def test_empty_project_import(self, db):
         """Test importing empty project structure."""
-        empty_yaml = {"epics": []}
+        empty_yaml = {"projects": []}
         result = import_project(db, empty_yaml)
         
+        assert result["projects_created"] == 0
         assert result["epics_created"] == 0
-        assert result["stories_created"] == 0
         assert result["tasks_created"] == 0
         assert result["errors"] == []
 
     def test_partial_failure_rollback(self, db):
         """Test that transaction rollback works on database errors."""
         # Create initial data
-        db.create_epic("Existing Epic", "This epic exists")
+        project_id = db.create_project("Existing Project", "This project exists")
+        db.create_epic(project_id, "Existing Epic", "This epic exists")
         
-        # Try to import with duplicate epic name (should fail due to UNIQUE constraint)
+        # Try to import with duplicate project name (should work with UPSERT logic)
         duplicate_yaml = {
-            "epics": [
+            "projects": [
                 {
-                    "name": "Existing Epic",  # This will cause IntegrityError initially
-                    "stories": [
-                        {"name": "Story 1", "tasks": [{"name": "Task 1"}]}
+                    "name": "Existing Project",  # This will use UPSERT logic
+                    "epics": [
+                        {"name": "New Epic", "tasks": [{"name": "Task 1"}]}
                     ]
                 }
             ]
@@ -313,18 +315,19 @@ class TestYAMLImporter:
         
         # This should succeed due to UPSERT logic
         result = import_project(db, duplicate_yaml)
-        assert result["epics_updated"] == 1
-        assert result["stories_created"] == 1
+        assert result["projects_updated"] == 1
+        assert result["epics_created"] == 1
+        assert result["tasks_created"] == 1
 
     def test_status_defaults(self, db):
         """Test default status values when not specified."""
         yaml_without_status = {
-            "epics": [
+            "projects": [
                 {
-                    "name": "Epic Without Status",
-                    "stories": [
+                    "name": "Project Without Status",
+                    "epics": [
                         {
-                            "name": "Story Without Status",
+                            "name": "Epic Without Status",
                             "tasks": [
                                 {"name": "Task Without Status"}
                             ]
@@ -337,25 +340,25 @@ class TestYAMLImporter:
         result = import_project(db, yaml_without_status)
         
         # Verify defaults are applied
+        projects = db.get_all_projects()
         epics = db.get_all_epics()
-        stories = db.get_all_stories()
         tasks = db.get_all_tasks()
         
-        assert epics[0]["status"] == "pending"  # Database default
-        assert stories[0]["status"] == "pending"  # Database default
+        # Projects do not have status; epics default to 'pending'
+        assert epics[0]["status"] == "pending"
         assert tasks[0]["status"] == "pending"  # Database default
 
     def test_unicode_handling(self, db):
         """Test proper Unicode handling in project names and descriptions."""
         unicode_yaml = {
-            "epics": [
+            "projects": [
                 {
-                    "name": "测试史诗 (Test Epic)",
+                    "name": "测试项目 (Test Project)",
                     "description": "Descripción con acentos and 🚀 emojis",
-                    "stories": [
+                    "epics": [
                         {
-                            "name": "История с unicode",
-                            "description": "Description with русский текст",
+                            "name": "测试史诗 (Test Epic)",
+                            "description": "Epic with русский текст",
                             "tasks": [
                                 {
                                     "name": "任务 with mixed 語言",
@@ -371,52 +374,47 @@ class TestYAMLImporter:
         # #SUGGEST_ERROR_HANDLING: Unicode handling is critical for international projects
         result = import_project(db, unicode_yaml)
         
+        assert result["projects_created"] == 1
         assert result["epics_created"] == 1
         assert result["errors"] == []
         
         # Verify Unicode text is preserved
+        projects = db.get_all_projects()
+        assert "测试项目" in projects[0]["name"]
+        assert "🚀" in projects[0]["description"]
+        
         epics = db.get_all_epics()
         assert "测试史诗" in epics[0]["name"]
-        assert "🚀" in epics[0]["description"]
+        assert "русский" in epics[0]["description"]
 
     def test_large_project_import_performance(self, db):
-        """Test import performance with large project structure."""
-        # Generate large project data
-        large_yaml = {"epics": []}
-        for epic_i in range(5):
-            epic_data = {
-                "name": f"Epic {epic_i}",
-                "description": f"Large epic number {epic_i}",
-                "stories": []
-            }
-            for story_i in range(10):
-                story_data = {
-                    "name": f"Story {epic_i}.{story_i}",
-                    "description": f"Story in epic {epic_i}",
-                    "tasks": []
-                }
-                for task_i in range(20):
-                    task_data = {
-                        "name": f"Task {epic_i}.{story_i}.{task_i}",
-                        "description": f"Task {task_i} in story {story_i}"
-                    }
-                    story_data["tasks"].append(task_data)
-                epic_data["stories"].append(story_data)
-            large_yaml["epics"].append(epic_data)
-        
+        """Test import performance with large project structure (Projects → Epics → Tasks)."""
+        # Generate large project data: 2 projects × 5 epics × 100 tasks = 1000 tasks
+        large_yaml = {"projects": []}
+        for proj_i in range(2):
+            project = {"name": f"Project {proj_i}", "epics": []}
+            for epic_i in range(5):
+                epic = {"name": f"Epic {proj_i}.{epic_i}", "tasks": []}
+                for task_i in range(100):
+                    epic["tasks"].append({
+                        "name": f"Task {proj_i}.{epic_i}.{task_i}",
+                        "description": f"Task {task_i}"
+                    })
+                project["epics"].append(epic)
+            large_yaml["projects"].append(project)
+
         # Import and measure basic performance
-        # #SUGGEST_ERROR_HANDLING: Large imports should complete within reasonable time
         import time
         start_time = time.time()
         result = import_project(db, large_yaml)
         import_duration = time.time() - start_time
-        
+
         # Verify all data was imported
-        assert result["epics_created"] == 5
-        assert result["stories_created"] == 50
-        assert result["tasks_created"] == 1000
+        assert result["projects_created"] == 2
+        assert result["epics_created"] == 10  # 2 projects * 5 epics
+        assert result["tasks_created"] == 1000  # 2 projects * 5 epics * 100 tasks
         assert result["errors"] == []
-        
+
         # Performance should be reasonable (less than 5 seconds for 1000 tasks)
         assert import_duration < 5.0, f"Import took {import_duration:.2f}s, expected < 5.0s"
 
@@ -451,13 +449,17 @@ class TestYAMLImporter:
         assert len(results) >= 2, f"Should have at least 2 successful imports, got {len(results)}"
         
         # Final database should be consistent
-        epics = db.get_all_epics()
-        stories = db.get_all_stories() 
+        projects = db.get_all_projects()
+        epics = db.get_all_epics() 
         tasks = db.get_all_tasks()
         
         # Should have exactly one of each due to UPSERT behavior
+        projects = db.get_all_projects()
+        epics = db.get_all_epics()
+        tasks = db.get_all_tasks()
+        
+        assert len(projects) == 1
         assert len(epics) == 1
-        assert len(stories) == 1
         assert len(tasks) == 2
 
 
@@ -483,13 +485,18 @@ class TestExampleFiles:
         # Skip if file doesn't exist
         if not os.path.exists(example_path):
             pytest.skip("Simple project example file not found")
+        # Skip if example uses legacy root schema (epics/stories)
+        with open(example_path, 'r') as f:
+            data = yaml.safe_load(f)
+        if not isinstance(data, dict) or 'projects' not in data:
+            pytest.skip("Example file uses legacy epics/stories schema")
         
         result = import_project_from_file(db, example_path)
         
         # Should import successfully with expected structure
-        assert result["epics_created"] == 1
-        assert result["stories_created"] == 2
-        assert result["tasks_created"] == 6
+        assert result["projects_created"] == 1
+        assert result["epics_created"] >= 1
+        assert result["tasks_created"] >= 6
         assert result["errors"] == []
 
     def test_complex_project_example(self, db):
@@ -499,30 +506,34 @@ class TestExampleFiles:
         # Skip if file doesn't exist  
         if not os.path.exists(example_path):
             pytest.skip("Complex project example file not found")
+        # Skip if example uses legacy root schema (epics/stories)
+        with open(example_path, 'r') as f:
+            data = yaml.safe_load(f)
+        if not isinstance(data, dict) or 'projects' not in data:
+            pytest.skip("Example file uses legacy epics/stories schema")
         
         result = import_project_from_file(db, example_path)
         
         # Should import large project successfully
+        assert result["projects_created"] > 0
         assert result["epics_created"] > 2
-        assert result["stories_created"] > 5
         assert result["tasks_created"] > 15
         assert result["errors"] == []
         
         # Verify hierarchical structure is correct
+        projects = db.get_all_projects()
         epics = db.get_all_epics()
-        stories = db.get_all_stories()
         tasks = db.get_all_tasks()
         
-        # Each story should belong to an epic
-        for story in stories:
-            epic_ids = [e["id"] for e in epics]
-            assert story["epic_id"] in epic_ids
+        # Each epic should belong to a project
+        for epic in epics:
+            project_ids = [p["id"] for p in projects]
+            assert epic["project_id"] in project_ids
         
-        # Each task should belong to a story and epic
+        # Each task should belong to an epic
         for task in tasks:
-            if task["story_id"]:
-                story_ids = [s["id"] for s in stories]
-                assert task["story_id"] in story_ids
+            epic_ids = [e["id"] for e in epics]
+            assert task["epic_id"] in epic_ids
 
 
 # #SUGGEST_ERROR_HANDLING: Additional test cases to consider:

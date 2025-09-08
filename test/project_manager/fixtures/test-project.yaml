@@ -2,17 +2,14 @@
 # Test Project YAML for Integration Testing
 # Provides realistic project structure for multi-agent coordination testing
 
-project_name: "Integration Test Project"
-description: "Comprehensive test project for multi-agent coordination and WebSocket event verification"
-
-# Epic 1: Backend Infrastructure
-epics:
-  - name: "Backend API Development"
-    description: "Core backend services and API endpoints"
-    stories:
-      - name: "User Authentication"
-        description: "Secure user authentication and authorization system"
+projects:
+  - name: "Integration Test Project"
+    description: "Comprehensive test project for multi-agent coordination and WebSocket event verification"
+    epics:
+      - name: "Backend API Development"
+        description: "Core backend services and API endpoints"
         tasks:
+          # User Authentication tasks
           - name: "JWT token implementation" 
             description: "Implement JWT token generation, validation, and refresh"
           - name: "Password hashing and validation"
@@ -21,20 +18,14 @@ epics:
             description: "User session lifecycle and cleanup"
           - name: "Role-based access control"
             description: "Implement user roles and permission checking"
-            
-      - name: "Database Layer"
-        description: "Database operations and data modeling" 
-        tasks:
+          # Database Layer tasks
           - name: "User model and migrations"
             description: "Create user database schema and migration scripts"
           - name: "Database connection pooling"
             description: "Optimize database connection management"
           - name: "Query optimization and indexing"
             description: "Add database indexes for performance"
-            
-      - name: "API Endpoints"
-        description: "REST API implementation"
-        tasks:
+          # API Endpoints tasks
           - name: "User registration endpoint"
             description: "POST /api/users/register with validation"
           - name: "User login endpoint" 
@@ -44,13 +35,11 @@ epics:
           - name: "Password reset flow"
             description: "Email-based password reset with secure tokens"
 
-  # Epic 2: Frontend Implementation  
-  - name: "Frontend User Interface"
-    description: "React-based user interface components"
-    stories:
-      - name: "Authentication UI"
-        description: "Login, registration, and profile management interfaces"
+      # Epic 2: Frontend Implementation  
+      - name: "Frontend User Interface"
+        description: "React-based user interface components"
         tasks:
+          # Authentication UI tasks
           - name: "Login form component"
             description: "React login form with validation and error handling"
           - name: "Registration form component" 
@@ -59,10 +48,7 @@ epics:
             description: "User profile editing and password change interface"
           - name: "Authentication state management"
             description: "Redux/Context API for auth state across app"
-            
-      - name: "Dashboard Interface"
-        description: "Main application dashboard and navigation"
-        tasks:
+          # Dashboard Interface tasks
           - name: "Navigation component"
             description: "Responsive navigation bar with user menu"
           - name: "Dashboard layout"
@@ -72,13 +58,11 @@ epics:
           - name: "Notification system"
             description: "Toast notifications for user feedback"
             
-  # Epic 3: Real-time Features
-  - name: "Real-time Communication"
-    description: "WebSocket-based real-time features"
-    stories:
-      - name: "WebSocket Infrastructure"
-        description: "WebSocket server and client implementation"
+      # Epic 3: Real-time Features
+      - name: "Real-time Communication"
+        description: "WebSocket-based real-time features"
         tasks:
+          # WebSocket Infrastructure tasks
           - name: "WebSocket server setup"
             description: "Configure WebSocket server with connection management"
           - name: "Client-side WebSocket integration"
@@ -87,32 +71,27 @@ epics:
             description: "Server-side message routing and broadcasting"
           - name: "Connection recovery and reconnection"
             description: "Handle network interruptions and reconnection logic"
-            
-      - name: "Live Notifications"
-        description: "Real-time notification delivery"
-        tasks:
+          # Live Notifications tasks
           - name: "Notification queue system"
             description: "Server-side notification queuing and delivery"
           - name: "Push notification integration"
             description: "Browser push notifications for background updates"
           - name: "Notification history and persistence"
             description: "Store and retrieve notification history"
-
-# Standalone tasks for testing orphaned task scenarios
-standalone_tasks:
-  - name: "API documentation generation"
-    description: "Generate OpenAPI/Swagger documentation from code"
-  - name: "Performance monitoring setup"
-    description: "Configure application performance monitoring (APM)"
-  - name: "Security audit and penetration testing"
-    description: "Comprehensive security assessment of the application"
-  - name: "Database backup and recovery procedures"
-    description: "Implement automated backup and disaster recovery"
-  - name: "CI/CD pipeline optimization"
-    description: "Optimize build and deployment pipeline performance"
-  - name: "Code quality and linting configuration"
-    description: "Configure ESLint, Prettier, and other code quality tools"
-  - name: "Error tracking and monitoring"
-    description: "Integrate Sentry or similar error tracking service"
-  - name: "Load testing and performance benchmarking"
-    description: "Comprehensive application load testing and optimization"
+          # Standalone tasks integrated into epic structure
+          - name: "API documentation generation"
+            description: "Generate OpenAPI/Swagger documentation from code"
+          - name: "Performance monitoring setup"
+            description: "Configure application performance monitoring (APM)"
+          - name: "Security audit and penetration testing"
+            description: "Comprehensive security assessment of the application"
+          - name: "Database backup and recovery procedures"
+            description: "Implement automated backup and disaster recovery"
+          - name: "CI/CD pipeline optimization"
+            description: "Optimize build and deployment pipeline performance"
+          - name: "Code quality and linting configuration"
+            description: "Configure ESLint, Prettier, and other code quality tools"
+          - name: "Error tracking and monitoring"
+            description: "Integrate Sentry or similar error tracking service"
+          - name: "Load testing and performance benchmarking"
+            description: "Comprehensive application load testing and optimization"

@@ -1,64 +1,31 @@
-# Complex Multi-Epic Project Example
-# 
+# Complex Multi-Epic Project Example (updated to Projects → Epics → Tasks)
+#
 # This file demonstrates a realistic enterprise-scale project structure with multiple epics,
-# various task states, and complex inter-dependencies. Use this as a reference for large
-# projects with multiple teams and development phases.
-#
-# Key Features Demonstrated:
-# - Multiple epics representing major platform components  
-# - Stories at different stages of completion
-# - Mixed task statuses showing real development progression
-# - Detailed descriptions explaining each work item's purpose
-# - Realistic e-commerce platform development workflow
-#
-# Import this project with:
-#   project-manager-mcp --project examples/complex-project.yaml
-#
-# Project Overview:
-# This represents a full e-commerce platform development project spanning
-# user management, product catalog, shopping cart, and order management.
-# Tasks progress from database design through API development to UI implementation.
-#
-# Multi-Agent Coordination:
-# - Frontend team can work on UI tasks
-# - Backend team handles API and database tasks  
-# - DevOps team manages infrastructure and deployment
-# - QA team picks up testing and validation tasks
+# various task states, and complex inter-dependencies.
 
-# Epic 1: Platform Foundation
-# This epic covers the foundational systems that all other features depend on
-epics:
-  - name: "E-Commerce Platform Foundation"
-    description: "Core infrastructure and user management for e-commerce platform"
-    status: "ACTIVE"                                      # This epic is currently the main focus
-    
-    stories:
-      # Story 1.1: User accounts and profiles
-      - name: "User Account Management"
-        description: "Complete user account system with profiles and preferences"
-        status: "IN_PROGRESS"                            # Mixed completion - some tasks done, others ongoing
-        
+projects:
+  - name: "E-Commerce Platform"
+    description: "Full platform spanning user management, catalog, cart, and orders"
+    epics:
+      # Epic 1: Platform Foundation
+      - name: "E-Commerce Platform Foundation"
+        description: "Core infrastructure and user management for e-commerce platform"
+        status: "ACTIVE"
         tasks:
-          - name: "Design user account database schema"   # Database design task
+          # From "User Account Management"
+          - name: "Design user account database schema"
             description: "Define tables for users, profiles, preferences"
-            status: "COMPLETED"                          # ✅ Database schema is finalized
-            
-          - name: "Implement user registration API"       # Backend API task
+            status: "COMPLETED"
+          - name: "Implement user registration API"
             description: "REST endpoints for account creation"
-            status: "COMPLETED"                          # ✅ Registration endpoints are working
-            
-          - name: "Build user profile management UI"      # Frontend UI task - currently being worked on
+            status: "COMPLETED"
+          - name: "Build user profile management UI"
             description: "Frontend for editing user profiles"
-            status: "IN_PROGRESS"                        # 🔄 Frontend team is actively developing this
-            
-          - name: "Add profile picture upload"            # File handling task - ready for assignment
+            status: "IN_PROGRESS"
+          - name: "Add profile picture upload"
             description: "Image upload and storage for user avatars"
-            status: "TODO"                               # 📋 Ready for backend/DevOps team
-
-      - name: "Authentication & Authorization"
-        description: "Secure authentication with role-based access control"
-        status: "IN_PROGRESS"
-        tasks:
+            status: "TODO"
+          # From "Authentication & Authorization"
           - name: "Implement JWT token authentication"
             description: "Token-based auth system with refresh tokens"
             status: "COMPLETED"
@@ -72,14 +39,12 @@ epics:
             description: "Secure session handling and timeout"
             status: "TODO"
 
-  - name: "Product Catalog System"
-    description: "Product management, search, and catalog functionality"
-    status: "ACTIVE"
-    stories:
-      - name: "Product Database Design"
-        description: "Flexible product schema supporting variants and attributes"
-        status: "COMPLETED"
+      # Epic 2: Product Catalog System
+      - name: "Product Catalog System"
+        description: "Product management, search, and catalog functionality"
+        status: "ACTIVE"
         tasks:
+          # From "Product Database Design"
           - name: "Design product entity model"
             description: "Products, variants, categories, attributes"
             status: "COMPLETED"
@@ -89,11 +54,7 @@ epics:
           - name: "Add product indexing for search"
             description: "Search-optimized indexes and constraints"
             status: "COMPLETED"
-
-      - name: "Product Management Interface"
-        description: "Admin interface for managing product catalog"
-        status: "IN_PROGRESS"
-        tasks:
+          # From "Product Management Interface"
           - name: "Build product creation form"
             description: "Complex form for adding products with variants"
             status: "COMPLETED"
@@ -106,11 +67,7 @@ epics:
           - name: "Create inventory tracking system"
             description: "Stock levels and availability tracking"
             status: "TODO"
-
-      - name: "Customer Product Discovery"
-        description: "Search, filtering, and browsing for customers"
-        status: "TODO"
-        tasks:
+          # From "Customer Product Discovery"
           - name: "Implement product search API"
             description: "Elasticsearch-powered product search"
             status: "TODO"
@@ -124,14 +81,12 @@ epics:
             description: "ML-based product recommendations"
             status: "TODO"
 
-  - name: "Shopping Cart & Checkout"
-    description: "Shopping cart functionality and order processing"
-    status: "TODO"
-    stories:
-      - name: "Shopping Cart Management"
-        description: "Persistent shopping cart with guest and user support"
+      # Epic 3: Shopping Cart & Checkout
+      - name: "Shopping Cart & Checkout"
+        description: "Shopping cart functionality and order processing"
         status: "TODO"
         tasks:
+          # From "Shopping Cart Management"
           - name: "Design cart data model"
             description: "Cart persistence across sessions"
             status: "TODO"
@@ -144,11 +99,7 @@ epics:
           - name: "Add cart abandonment recovery"
             description: "Email reminders for abandoned carts"
             status: "TODO"
-
-      - name: "Checkout Process"
-        description: "Streamlined checkout with multiple payment options"
-        status: "TODO"
-        tasks:
+          # From "Checkout Process"
           - name: "Design checkout flow UX"
             description: "Multi-step checkout process wireframes"
             status: "TODO"
@@ -162,14 +113,12 @@ epics:
             description: "Order summaries and confirmation emails"
             status: "TODO"
 
-  - name: "Order Management System"
-    description: "Order processing, fulfillment, and customer service"
-    status: "TODO"
-    stories:
-      - name: "Order Processing Pipeline"
-        description: "Automated order processing and fulfillment workflow"
+      # Epic 4: Order Management System
+      - name: "Order Management System"
+        description: "Order processing, fulfillment, and customer service"
         status: "TODO"
         tasks:
+          # From "Order Processing Pipeline"
           - name: "Design order state machine"
             description: "Order status transitions and business rules"
             status: "TODO"
@@ -179,11 +128,7 @@ epics:
           - name: "Add shipping carrier integration"
             description: "UPS, FedEx, USPS shipping APIs"
             status: "TODO"
-
-      - name: "Customer Order Tracking"
-        description: "Order status visibility and tracking for customers"
-        status: "TODO"
-        tasks:
+          # From "Customer Order Tracking"
           - name: "Build order history interface"
             description: "Customer dashboard for order management"
             status: "TODO"
@@ -194,30 +139,8 @@ epics:
             description: "Real-time package tracking display"
             status: "TODO"
 
-# Project Statistics and Workflow Insights:
-# 
-# This complex project contains:
-# - 4 Epics (major platform components)
-# - 8 Stories (user-focused features)  
-# - 28 Tasks (specific work items)
-#
-# Task Status Distribution:
-# - COMPLETED: 6 tasks (foundational work done)
-# - IN_PROGRESS: 3 tasks (actively being developed)
-# - TODO: 19 tasks (ready for assignment)
-# - BLOCKED: 0 tasks (no current blockers)
-#
-# Recommended Agent Assignment Strategy:
-#
-# Backend/API Specialists:
-# - All "Implement * API" tasks
-# - Database design and migration tasks
-# - Payment and shipping integration tasks
-#
-# Frontend/UI Specialists:  
-# - All "Build * UI" and "Create * interface" tasks
-# - User experience and interaction design
-# - Dashboard and customer-facing components
+# Notes:
+# - Status values use UI-friendly vocabulary; the system maps these to DB vocabulary when needed.
 #
 # DevOps/Infrastructure:
 # - File upload and storage systems
