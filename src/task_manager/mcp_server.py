@@ -277,6 +277,9 @@ class ProjectManagerMCPServer:
                 ra_metadata: Optional[str] = None,  # Changed to str to accept JSON
                 prompt_snapshot: Optional[str] = None,
                 dependencies: Optional[str] = None,  # Changed to str to accept JSON
+                parallel_group: Optional[str] = None,
+                conflicts_with: Optional[str] = None,  # JSON string of conflicting task ID array
+                parallel_eligible: Optional[str] = None,  # Accept string to support "true"/"false"
                 client_session_id: Optional[str] = None
             ) -> str:
                 """
@@ -299,6 +302,9 @@ class ProjectManagerMCPServer:
                     ra_metadata: JSON string of RA metadata dictionary (e.g., '{"key": "value"}')
                     prompt_snapshot: System prompt snapshot (auto-captured if not provided)
                     dependencies: JSON string of task ID list (e.g., '[1, 2, 3]')
+                    parallel_group: Group name for parallel execution (e.g., "backend", "frontend")
+                    conflicts_with: JSON string of conflicting task ID list (e.g., '[4, 5, 6]')
+                    parallel_eligible: Whether this task can be executed in parallel (default: True)
                     client_session_id: Client session for dashboard auto-switch
                     
                 Returns:
@@ -353,6 +359,25 @@ class ProjectManagerMCPServer:
                     except (json.JSONDecodeError, ValueError) as e:
                         return json.dumps({"success": False, "error": f"Invalid dependencies JSON: {e}"})
                 
+                parsed_conflicts_with = None
+                if conflicts_with:
+                    try:
+                        import json
+                        conflicts_list = json.loads(conflicts_with)
+                        if not isinstance(conflicts_list, list):
+                            raise ValueError("conflicts_with must be a JSON array")
+                        # Convert string IDs to integers
+                        parsed_conflicts_with = []
+                        for conflict in conflicts_list:
+                            if isinstance(conflict, str) and conflict.isdigit():
+                                parsed_conflicts_with.append(int(conflict))
+                            elif isinstance(conflict, int):
+                                parsed_conflicts_with.append(conflict)
+                            else:
+                                raise ValueError(f"Invalid conflict task ID: {conflict} - must be integer or numeric string")
+                    except (json.JSONDecodeError, ValueError) as e:
+                        return json.dumps({"success": False, "error": f"Invalid conflicts_with JSON: {e}"})
+                
                 return await create_task_tool.apply(
                     name=name,
                     description=description,
@@ -366,6 +391,9 @@ class ProjectManagerMCPServer:
                     ra_metadata=parsed_ra_metadata,
                     prompt_snapshot=prompt_snapshot,
                     dependencies=parsed_dependencies,
+                    parallel_group=parallel_group,
+                    conflicts_with=parsed_conflicts_with,
+                    parallel_eligible=parallel_eligible,
                     client_session_id=client_session_id
                 )
             
@@ -387,7 +415,11 @@ class ProjectManagerMCPServer:
                 ra_metadata: Optional[str] = None,  # Changed to str to accept JSON
                 ra_tags_mode: str = "merge",
                 ra_metadata_mode: str = "merge",
-                log_entry: Optional[str] = None
+                log_entry: Optional[str] = None,
+                dependencies: Optional[str] = None,  # JSON string of dependency array
+                parallel_group: Optional[str] = None,
+                conflicts_with: Optional[str] = None,  # JSON string of conflicting task ID array
+                parallel_eligible: Optional[str] = None  # Accept string to support "true"/"false"
             ) -> str:
                 """
                 Update task fields atomically with comprehensive RA metadata support.
@@ -409,6 +441,10 @@ class ProjectManagerMCPServer:
                     ra_tags_mode: How to handle ra_tags - "merge" or "replace" (default: merge)
                     ra_metadata_mode: How to handle ra_metadata - "merge" or "replace" (default: merge)
                     log_entry: Optional log message to append with sequence numbering
+                    dependencies: JSON string of task ID array (e.g., '["1", "2", "3"]')
+                    parallel_group: Group name for parallel execution (e.g., "backend", "frontend")  
+                    conflicts_with: JSON string of conflicting task ID array (e.g., '["4", "5", "6"]')
+                    parallel_eligible: Whether this task can be executed in parallel
                     
                 Returns:
                     JSON string with success status, updated fields summary, and metadata
@@ -443,6 +479,30 @@ class ProjectManagerMCPServer:
                     except (json.JSONDecodeError, ValueError) as e:
                         return json.dumps({"success": False, "error": f"Invalid ra_metadata JSON: {e}"})
                 
+                parsed_dependencies = None
+                if dependencies:
+                    try:
+                        import json
+                        parsed_dependencies = json.loads(dependencies)
+                        if not isinstance(parsed_dependencies, list):
+                            raise ValueError("dependencies must be a JSON array")
+                        # Convert string IDs to integers
+                        parsed_dependencies = [int(dep) for dep in parsed_dependencies]
+                    except (json.JSONDecodeError, ValueError, TypeError) as e:
+                        return json.dumps({"success": False, "error": f"Invalid dependencies JSON: {e}"})
+                
+                parsed_conflicts_with = None
+                if conflicts_with:
+                    try:
+                        import json
+                        parsed_conflicts_with = json.loads(conflicts_with)
+                        if not isinstance(parsed_conflicts_with, list):
+                            raise ValueError("conflicts_with must be a JSON array")
+                        # Convert string IDs to integers
+                        parsed_conflicts_with = [int(conflict) for conflict in parsed_conflicts_with]
+                    except (json.JSONDecodeError, ValueError, TypeError) as e:
+                        return json.dumps({"success": False, "error": f"Invalid conflicts_with JSON: {e}"})
+                
                 return await update_task_tool.apply(
                     task_id=task_id,
                     agent_id=agent_id,
@@ -455,7 +515,11 @@ class ProjectManagerMCPServer:
                     ra_metadata=parsed_ra_metadata,
                     ra_tags_mode=ra_tags_mode,
                     ra_metadata_mode=ra_metadata_mode,
-                    log_entry=log_entry
+                    log_entry=log_entry,
+                    dependencies=parsed_dependencies,
+                    parallel_group=parallel_group,
+                    conflicts_with=parsed_conflicts_with,
+                    parallel_eligible=parallel_eligible
                 )
             
             # GetTaskDetailsTool tool registration
@@ -514,7 +578,7 @@ class ProjectManagerMCPServer:
                 Returns:
                     JSON list of projects with id, name, description, created_at, updated_at
                 """
-                list_projects_tool = ListProjectsTool(database, websocket_manager)
+                list_projects_tool = ListProjectsTool(self.database, self.websocket_manager)
                 return await list_projects_tool.apply(status=status, limit=limit)
             
             @mcp.tool  
@@ -535,7 +599,7 @@ class ProjectManagerMCPServer:
                 Returns:
                     JSON list of epics with id, name, description, project_id, project_name, created_at
                 """
-                list_epics_tool = ListEpicsTool(database, websocket_manager)
+                list_epics_tool = ListEpicsTool(self.database, self.websocket_manager)
                 return await list_epics_tool.apply(project_id=project_id, limit=limit)
             
             @mcp.tool
@@ -561,7 +625,7 @@ class ProjectManagerMCPServer:
                 Returns:
                     JSON list of tasks with id, name, status, ra_score, epic_name, project_name
                 """
-                list_tasks_tool = ListTasksTool(database, websocket_manager)
+                list_tasks_tool = ListTasksTool(self.database, self.websocket_manager)
                 return await list_tasks_tool.apply(
                     project_id=project_id, 
                     epic_id=epic_id, 

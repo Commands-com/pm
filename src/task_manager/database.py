@@ -156,6 +156,9 @@ class TaskDatabase:
                 ra_metadata TEXT,
                 prompt_snapshot TEXT,
                 dependencies TEXT,
+                parallel_group TEXT,
+                conflicts_with TEXT,
+                parallel_eligible INTEGER DEFAULT 1,
                 complexity_score INTEGER,
                 mode_used TEXT,
                 created_by TEXT,
@@ -164,7 +167,8 @@ class TaskDatabase:
                 CONSTRAINT status_vocabulary CHECK(status IN ('pending','in_progress','review','completed','blocked','backlog','TODO','IN_PROGRESS','REVIEW','DONE','BACKLOG')),
                 CONSTRAINT json_ra_tags CHECK (ra_tags IS NULL OR (json_valid(ra_tags) AND json_type(ra_tags) = 'array')),
                 CONSTRAINT json_ra_metadata CHECK (ra_metadata IS NULL OR (json_valid(ra_metadata) AND json_type(ra_metadata) = 'object')),
-                CONSTRAINT json_dependencies CHECK (dependencies IS NULL OR (json_valid(dependencies) AND json_type(dependencies) = 'array'))
+                CONSTRAINT json_dependencies CHECK (dependencies IS NULL OR (json_valid(dependencies) AND json_type(dependencies) = 'array')),
+                CONSTRAINT json_conflicts_with CHECK (conflicts_with IS NULL OR (json_valid(conflicts_with) AND json_type(conflicts_with) = 'array'))
             )
         """)
         
@@ -1737,7 +1741,10 @@ class TaskDatabase:
         ra_tags: Optional[List[str]] = None,
         ra_metadata: Optional[Dict[str, Any]] = None,
         prompt_snapshot: Optional[str] = None,
-        dependencies: Optional[List[int]] = None
+        dependencies: Optional[List[int]] = None,
+        parallel_group: Optional[str] = None,
+        conflicts_with: Optional[List[int]] = None,
+        parallel_eligible: bool = True
     ) -> int:
         """
         Create a new task with full RA (Response Awareness) metadata support.
@@ -1756,6 +1763,9 @@ class TaskDatabase:
             ra_metadata: Additional RA metadata as dictionary
             prompt_snapshot: Snapshot of system prompt at task creation
             dependencies: List of task IDs this task depends on
+            parallel_group: Group name for parallel execution (e.g., "backend", "frontend")
+            conflicts_with: List of task IDs that cannot run simultaneously
+            parallel_eligible: Whether this task can be executed in parallel (default: True)
             
         Returns:
             Task ID of newly created task
@@ -1769,6 +1779,7 @@ class TaskDatabase:
         ra_tags_json = json.dumps(ra_tags) if ra_tags else None
         ra_metadata_json = json.dumps(ra_metadata) if ra_metadata else None
         dependencies_json = json.dumps(dependencies) if dependencies else None
+        conflicts_with_json = json.dumps(conflicts_with) if conflicts_with else None
         
         with self._connection_lock:
             cursor = self._connection.cursor()
@@ -1785,12 +1796,14 @@ class TaskDatabase:
                 INSERT INTO tasks (
                     epic_id, project_id, name, description, status, 
                     ra_mode, ra_score, ra_tags, ra_metadata, prompt_snapshot, dependencies,
+                    parallel_group, conflicts_with, parallel_eligible,
                     created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (epic_id, project_id, name, description, ra_mode, ra_score, 
                  ra_tags_json, ra_metadata_json, prompt_snapshot, dependencies_json,
+                 parallel_group, conflicts_with_json, parallel_eligible,
                  current_time_str, current_time_str),
             )
             
@@ -1921,6 +1934,9 @@ class TaskDatabase:
                     t.ra_metadata,
                     t.prompt_snapshot,
                     t.dependencies,
+                    t.parallel_group,
+                    t.conflicts_with,
+                    t.parallel_eligible,
                     e.id as epic_id,
                     e.name as epic_name,
                     e.description as epic_description,
@@ -1942,6 +1958,7 @@ class TaskDatabase:
             ra_tags = None
             ra_metadata = None
             dependencies = None
+            conflicts_with = None
             
             if row[8]:  # ra_tags
                 try:
@@ -1968,6 +1985,14 @@ class TaskDatabase:
                 except (ValueError, TypeError):
                     dependencies = []
             
+            if row[13]:  # conflicts_with
+                try:
+                    conflicts_with = json.loads(row[13])
+                    if not isinstance(conflicts_with, list):
+                        conflicts_with = []
+                except (ValueError, TypeError):
+                    conflicts_with = []
+            
             return {
                 "task": {
                     "id": row[0],
@@ -1981,18 +2006,21 @@ class TaskDatabase:
                     "ra_tags": ra_tags,
                     "ra_metadata": ra_metadata,
                     "prompt_snapshot": row[10],
-                    "dependencies": dependencies
+                    "dependencies": dependencies,
+                    "parallel_group": row[12],
+                    "conflicts_with": conflicts_with,
+                    "parallel_eligible": bool(row[14]) if row[14] is not None else True
                 },
                 "epic": {
-                    "id": row[12],
-                    "name": row[13],
-                    "description": row[14],
-                    "status": row[15]
+                    "id": row[15],
+                    "name": row[16],
+                    "description": row[17],
+                    "status": row[18]
                 },
                 "project": {
-                    "id": row[16],
-                    "name": row[17],
-                    "description": row[18]
+                    "id": row[19],
+                    "name": row[20],
+                    "description": row[21]
                 }
             }
 
@@ -2136,7 +2164,11 @@ class TaskDatabase:
         ra_metadata: Optional[Dict[str, Any]] = None,
         ra_tags_mode: str = "merge",
         ra_metadata_mode: str = "merge",
-        log_entry: Optional[str] = None
+        log_entry: Optional[str] = None,
+        dependencies: Optional[List[int]] = None,
+        parallel_group: Optional[str] = None,
+        conflicts_with: Optional[List[int]] = None,
+        parallel_eligible: Optional[bool] = None
     ) -> Dict[str, Any]:
         """
         Atomically update task fields with RA metadata support and optional logging.
@@ -2210,7 +2242,7 @@ class TaskDatabase:
                     # Get current task data for RA metadata merging
                     # Current data retrieval needed for intelligent merge operations
                     tx_cursor.execute("""
-                        SELECT name, description, status, ra_mode, ra_score, ra_tags, ra_metadata
+                        SELECT name, description, status, ra_mode, ra_score, ra_tags, ra_metadata, dependencies, parallel_group, conflicts_with, parallel_eligible
                         FROM tasks WHERE id = ?
                     """, (task_id,))
                     
@@ -2218,7 +2250,7 @@ class TaskDatabase:
                     if not current_row:
                         return {"success": False, "error": f"Task {task_id} not found during update"}
                     
-                    current_name, current_desc, current_status, current_ra_mode, current_ra_score, current_ra_tags_json, current_ra_metadata_json = current_row
+                    current_name, current_desc, current_status, current_ra_mode, current_ra_score, current_ra_tags_json, current_ra_metadata_json, current_deps_json, current_parallel_group, current_conflicts_with_json, current_parallel_eligible = current_row
                     
                     # Prepare update fields and parameters
                     update_fields = []
@@ -2323,6 +2355,52 @@ class TaskDatabase:
                             update_fields.append("ra_metadata = ?")
                             params.append(final_metadata_json)
                             updated_fields["ra_metadata"] = {"old": None, "new": ra_metadata, "mode": "replace", "parsing_error": True}
+                    
+                    # Dependencies processing - compare with current dependencies
+                    if dependencies is not None:
+                        try:
+                            current_deps = []
+                            if current_deps_json:
+                                current_deps = json.loads(current_deps_json)
+                                if not isinstance(current_deps, list):
+                                    current_deps = []
+                        except (json.JSONDecodeError, TypeError):
+                            current_deps = []
+                        
+                        # Compare and update if different
+                        if set(dependencies) != set(current_deps):
+                            final_deps_json = json.dumps(dependencies)
+                            update_fields.append("dependencies = ?")
+                            params.append(final_deps_json)
+                            updated_fields["dependencies"] = {"old": current_deps, "new": dependencies}
+                    
+                    # Parallel execution fields processing
+                    if parallel_group is not None and parallel_group != current_parallel_group:
+                        update_fields.append("parallel_group = ?")
+                        params.append(parallel_group)
+                        updated_fields["parallel_group"] = {"old": current_parallel_group, "new": parallel_group}
+                    
+                    if conflicts_with is not None:
+                        try:
+                            current_conflicts = []
+                            if current_conflicts_with_json:
+                                current_conflicts = json.loads(current_conflicts_with_json)
+                                if not isinstance(current_conflicts, list):
+                                    current_conflicts = []
+                        except (json.JSONDecodeError, TypeError):
+                            current_conflicts = []
+                        
+                        # Compare and update if different
+                        if set(conflicts_with) != set(current_conflicts):
+                            final_conflicts_json = json.dumps(conflicts_with)
+                            update_fields.append("conflicts_with = ?")
+                            params.append(final_conflicts_json)
+                            updated_fields["conflicts_with"] = {"old": current_conflicts, "new": conflicts_with}
+                    
+                    if parallel_eligible is not None and parallel_eligible != current_parallel_eligible:
+                        update_fields.append("parallel_eligible = ?")
+                        params.append(parallel_eligible)
+                        updated_fields["parallel_eligible"] = {"old": current_parallel_eligible, "new": parallel_eligible}
                     
                     # Always update timestamp if any fields changed
                     if update_fields:

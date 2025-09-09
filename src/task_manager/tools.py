@@ -137,6 +137,28 @@ class BaseTool(ABC):
             # WebSocket errors should not affect tool operations
             # Standard Mode: Comprehensive error handling without blocking
             logger.warning(f"Failed to broadcast event {event_type}: {e}")
+    
+    def _parse_boolean(self, value: Optional[str], default: bool = True) -> bool:
+        """
+        Parse string boolean value to actual boolean.
+        
+        Supports MCP parameter flexibility by accepting both string and boolean inputs.
+        Handles common string representations like "true"/"false", "1"/"0", "yes"/"no".
+        
+        Args:
+            value: String value to parse (None for default)
+            default: Default value if None provided
+            
+        Returns:
+            Boolean value
+        """
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.lower() in ('true', '1', 'yes', 'on')
+        return bool(value)
 
 
 class GetAvailableTasks(BaseTool):
@@ -723,6 +745,9 @@ class CreateTaskTool(BaseTool):
         ra_metadata: Optional[Dict[str, Any]] = None,
         prompt_snapshot: Optional[str] = None,
         dependencies: Optional[List[int]] = None,
+        parallel_group: Optional[str] = None,
+        conflicts_with: Optional[List[int]] = None,
+        parallel_eligible: Optional[str] = None,  # Accept string for MCP compatibility
         client_session_id: Optional[str] = None
     ) -> str:
         """
@@ -744,6 +769,9 @@ class CreateTaskTool(BaseTool):
             ra_metadata: Additional RA metadata dictionary
             prompt_snapshot: System prompt snapshot (auto-captured if not provided)
             dependencies: List of task IDs this task depends on
+            parallel_group: Group name for parallel execution (e.g., "backend", "frontend")
+            conflicts_with: List of task IDs that cannot run simultaneously
+            parallel_eligible: Whether this task can be executed in parallel (default: True)
             client_session_id: Client session for dashboard auto-switch functionality
             
         Returns:
@@ -890,6 +918,9 @@ class CreateTaskTool(BaseTool):
             
             # === TASK CREATION ===
             
+            # Convert parallel_eligible from string to boolean for database compatibility
+            parallel_eligible_bool = self._parse_boolean(parallel_eligible, default=True)
+            
             # Create task with all RA metadata
             task_id = self.db.create_task_with_ra_metadata(
                 epic_id=resolved_epic_id,
@@ -900,7 +931,10 @@ class CreateTaskTool(BaseTool):
                 ra_tags=ra_tags,
                 ra_metadata=ra_metadata,
                 prompt_snapshot=prompt_snapshot,
-                dependencies=dependencies
+                dependencies=dependencies,
+                parallel_group=parallel_group,
+                conflicts_with=conflicts_with,
+                parallel_eligible=parallel_eligible_bool
             )
             
             # === INITIAL TASK LOG ENTRY ===
@@ -1065,7 +1099,11 @@ class UpdateTaskTool(BaseTool):
         ra_metadata: Optional[Dict[str, Any]] = None,
         ra_tags_mode: str = "merge",
         ra_metadata_mode: str = "merge",
-        log_entry: Optional[str] = None
+        log_entry: Optional[str] = None,
+        dependencies: Optional[List[int]] = None,
+        parallel_group: Optional[str] = None,
+        conflicts_with: Optional[List[int]] = None,
+        parallel_eligible: Optional[str] = None  # Accept string for MCP compatibility
     ) -> str:
         """
         Update task fields atomically with comprehensive RA metadata support.
@@ -1086,6 +1124,10 @@ class UpdateTaskTool(BaseTool):
             ra_tags_mode: How to handle ra_tags - "merge" or "replace" (default: merge)
             ra_metadata_mode: How to handle ra_metadata - "merge" or "replace" (default: merge)
             log_entry: Optional log message to append with sequence numbering
+            dependencies: List of task IDs this task depends on (optional)
+            parallel_group: Group name for parallel execution (e.g., "backend", "frontend")
+            conflicts_with: List of task IDs that cannot run simultaneously
+            parallel_eligible: Whether this task can be executed in parallel
             
         Returns:
             JSON string with success status, updated fields summary, and metadata
@@ -1194,6 +1236,12 @@ class UpdateTaskTool(BaseTool):
             # Execute atomic database update with all parameters
             # Database integration uses update_task_atomic method which
             # handles all complexity of field validation, JSON merging, and transaction management
+            
+            # Convert parallel_eligible from string to boolean if provided
+            parallel_eligible_bool = None
+            if parallel_eligible is not None:
+                parallel_eligible_bool = self._parse_boolean(parallel_eligible)
+            
             update_result = self.db.update_task_atomic(
                 task_id=task_id_int,
                 agent_id=agent_id,
@@ -1206,7 +1254,11 @@ class UpdateTaskTool(BaseTool):
                 ra_metadata=ra_metadata,
                 ra_tags_mode=ra_tags_mode,
                 ra_metadata_mode=ra_metadata_mode,
-                log_entry=log_entry
+                log_entry=log_entry,
+                dependencies=dependencies,
+                parallel_group=parallel_group,
+                conflicts_with=conflicts_with,
+                parallel_eligible=parallel_eligible_bool
             )
             
             if not update_result["success"]:

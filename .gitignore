@@ -35,4 +35,5 @@ logs/
 .pm/
 
 # Claude settings
+.claude/
 .claude/settings.local.json

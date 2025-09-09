@@ -372,14 +372,6 @@
             cursor: not-allowed;
         }
 
-        .task-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 0.5rem;
-            min-height: 1rem;
-        }
-
         .task-actions {
             position: absolute;
             bottom: 0.5rem;
@@ -2093,8 +2085,6 @@
             const taskMeta = buildTaskMeta(task);
             
             taskElement.innerHTML = `
-                <div class="task-header">
-                </div>
                 ${projectBreadcrumb}
                 <div class="task-title">${escapeHtml(task.name || 'Untitled Task')}</div>
                 ${raIndicators}
