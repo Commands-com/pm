@@ -171,7 +171,7 @@ class GetAvailableTasks(BaseTool):
         try:
             # Validate status parameter
             # Standard Mode: Input validation with helpful error messages
-            valid_statuses = ['ALL', 'pending', 'in_progress', 'completed', 'blocked', 'TODO', 'DONE', 'IN_PROGRESS', 'REVIEW']
+            valid_statuses = ['ALL', 'pending', 'in_progress', 'completed', 'blocked', 'backlog', 'TODO', 'DONE', 'IN_PROGRESS', 'REVIEW', 'BACKLOG']
             if status not in valid_statuses:
                 return self._format_error_response(
                     f"Invalid status '{status}'. Valid options: {', '.join(valid_statuses)}"
@@ -463,7 +463,7 @@ class UpdateTaskStatus(BaseTool):
             
             # Validate status
             # Standard Mode: Input validation with helpful error messages
-            valid_statuses = ['pending', 'in_progress', 'completed', 'review', 'blocked', 'TODO', 'DONE', 'IN_PROGRESS', 'REVIEW']
+            valid_statuses = ['pending', 'in_progress', 'completed', 'review', 'blocked', 'backlog', 'TODO', 'DONE', 'IN_PROGRESS', 'REVIEW', 'BACKLOG']
             if status not in valid_statuses:
                 return self._format_error_response(
                     f"Invalid status '{status}'. Valid options: {', '.join(valid_statuses)}"
@@ -1117,8 +1117,8 @@ class UpdateTaskTool(BaseTool):
             # Status vocabulary mapping provides bidirectional
             # compatibility between UI terminology and database storage format
             if status is not None:
-                valid_statuses = ['pending', 'in_progress', 'completed', 'blocked', 'review', 
-                                'TODO', 'DONE', 'IN_PROGRESS', 'REVIEW']
+                valid_statuses = ['pending', 'in_progress', 'completed', 'blocked', 'review', 'backlog',
+                                'TODO', 'DONE', 'IN_PROGRESS', 'REVIEW', 'BACKLOG']
                 if status not in valid_statuses:
                     return self._format_error_response(
                         f"Invalid status '{status}'. Valid options: {', '.join(valid_statuses)}"
@@ -1630,14 +1630,15 @@ class ListTasksTool(BaseTool):
             db_status = status
             if status is not None:
                 # Standard Mode: Status vocabulary mapping for UI compatibility
-                valid_ui_statuses = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']
-                valid_db_statuses = ['pending', 'in_progress', 'review', 'completed', 'blocked']
+                valid_ui_statuses = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE', 'BACKLOG']
+                valid_db_statuses = ['pending', 'in_progress', 'review', 'completed', 'blocked', 'backlog']
                 
                 status_mapping = {
                     'TODO': 'pending',
                     'IN_PROGRESS': 'in_progress', 
                     'REVIEW': 'review',
-                    'DONE': 'completed'
+                    'DONE': 'completed',
+                    'BACKLOG': 'backlog'
                 }
                 
                 if status in status_mapping:
@@ -1670,6 +1671,73 @@ class ListTasksTool(BaseTool):
             return self._format_error_response(f"Failed to list tasks: {str(e)}")
 
 
+class DeleteTaskTool(BaseTool):
+    """
+    MCP tool to delete a task and all associated logs.
+    
+    Standard Mode Implementation:
+    - Validates task existence before deletion
+    - Provides detailed feedback about cascaded deletions (logs)
+    - Includes task context (epic, project) in response for confirmation
+    - Broadcasts deletion event via WebSocket for real-time dashboard updates
+    """
+    
+    async def apply(self, task_id: str) -> str:
+        """
+        Delete a task and all associated data.
+        
+        Standard Mode Assumptions:
+        - Task ID is provided as string and converted to integer
+        - CASCADE DELETE in database handles task_logs automatically
+        - Task context (name, epic, project) provided in response for confirmation
+        - WebSocket broadcast notifies connected clients of deletion
+        
+        Args:
+            task_id: ID of the task to delete (string, converted to int)
+            
+        Returns:
+            JSON string with deletion confirmation and statistics or error response
+        """
+        try:
+            # Validate and convert task_id
+            try:
+                task_id_int = int(task_id)
+            except (ValueError, TypeError):
+                return self._format_error_response("Task ID must be a valid integer")
+            
+            if task_id_int <= 0:
+                return self._format_error_response("Task ID must be a positive integer")
+            
+            # Delete the task using database method
+            result = self.db.delete_task(task_id_int)
+            
+            if not result["success"]:
+                return self._format_error_response(result["error"])
+            
+            # Broadcast task deletion event to connected clients
+            await self.websocket_manager.broadcast({
+                "type": "task_deleted",
+                "task_id": task_id_int,
+                "task_name": result["task_name"],
+                "epic_name": result["epic_name"],
+                "project_name": result["project_name"],
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+            
+            return self._format_success_response(
+                result["message"],
+                task_id=task_id_int,
+                task_name=result["task_name"],
+                epic_name=result["epic_name"],
+                project_name=result["project_name"],
+                cascaded_logs=result["cascaded_logs"]
+            )
+            
+        except Exception as e:
+            logger.error(f"Error deleting task {task_id}: {str(e)}")
+            return self._format_error_response(f"Failed to delete task: {str(e)}")
+
+
 # Tool registry for MCP server integration
 # Standard Mode: Provide clear interface for tool registration and discovery
 AVAILABLE_TOOLS = {
@@ -1682,7 +1750,8 @@ AVAILABLE_TOOLS = {
     "get_task_details": GetTaskDetailsTool,
     "list_projects": ListProjectsTool,
     "list_epics": ListEpicsTool,
-    "list_tasks": ListTasksTool
+    "list_tasks": ListTasksTool,
+    "delete_task": DeleteTaskTool
 }
 
 

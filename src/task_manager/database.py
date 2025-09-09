@@ -161,7 +161,7 @@ class TaskDatabase:
                 created_by TEXT,
                 FOREIGN KEY (epic_id) REFERENCES epics (id) ON DELETE CASCADE,
                 FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE SET NULL,
-                CONSTRAINT status_vocabulary CHECK(status IN ('pending','in_progress','review','completed','blocked','TODO','IN_PROGRESS','REVIEW','DONE')),
+                CONSTRAINT status_vocabulary CHECK(status IN ('pending','in_progress','review','completed','blocked','backlog','TODO','IN_PROGRESS','REVIEW','DONE','BACKLOG')),
                 CONSTRAINT json_ra_tags CHECK (ra_tags IS NULL OR (json_valid(ra_tags) AND json_type(ra_tags) = 'array')),
                 CONSTRAINT json_ra_metadata CHECK (ra_metadata IS NULL OR (json_valid(ra_metadata) AND json_type(ra_metadata) = 'object')),
                 CONSTRAINT json_dependencies CHECK (dependencies IS NULL OR (json_valid(dependencies) AND json_type(dependencies) = 'array'))
@@ -2752,6 +2752,62 @@ class TaskDatabase:
                 
             except sqlite3.Error as e:
                 logger.error(f"Database error deleting epic {epic_id}: {e}")
+                return {"success": False, "error": f"Database error: {str(e)}"}
+
+    def delete_task(self, task_id: int) -> Dict[str, Any]:
+        """
+        Delete a task and all associated logs.
+        
+        Args:
+            task_id: ID of the task to delete
+            
+        Returns:
+            Dict with success status and deletion statistics
+        """
+        with self._connection_lock:
+            cursor = self._connection.cursor()
+            
+            # First, get task info for the response
+            cursor.execute("""
+                SELECT t.name, t.description, e.name as epic_name, p.name as project_name
+                FROM tasks t
+                JOIN epics e ON t.epic_id = e.id
+                LEFT JOIN projects p ON t.project_id = p.id
+                WHERE t.id = ?
+            """, (task_id,))
+            
+            task_row = cursor.fetchone()
+            if not task_row:
+                return {"success": False, "error": f"Task {task_id} not found"}
+            
+            task_name, task_description, epic_name, project_name = task_row
+            
+            # Get log count before deletion
+            cursor.execute("""
+                SELECT COUNT(*) FROM task_logs WHERE task_id = ?
+            """, (task_id,))
+            
+            log_count = cursor.fetchone()[0] or 0
+            
+            try:
+                # Delete the task - CASCADE DELETE will handle logs
+                cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+                
+                if cursor.rowcount == 0:
+                    return {"success": False, "error": f"Task {task_id} not found or already deleted"}
+                
+                return {
+                    "success": True,
+                    "task_id": task_id,
+                    "task_name": task_name,
+                    "epic_name": epic_name,
+                    "project_name": project_name or "Unknown",
+                    "cascaded_logs": log_count,
+                    "message": f"Deleted task '{task_name}' from epic '{epic_name}' and {log_count} log entries"
+                }
+                
+            except sqlite3.Error as e:
+                logger.error(f"Database error deleting task {task_id}: {e}")
                 return {"success": False, "error": f"Database error: {str(e)}"}
 
     def cleanup_orphaned_tasks(self) -> Dict[str, Any]:

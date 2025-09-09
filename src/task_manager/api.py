@@ -286,8 +286,8 @@ class TaskStatusUpdate(BaseModel):
         """Validate task status values."""
         # Accept both API/DB and UI vocabulary
         valid_statuses = [
-            'pending', 'in_progress', 'completed', 'blocked',
-            'TODO', 'IN_PROGRESS', 'DONE', 'REVIEW'
+            'pending', 'in_progress', 'completed', 'blocked', 'backlog',
+            'TODO', 'IN_PROGRESS', 'DONE', 'REVIEW', 'BACKLOG'
         ]
         if v not in valid_statuses:
             raise ValueError(f'Status must be one of: {valid_statuses}')
@@ -533,11 +533,13 @@ async def get_board_state(db: TaskDatabase = Depends(get_database)):
                 'completed': 'DONE',
                 'review': 'REVIEW',
                 'blocked': 'BLOCKED',
+                'backlog': 'BACKLOG',
                 'TODO': 'TODO',
                 'IN_PROGRESS': 'IN_PROGRESS',
                 'DONE': 'DONE',
                 'REVIEW': 'REVIEW',
-                'BLOCKED': 'BLOCKED'
+                'BLOCKED': 'BLOCKED',
+                'BACKLOG': 'BACKLOG'
             }
             return mapping.get(s, s)
         
@@ -656,7 +658,8 @@ async def update_task_status(
             'TODO': 'pending',
             'IN_PROGRESS': 'in_progress',
             'DONE': 'completed',
-            'REVIEW': 'review'
+            'REVIEW': 'review',
+            'BACKLOG': 'backlog'
         }
         db_status = status_mapping.get(update.status, update.status)
 
@@ -1062,14 +1065,15 @@ async def list_tasks_filtered_endpoint(
         # Validate and map status vocabulary (same as MCP tool)
         db_status = status
         if status is not None:
-            valid_ui_statuses = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']
-            valid_db_statuses = ['pending', 'in_progress', 'review', 'completed', 'blocked']
+            valid_ui_statuses = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE', 'BACKLOG']
+            valid_db_statuses = ['pending', 'in_progress', 'review', 'completed', 'blocked', 'backlog']
             
             status_mapping = {
                 'TODO': 'pending',
                 'IN_PROGRESS': 'in_progress',
                 'REVIEW': 'review', 
-                'DONE': 'completed'
+                'DONE': 'completed',
+                'BACKLOG': 'backlog'
             }
             
             if status in status_mapping:
@@ -1304,6 +1308,54 @@ async def delete_epic(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to delete epic: {str(e)}"
+        )
+
+
+@app.delete("/api/tasks/{task_id}")
+async def delete_task(
+    task_id: int,
+    db: TaskDatabase = Depends(get_database)
+):
+    """
+    Delete a task and all associated logs via CASCADE DELETE.
+    
+    Args:
+        task_id: ID of the task to delete
+        
+    Returns:
+        JSON response with deletion confirmation and statistics
+    """
+    try:
+        result = db.delete_task(task_id)
+        
+        if not result["success"]:
+            raise HTTPException(
+                status_code=404,
+                detail=result["error"]
+            )
+        
+        # Broadcast task deletion event to connected clients
+        await connection_manager.broadcast({
+            "type": "task_deleted",
+            "task_id": task_id,
+            "task_name": result["task_name"],
+            "epic_name": result["epic_name"],
+            "project_name": result["project_name"],
+            "timestamp": datetime.now(timezone.utc).isoformat() + 'Z'
+        })
+        
+        return JSONResponse(
+            status_code=200,
+            content=result
+        )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete task {task_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete task: {str(e)}"
         )
 
 
