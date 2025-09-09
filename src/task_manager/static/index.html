@@ -295,6 +295,36 @@
             font-size: 0.875rem;
             color: #64748b;
         }
+
+        .column-title-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+        }
+
+        .toggle-btn {
+            background: none;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 0.25rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            color: #64748b;
+        }
+
+        .toggle-btn:hover {
+            background-color: #f1f5f9;
+            color: #374151;
+            border-color: #9ca3af;
+        }
+
+        .toggle-btn:active {
+            background-color: #e2e8f0;
+        }
         
         /* #COMPLETION_DRIVE_DRAGDROP: Visual feedback for drag operations
            Assumption: Opacity and highlight effects provide clear user feedback */
@@ -340,6 +370,65 @@
             border-left: 4px solid #ef4444;
             background-color: #fef2f2;
             cursor: not-allowed;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+            min-height: 1rem;
+        }
+
+        .task-actions {
+            position: absolute;
+            bottom: 0.5rem;
+            right: 0.5rem;
+            display: flex;
+            gap: 0.25rem;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .task-card:hover .task-actions {
+            opacity: 1;
+        }
+
+        .task-action-btn {
+            background: none;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            padding: 0.25rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            color: #6b7280;
+            width: 28px;
+            height: 28px;
+        }
+
+        .task-action-btn:hover {
+            background-color: #f3f4f6;
+            color: #374151;
+            border-color: #9ca3af;
+        }
+
+        .move-task-btn:hover {
+            background-color: #dbeafe;
+            color: #1d4ed8;
+            border-color: #3b82f6;
+        }
+
+        .delete-task-btn:hover {
+            background-color: #fee2e2;
+            color: #dc2626;
+            border-color: #ef4444;
+        }
+
+        .task-action-btn:active {
+            transform: scale(0.95);
         }
         
         /* #COMPLETION_DRIVE_RA: RA indicator styles for complexity scoring and mode display
@@ -1240,7 +1329,14 @@
     <main class="board">
         <div class="column" data-status="TODO">
             <div class="column-header">
-                <div class="column-title">TODO</div>
+                <div class="column-title-container">
+                    <div class="column-title" id="todo-column-title">TODO</div>
+                    <button id="todo-backlog-toggle" class="toggle-btn" title="Toggle between TODO and Backlog view">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12h18m0 0l-6-6m6 6l-6 6"/>
+                        </svg>
+                    </button>
+                </div>
                 <div class="task-count" id="todo-count">0 tasks</div>
             </div>
             <div class="tasks" id="todo-tasks">
@@ -1395,7 +1491,8 @@
             pendingUpdates: new Map(),
             isOnline: navigator.onLine,
             pollingInterval: null,
-            pollingDelay: 5000
+            pollingDelay: 5000,
+            todoViewMode: 'TODO' // 'TODO' or 'BACKLOG'
         };
         
         // #COMPLETION_DRIVE_WEBSOCKET: WebSocket connection with exponential backoff
@@ -1876,8 +1973,11 @@
                 // Process tasks from API response
                 if (data.tasks && Array.isArray(data.tasks)) {
                     data.tasks.forEach(task => {
+                        console.log(`Loading task: ID=${task.id}, Name=${task.name}`);
                         AppState.tasks.set(String(task.id), task);
                     });
+                    console.log(`Total tasks loaded: ${AppState.tasks.size}`);
+                    console.log('Task IDs:', Array.from(AppState.tasks.keys()));
                 }
                 
                 // Load saved selections from localStorage
@@ -1920,8 +2020,10 @@
                 'review': 'review', 
                 'completed': 'done',
                 'blocked': 'todo', // Blocked tasks appear in TODO for now
+                'backlog': 'backlog', // Backlog tasks have their own status
                 'todo': 'todo', // Handle UI status format
-                'done': 'done'  // Handle UI status format
+                'done': 'done',  // Handle UI status format
+                'backlog': 'backlog' // Handle UI status format
             };
             const normalizedStatus = (dbStatus || 'pending').toLowerCase().trim();
             return statusMap[normalizedStatus] || 'todo'; // Default to todo for unknown statuses
@@ -1930,7 +2032,17 @@
         // #COMPLETION_DRIVE_RA: Enhanced task rendering with RA indicators and project context
         // Assumption: Task object contains RA-related fields (complexity_score, mode_used, ra_tags, etc.)
         function renderTask(task) {
-            const statusKey = mapDatabaseStatusToUI(task.status.toLowerCase());
+            let statusKey = mapDatabaseStatusToUI(task.status.toLowerCase());
+            
+            // Handle toggle view logic: backlog tasks show in TODO column when in backlog view
+            if (statusKey === 'backlog' && AppState.todoViewMode === 'BACKLOG') {
+                statusKey = 'todo'; // Show backlog tasks in TODO column
+            } else if (statusKey === 'todo' && AppState.todoViewMode === 'BACKLOG') {
+                return; // Hide TODO tasks when in backlog view
+            } else if (statusKey === 'backlog' && AppState.todoViewMode === 'TODO') {
+                return; // Hide backlog tasks when in TODO view
+            }
+            
             const container = document.getElementById(`${statusKey}-tasks`);
             
             if (!container) {
@@ -1951,12 +2063,27 @@
             taskElement.draggable = !task.lock_holder; // Only draggable if not locked
             taskElement.dataset.taskId = task.id;
             
-            // Add click handler for task details modal
+            // Add click handler for task details modal and action buttons
             taskElement.addEventListener('click', function(e) {
                 // Prevent click during drag operations
                 if (e.target.closest('.task-card').classList.contains('dragging')) {
                     return;
                 }
+                
+                // Handle action button clicks
+                if (e.target.closest('.move-task-btn')) {
+                    e.stopPropagation();
+                    handleMoveTask(task);
+                    return;
+                }
+                
+                if (e.target.closest('.delete-task-btn')) {
+                    e.stopPropagation();
+                    handleDeleteTask(task);
+                    return;
+                }
+                
+                // Open task details modal for regular clicks
                 openTaskDetailModal(task);
             });
             
@@ -1966,10 +2093,26 @@
             const taskMeta = buildTaskMeta(task);
             
             taskElement.innerHTML = `
+                <div class="task-header">
+                </div>
                 ${projectBreadcrumb}
                 <div class="task-title">${escapeHtml(task.name || 'Untitled Task')}</div>
                 ${raIndicators}
                 ${taskMeta}
+                <div class="task-actions">
+                    <button class="task-action-btn move-task-btn" title="${task.status === 'backlog' || task.status === 'BACKLOG' ? 'Move to TODO' : 'Move to Backlog'}" data-task-id="${task.id}" data-current-status="${task.status}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12h18m0 0l-6-6m6 6l-6 6"/>
+                        </svg>
+                    </button>
+                    <button class="task-action-btn delete-task-btn" title="Delete task" data-task-id="${task.id}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 6h18"></path>
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                            <path d="M8 6V4c0-1 1-2 2-2h4c0 1 1 2 2 2v2"></path>
+                        </svg>
+                    </button>
+                </div>
             `;
             
             container.appendChild(taskElement);
@@ -2918,7 +3061,20 @@
                 const taskStatus = task.status ? task.status.toLowerCase().trim() : 'pending';
                 const statusKey = mapDatabaseStatusToUI(taskStatus);
                 
-                if (counts.hasOwnProperty(statusKey)) {
+                // Handle backlog/TODO view mode for counting
+                if (statusKey === 'backlog') {
+                    if (AppState.todoViewMode === 'BACKLOG') {
+                        // In backlog view, count backlog tasks as TODO
+                        counts.todo++;
+                    }
+                    // In TODO view, don't count backlog tasks
+                } else if (statusKey === 'todo') {
+                    if (AppState.todoViewMode === 'TODO') {
+                        // In TODO view, count pending tasks as TODO
+                        counts.todo++;
+                    }
+                    // In backlog view, don't count pending tasks
+                } else if (counts.hasOwnProperty(statusKey)) {
                     counts[statusKey]++;
                 }
             });
@@ -3010,7 +3166,9 @@
         // #COMPLETION_DRIVE_OPTIMISTIC: Optimistic updates with rollback capability
         // Pattern: Immediate UI feedback with server synchronization and error recovery
         async function updateTaskStatusOptimistic(taskId, newStatus) {
-            const task = AppState.tasks.get(taskId);
+            console.log(`Looking for task: ID=${taskId} (type: ${typeof taskId}), converted to string: "${String(taskId)}"`);
+            console.log('Available task IDs:', Array.from(AppState.tasks.keys()));
+            const task = AppState.tasks.get(String(taskId));
             if (!task) {
                 console.error('Task not found:', taskId);
                 return;
@@ -3018,11 +3176,17 @@
             
             // Store original state for rollback
             const originalStatus = task.status;
-            AppState.pendingUpdates.set(taskId, { status: originalStatus });
+            AppState.pendingUpdates.set(String(taskId), { status: originalStatus });
+            
+            // Remove task from its current position first
+            const existingElement = document.getElementById(`task-${task.id}`);
+            if (existingElement) {
+                existingElement.remove();
+            }
             
             // Apply optimistic update
             task.status = newStatus;
-            AppState.tasks.set(taskId, task);
+            AppState.tasks.set(String(taskId), task);
             renderTask(task);
             updateTaskCounts();
             
@@ -3049,22 +3213,22 @@
                 console.log('Task status updated successfully:', result);
                 
                 // Clear pending update on success
-                AppState.pendingUpdates.delete(taskId);
+                AppState.pendingUpdates.delete(String(taskId));
                 showNotification(`Task moved to ${newStatus}`, 'success');
                 
             } catch (error) {
                 console.error('Failed to update task status:', error);
                 
                 // Rollback optimistic update
-                const originalState = AppState.pendingUpdates.get(taskId);
+                const originalState = AppState.pendingUpdates.get(String(taskId));
                 if (originalState) {
                     task.status = originalState.status;
-                    AppState.tasks.set(taskId, task);
+                    AppState.tasks.set(String(taskId), task);
                     renderTask(task);
                     updateTaskCounts();
                 }
                 
-                AppState.pendingUpdates.delete(taskId);
+                AppState.pendingUpdates.delete(String(taskId));
                 showNotification(`Failed to update task: ${error.message}`, 'error');
             }
         }
@@ -3193,6 +3357,13 @@
                             'Content-Type': 'application/json'
                         }
                     });
+                } else if (deleteData.type === 'task') {
+                    response = await fetch(`/api/tasks/${deleteData.id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
                 }
                 
                 if (response && response.ok) {
@@ -3205,6 +3376,15 @@
                         AppState.selectedEpicId = null;
                     } else if (deleteData.type === 'epic') {
                         AppState.selectedEpicId = null;
+                    } else if (deleteData.type === 'task') {
+                        // Remove task from local state and UI
+                        AppState.tasks.delete(String(deleteData.id));
+                        const taskElement = document.getElementById(`task-${deleteData.id}`);
+                        if (taskElement) {
+                            taskElement.remove();
+                        }
+                        // Update task counts
+                        updateTaskCounts();
                     }
                     
                     // Close modal and reset selections
@@ -3293,6 +3473,12 @@
             
             if (epicSelector) {
                 epicSelector.addEventListener('change', handleEpicChange);
+            }
+            
+            // Setup TODO/Backlog toggle
+            const toggleButton = document.getElementById('todo-backlog-toggle');
+            if (toggleButton) {
+                toggleButton.addEventListener('click', handleTodoBacklogToggle);
             }
             
             // Handle online/offline events
@@ -3405,6 +3591,88 @@
             
             // Update delete button visibility
             updateDeleteButtonVisibility();
+        }
+        
+        function handleTodoBacklogToggle() {
+            // Toggle between TODO and BACKLOG view modes
+            AppState.todoViewMode = AppState.todoViewMode === 'TODO' ? 'BACKLOG' : 'TODO';
+            
+            // Update column title
+            const titleElement = document.getElementById('todo-column-title');
+            if (titleElement) {
+                titleElement.textContent = AppState.todoViewMode;
+            }
+            
+            // Re-render all tasks to reflect new view mode
+            renderAllTasks();
+            
+            // Update task counts
+            updateTaskCounts();
+        }
+        
+        function handleMoveTask(task) {
+            // Determine target status based on current status
+            let targetStatus;
+            if (task.status === 'backlog' || task.status === 'BACKLOG') {
+                targetStatus = 'pending'; // Move backlog to TODO (pending)
+            } else {
+                targetStatus = 'backlog'; // Move TODO to backlog
+            }
+            
+            // Update task status via API
+            updateTaskStatusOptimistic(task.id, targetStatus);
+        }
+        
+        function handleDeleteTask(task) {
+            showDeleteTaskModal(task);
+        }
+        
+        function showDeleteTaskModal(task) {
+            const modal = document.getElementById('deleteModal');
+            const messageEl = document.getElementById('deleteModalMessage');
+            
+            if (!modal || !messageEl) return;
+            
+            deleteData = {
+                type: 'task',
+                id: task.id,
+                name: task.name
+            };
+            
+            messageEl.textContent = `Are you sure you want to delete the task "${task.name}"?`;
+            modal.style.display = 'flex';
+        }
+        
+        async function deleteTask(taskId) {
+            try {
+                const response = await fetch(`/api/tasks/${taskId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('Task deleted:', result);
+                
+                // Remove task from local state and UI
+                AppState.tasks.delete(taskId);
+                const taskElement = document.getElementById(`task-${taskId}`);
+                if (taskElement) {
+                    taskElement.remove();
+                }
+                
+                // Update task counts
+                updateTaskCounts();
+                
+            } catch (error) {
+                console.error('Error deleting task:', error);
+                alert('Failed to delete task. Please try again.');
+            }
         }
         
         function handleProjectChange(event) {
