@@ -31,7 +31,7 @@ from task_manager.api import ConnectionManager
 from task_manager.tools import (
     BaseTool, GetAvailableTasks, AcquireTaskLock, 
     UpdateTaskStatus, ReleaseTaskLock, CreateTaskTool,
-    ListProjectsTool, ListEpicsTool, ListTasksTool,
+    ListProjectsTool, ListEpicsTool, ListTasksTool, DeleteTaskTool,
     create_tool_instance, AVAILABLE_TOOLS
 )
 
@@ -477,7 +477,8 @@ class TestToolRegistry:
             "get_task_details",
             "list_projects",
             "list_epics",
-            "list_tasks"
+            "list_tasks",
+            "delete_task"
         }
         
         assert set(AVAILABLE_TOOLS.keys()) == expected_tools

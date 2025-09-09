@@ -32,4 +32,4 @@ Thumbs.db
 logs/
 
 # Project management artifacts
-.pm/
+.pm/.claude/settings.local.json
