@@ -563,7 +563,7 @@ class ProjectManagerMCPServer:
             @mcp.tool
             async def list_projects(
                 status: Optional[str] = None,
-                limit: Optional[int] = None
+                limit: Optional[str] = None
             ) -> str:
                 """
                 List all projects with optional filtering and result limiting.
@@ -573,18 +573,21 @@ class ProjectManagerMCPServer:
                 
                 Args:
                     status: Optional status filter (currently ignored - no status field)
-                    limit: Optional maximum number of projects to return
+                    limit: Optional maximum number of projects to return (string, converted to int)
                     
                 Returns:
                     JSON list of projects with id, name, description, created_at, updated_at
                 """
+                # Convert string limit to integer for database layer
+                limit_int = int(limit) if limit else None
+                
                 list_projects_tool = ListProjectsTool(self.database, self.websocket_manager)
-                return await list_projects_tool.apply(status=status, limit=limit)
+                return await list_projects_tool.apply(status=status, limit=limit_int)
             
             @mcp.tool  
             async def list_epics(
-                project_id: Optional[int] = None,
-                limit: Optional[int] = None
+                project_id: Optional[str] = None,
+                limit: Optional[str] = None
             ) -> str:
                 """
                 List epics with optional project filtering and result limiting.
@@ -593,21 +596,25 @@ class ProjectManagerMCPServer:
                 in response for better UX. Useful for populating epic selectors in UI.
                 
                 Args:
-                    project_id: Optional project ID to filter epics within specific project
-                    limit: Optional maximum number of epics to return
+                    project_id: Optional project ID to filter epics within specific project (string, converted to int)
+                    limit: Optional maximum number of epics to return (string, converted to int)
                     
                 Returns:
                     JSON list of epics with id, name, description, project_id, project_name, created_at
                 """
+                # Convert string parameters to integers for database layer
+                project_id_int = int(project_id) if project_id else None
+                limit_int = int(limit) if limit else None
+                
                 list_epics_tool = ListEpicsTool(self.database, self.websocket_manager)
-                return await list_epics_tool.apply(project_id=project_id, limit=limit)
+                return await list_epics_tool.apply(project_id=project_id_int, limit=limit_int)
             
             @mcp.tool
             async def list_tasks(
-                project_id: Optional[int] = None,
-                epic_id: Optional[int] = None,
+                project_id: Optional[str] = None,
+                epic_id: Optional[str] = None,
                 status: Optional[str] = None,
-                limit: Optional[int] = None
+                limit: Optional[str] = None
             ) -> str:
                 """
                 List tasks with hierarchical filtering (project, epic, status) and result limiting.
@@ -617,20 +624,25 @@ class ProjectManagerMCPServer:
                 context and RA score for Response Awareness workflow integration.
                 
                 Args:
-                    project_id: Optional project ID to filter tasks within specific project
-                    epic_id: Optional epic ID to filter tasks within specific epic  
+                    project_id: Optional project ID to filter tasks within specific project (string, converted to int)
+                    epic_id: Optional epic ID to filter tasks within specific epic (string, converted to int)
                     status: Optional status filter (UI: TODO/IN_PROGRESS/REVIEW/DONE or DB: pending/in_progress/review/completed/blocked)
-                    limit: Optional maximum number of tasks to return
+                    limit: Optional maximum number of tasks to return (string, converted to int)
                     
                 Returns:
                     JSON list of tasks with id, name, status, ra_score, epic_name, project_name
                 """
+                # Convert string parameters to integers for database layer
+                project_id_int = int(project_id) if project_id else None
+                epic_id_int = int(epic_id) if epic_id else None
+                limit_int = int(limit) if limit else None
+                
                 list_tasks_tool = ListTasksTool(self.database, self.websocket_manager)
                 return await list_tasks_tool.apply(
-                    project_id=project_id, 
-                    epic_id=epic_id, 
+                    project_id=project_id_int, 
+                    epic_id=epic_id_int, 
                     status=status, 
-                    limit=limit
+                    limit=limit_int
                 )
             
             logger.info(f"FastMCP server '{self.server_name}' created with 11 registered tools")
