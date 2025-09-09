@@ -245,6 +245,52 @@ class GetAvailableTasks(BaseTool):
             )
 
 
+class GetInstructionsTool(BaseTool):
+    """
+    MCP tool to retrieve RA methodology instructions text for clients.
+
+    Provides either the full or concise instruction set along with version and
+    last updated metadata to allow clients that don't surface handshake instructions
+    (e.g., some CLIs) to explicitly fetch and display them.
+    """
+
+    async def apply(self, format: str = "concise") -> str:
+        """
+        Get RA methodology instructions.
+
+        Args:
+            format: "full" or "concise" (default: "concise")
+
+        Returns:
+            JSON string including instructions text and metadata
+        """
+        try:
+            fmt = (format or "concise").strip().lower()
+            if fmt not in ("full", "concise"):
+                return self._format_error_response(
+                    "Invalid format. Use 'full' or 'concise'",
+                    valid_formats=["full", "concise"]
+                )
+
+            if fmt == "full":
+                instructions = ra_instructions_manager.get_full_instructions()
+            else:
+                instructions = ra_instructions_manager.get_concise_instructions()
+
+            return self._format_success_response(
+                "Instructions retrieved",
+                instructions=instructions,
+                format=fmt,
+                version=ra_instructions_manager.version,
+                last_updated=ra_instructions_manager.last_updated,
+            )
+        except Exception as e:
+            logger.error(f"Failed to get instructions: {e}")
+            return self._format_error_response(
+                "Failed to get instructions",
+                error_details=str(e)
+            )
+
 class AcquireTaskLock(BaseTool):
     """
     MCP tool for atomic task lock acquisition with status change to IN_PROGRESS.
@@ -417,7 +463,7 @@ class UpdateTaskStatus(BaseTool):
             
             # Validate status
             # Standard Mode: Input validation with helpful error messages
-            valid_statuses = ['pending', 'in_progress', 'completed', 'blocked', 'TODO', 'DONE', 'IN_PROGRESS']
+            valid_statuses = ['pending', 'in_progress', 'completed', 'review', 'blocked', 'TODO', 'DONE', 'IN_PROGRESS', 'REVIEW']
             if status not in valid_statuses:
                 return self._format_error_response(
                     f"Invalid status '{status}'. Valid options: {', '.join(valid_statuses)}"
@@ -427,7 +473,8 @@ class UpdateTaskStatus(BaseTool):
             status_mapping = {
                 'TODO': 'pending',
                 'DONE': 'completed',
-                'IN_PROGRESS': 'in_progress'
+                'IN_PROGRESS': 'in_progress',
+                'REVIEW': 'review'
             }
             db_status = status_mapping.get(status, status)
             
@@ -472,7 +519,8 @@ class UpdateTaskStatus(BaseTool):
             if result["success"]:
                 # Decide whether to release lock after update
                 lock_released = False
-                should_release = (db_status in ['completed', 'DONE']) or (auto_locked and db_status != 'in_progress')
+                # Release locks when entering REVIEW or DONE/completed, or when we auto-locked and are not staying IN_PROGRESS
+                should_release = (db_status in ['completed', 'review', 'DONE', 'REVIEW']) or (auto_locked and db_status != 'in_progress')
                 if should_release:
                     release_success = self.db.release_lock(task_id_int, agent_id)
                     if release_success:

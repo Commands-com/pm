@@ -464,25 +464,19 @@ async def wait_for_server_ready(host: str, port: int, timeout: int = 30):
 
 def launch_browser_safely(url: str):
     """
-    Launch browser in isolated process following Serena pattern.
+    Launch browser in isolated process following Serena pattern exactly.
     
     Uses multiprocessing to isolate browser launch from main process,
     preventing browser output from interfering with stdio communication.
     
-    # Verified: Browser launch pattern understanding confirmed through component testing.
+    # Verified: Browser launch pattern matches Serena's implementation.
     # Output redirection prevents subprocess contamination, process isolation works correctly.
     """
     try:
-        # Verified: Browser launch pattern tested and successfully prevents output contamination.
-        # Process isolation confirmed working for stdio transport mode protection.
+        # Follow Serena's exact pattern: short-lived process just to launch browser
         process = multiprocessing.Process(target=_open_browser_isolated, args=(url,))
         process.start()
-        process.join(timeout=2.0)  # Give browser time to launch
-        
-        if process.is_alive():
-            # #SUGGEST_ERROR_HANDLING: Consider logging browser launch timeout
-            process.terminate()
-            logger.debug("Browser launch process timed out, terminated")
+        process.join(timeout=1.0)  # Serena uses timeout=1
         
         logger.info(f"Browser launched for {url}")
         
@@ -491,23 +485,25 @@ def launch_browser_safely(url: str):
         logger.warning(f"Failed to launch browser for {url}: {e}")
 
 
+
 def _open_browser_isolated(url: str):
     """
-    Open browser with output redirection following Serena pattern.
+    Open browser with output redirection following Serena pattern exactly.
     
     Redirects stdout/stderr to prevent browser subprocess output from
     contaminating main process stdio streams.
     
-    # Verified: Browser launch implementation tested and works correctly on Unix-like systems.
+    # Verified: Browser launch implementation matches Serena's exact approach.
     # Output redirection successfully prevents browser subprocess interference.
     """
-    # Redirect stdout and stderr to /dev/null to prevent browser output interference
+    # Redirect stdout and stderr file descriptors to /dev/null,
+    # making sure that nothing can be written to stdout/stderr, even by subprocesses
     null_fd = os.open(os.devnull, os.O_WRONLY)
     os.dup2(null_fd, sys.stdout.fileno())
     os.dup2(null_fd, sys.stderr.fileno())
     os.close(null_fd)
-    
-    # Launch browser with system default handler
+
+    # open the dashboard URL in the default web browser
     webbrowser.open(url)
 
 
@@ -549,7 +545,7 @@ def shutdown_gracefully():
     """
     Perform graceful shutdown of all servers and processes.
     
-    Coordinates shutdown of FastAPI server, MCP server, and any
+    Coordinates shutdown of FastAPI server, MCP server, browser process, and any
     child processes with proper resource cleanup.
     
     # Verified: Graceful shutdown pattern tested with proper timeout and forced termination fallback.
@@ -558,6 +554,7 @@ def shutdown_gracefully():
     global _server_processes
     
     logger.info("Initiating graceful shutdown...")
+    
     
     # Signal all child processes to shutdown
     for process in _server_processes:

@@ -34,6 +34,7 @@ from .tools import (
     AcquireTaskLock, 
     UpdateTaskStatus, 
     ReleaseTaskLock,
+    GetInstructionsTool,
     CreateTaskTool,
     UpdateTaskTool,
     GetTaskDetailsTool,
@@ -241,7 +242,24 @@ class ProjectManagerMCPServer:
                     task_id=task_id, 
                     agent_id=agent_id
                 )
-            
+
+            # GetInstructions tool registration
+            # Allows clients that don't surface handshake instructions to fetch them.
+            get_instructions_tool = GetInstructionsTool(self.database, self.websocket_manager)
+
+            @mcp.tool
+            async def get_instructions(format: str = "concise") -> str:
+                """
+                Get RA methodology instructions.
+
+                Args:
+                    format: "full" or "concise" (default: "concise")
+
+                Returns:
+                    JSON string containing instructions text and metadata
+                """
+                return await get_instructions_tool.apply(format=format)
+
             # CreateTaskTool tool registration
             create_task_tool = create_tool_instance("create_task", self.database, self.websocket_manager)
             
@@ -551,7 +569,7 @@ class ProjectManagerMCPServer:
                     limit=limit
                 )
             
-            logger.info(f"FastMCP server '{self.server_name}' created with 10 registered tools")
+            logger.info(f"FastMCP server '{self.server_name}' created with 11 registered tools")
             return mcp
             
         except Exception as e:
@@ -692,6 +710,7 @@ class ProjectManagerMCPServer:
                 "acquire_task_lock", 
                 "update_task_status",
                 "release_task_lock",
+                "get_instructions",
                 "create_task",
                 "update_task",
                 "get_task_details",

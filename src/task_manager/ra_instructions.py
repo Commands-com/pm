@@ -50,6 +50,9 @@ class RAInstructionsManager:
         """
         return f"""CRITICAL: You MUST use Response Awareness (RA) methodology for ALL programming and development tasks.
 
+⚠️  MANDATORY REQUIREMENT: CREATE A TASK BEFORE DOING ANY WORK ⚠️
+NO CODE CHANGES, IMPLEMENTATIONS, OR PROGRAMMING WORK WITHOUT A TASK FIRST!
+
 === PROJECT MANAGER MCP SYSTEM ===
 
 SYSTEM HIERARCHY: Project → Epic → Tasks
@@ -72,11 +75,14 @@ You have access to a Project Manager MCP server with these tools:
    - 4-6: Standard Mode (document assumptions, comprehensive testing)
    - 7-8: RA-Light Mode (use RA tags throughout, verification needed)
    - 9-10: RA-Full Mode (full multi-agent orchestration)
-
-2. CREATE TASK FIRST:
-   Always start with: create_task(epic_name="Feature Name", name="Task Name", 
+   
+2. CREATE TASK FIRST - MANDATORY BEFORE ANY WORK:
+   ALWAYS start with: create_task(epic_name="Feature Name", name="Task Name", 
                                 ra_mode="standard", ra_score=6, description="...")
    
+   ⛔ DO NOT: Write code, edit files, implement features, or make changes without a task
+   ✅ DO: Create task first, then proceed with implementation
+
 3. USE RA TAGS FOR ASSUMPTIONS (RA-Light/Full modes):
    Mark EVERY assumption, no matter how small:
    
@@ -112,7 +118,8 @@ You have access to a Project Manager MCP server with these tools:
 
 6. UPDATE TASK STATUS:
    - TODO → IN_PROGRESS: update_task_status(task_id, "IN_PROGRESS", agent_id) # Auto-acquires lock
-   - IN_PROGRESS → DONE: update_task_status(task_id, "DONE", agent_id) # Auto-releases lock
+   - IN_PROGRESS → REVIEW: update_task_status(task_id, "REVIEW", agent_id) # Releases lock for handoff
+   - REVIEW → DONE: update_task_status(task_id, "DONE", agent_id) # Reviewer marks done, auto-releases
    - PREFERRED: Use update_task_status() for automatic lock management
 
 === MODE-SPECIFIC IMPLEMENTATION ===
@@ -179,7 +186,7 @@ update_task(
 )
 
 TASK COORDINATION WORKFLOW:
-1. create_task(...) - Create task first
+1. create_task(...) - MUST CREATE TASK FIRST BEFORE ANY WORK
 2. update_task_status(task_id, "IN_PROGRESS", agent_id) - Auto-acquires lock
 3. Implement with RA tagging: update_task with ra_tags and progress logs
 4. update_task_status(task_id, "DONE", agent_id) - Auto-releases lock
@@ -214,7 +221,12 @@ get_task_details("3") returns:
 
 === CRITICAL REQUIREMENTS ===
 
-1. ALWAYS create task first before implementing
+1. ⚠️ ALWAYS CREATE TASK FIRST BEFORE ANY PROGRAMMING WORK ⚠️
+   - NO code changes without a task
+   - NO file edits without a task
+   - NO implementations without a task
+   - NO debugging without a task
+   - Create task BEFORE reading code, writing code, or making changes
 2. Use appropriate RA mode based on complexity assessment  
 3. Tag assumptions extensively in RA-Light/Full modes
 4. Update task logs regularly with progress  
@@ -279,7 +291,11 @@ Last Updated: {self.last_updated}
         """
         return f"""RA METHODOLOGY - CRITICAL FOR ALL PROGRAMMING TASKS
 
-WORKFLOW: 1) Assess complexity (1-10) 2) Create task 3) Implement with RA mode 4) Update status
+⚠️ MANDATORY: CREATE TASK BEFORE ANY WORK ⚠️
+
+QUICKSTART: create_task → update_task_status(IN_PROGRESS) → work + update_task(logs) → update_task_status(REVIEW) → reviewer → update_task_status(DONE)
+
+WORKFLOW: 1) CREATE TASK FIRST 2) Assess complexity (1-10) 3) Implement with RA mode 4) Update status
 
 COMPLEXITY MODES:
 - 1-3: Simple (direct implementation)
@@ -297,7 +313,8 @@ RA TAGS (RA-Light/Full only):
 #COMPLETION_DRIVE_IMPL, #COMPLETION_DRIVE_INTEGRATION, #CONTEXT_DEGRADED
 #SUGGEST_ERROR_HANDLING, #SUGGEST_VALIDATION, #PATTERN_CONFLICT
 
-Always: task first → implement → log progress → mark DONE
+Always: CREATE TASK FIRST → implement → log progress → send to REVIEW → mark DONE
+NO WORK WITHOUT A TASK!
 Version: {self.version}"""
 
     def get_tag_taxonomy(self) -> Dict[str, Dict[str, str]]:

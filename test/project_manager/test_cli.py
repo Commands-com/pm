@@ -128,35 +128,35 @@ class TestCLIArgumentParsing:
     def setUp(self):
         self.runner = CliRunner()
     
-    @patch('src.task_manager.cli.start_sse_mode')
+    @patch('src.task_manager.cli.start_stdio_mode')
     @patch('src.task_manager.cli.launch_browser_safely')
     @patch('src.task_manager.cli.TaskDatabase')
-    def test_default_arguments(self, mock_db, mock_launch, mock_start_sse):
+    def test_default_arguments(self, mock_db, mock_launch, mock_stdio):
         """Test CLI with default arguments."""
         mock_db.return_value = Mock()
-        mock_start_sse.return_value = None
+        mock_stdio.return_value = None
         
         runner = CliRunner()
         with patch('src.task_manager.cli.check_port_available', return_value=True):
             result = runner.invoke(main, [])
         
         assert result.exit_code == 0
-        mock_start_sse.assert_called_once()
+        mock_stdio.assert_called_once()
     
-    @patch('src.task_manager.cli.start_sse_mode')
+    @patch('src.task_manager.cli.start_stdio_mode')
     @patch('src.task_manager.cli.TaskDatabase')
-    def test_custom_port_argument(self, mock_db, mock_start_sse):
+    def test_custom_port_argument(self, mock_db, mock_stdio):
         """Test CLI with custom port argument."""
         mock_db.return_value = Mock()
-        mock_start_sse.return_value = None
+        mock_stdio.return_value = None
         
         runner = CliRunner()
         with patch('src.task_manager.cli.check_port_available', return_value=True):
             result = runner.invoke(main, ['--port', '9000', '--no-browser'])
         
         assert result.exit_code == 0
-        # Ensure start_sse_mode invoked with computed ports (9000, 9001)
-        mock_start_sse.assert_called()
+        # Ensure start_stdio_mode invoked with computed ports (9000, 9001)
+        mock_stdio.assert_called()
     
     @patch('src.task_manager.cli.start_api_only_mode')
     @patch('src.task_manager.cli.start_sse_mode')
@@ -223,32 +223,31 @@ class TestBrowserLaunching:
     @patch('src.task_manager.cli.multiprocessing.Process')
     @patch('src.task_manager.cli.logger')
     def test_launch_browser_safely_success(self, mock_logger, mock_process_class):
-        """Test successful browser launch."""
+        """Test successful browser launch following Serena pattern."""
         mock_process = Mock()
-        mock_process.is_alive.return_value = False
         mock_process_class.return_value = mock_process
         
         launch_browser_safely("http://localhost:8080")
         
         mock_process_class.assert_called_once()
         mock_process.start.assert_called_once()
-        mock_process.join.assert_called_once_with(timeout=2.0)
+        mock_process.join.assert_called_once_with(timeout=1.0)  # Serena uses timeout=1.0
         mock_logger.info.assert_called_with("Browser launched for http://localhost:8080")
     
     @patch('src.task_manager.cli.multiprocessing.Process')
     @patch('src.task_manager.cli.logger')
     def test_launch_browser_safely_timeout(self, mock_logger, mock_process_class):
-        """Test browser launch with process timeout."""
-        # #COMPLETION_DRIVE_IMPL: Simulating timeout by keeping process alive after join()
-        # Real process timeout behavior assumed to match this mock pattern
+        """Test browser launch following Serena pattern (no timeout handling)."""
+        # Following Serena's pattern: simple process launch without timeout management
         mock_process = Mock()
-        mock_process.is_alive.return_value = True  # Process still running after timeout
         mock_process_class.return_value = mock_process
         
         launch_browser_safely("http://localhost:8080")
         
-        mock_process.terminate.assert_called_once()
-        mock_logger.debug.assert_called_with("Browser launch process timed out, terminated")
+        mock_process_class.assert_called_once()
+        mock_process.start.assert_called_once()
+        mock_process.join.assert_called_once_with(timeout=1.0)
+        mock_logger.info.assert_called_with("Browser launched for http://localhost:8080")
     
     @patch('src.task_manager.cli.multiprocessing.Process')
     @patch('src.task_manager.cli.logger')
@@ -365,7 +364,7 @@ class TestErrorHandling:
         with patch('src.task_manager.cli.TaskDatabase', return_value=Mock()), \
              patch('src.task_manager.cli.find_available_ports', return_value=[9000, 9001]) as mock_find_ports, \
              patch('src.task_manager.cli.check_port_available', side_effect=[False, True, True]), \
-             patch('src.task_manager.cli.start_sse_mode', return_value=None):
+             patch('src.task_manager.cli.start_stdio_mode', return_value=None):
             result = runner.invoke(main, ['--port', '8080', '--no-browser'])
             assert result.exit_code == 0
             mock_find_ports.assert_called_once()

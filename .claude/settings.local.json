@@ -11,7 +11,12 @@
       "Bash(source:*)",
       "Bash(python -m pytest test/project_manager/test_ra_instructions.py::TestCreateTaskRAIntegration -v)",
       "mcp__project-manager-mcp__get_task_details",
-      "WebSearch"
+      "WebSearch",
+      "Bash(python -m pytest test/project_manager/test_cli.py::TestCLIArgumentParsing::test_default_arguments -v)",
+      "Bash(python -m pytest test/project_manager/test_cli.py::TestCLIArgumentParsing::test_default_arguments test/project_manager/test_cli.py::TestCLIArgumentParsing::test_custom_port_argument test/project_manager/test_cli.py::TestErrorHandling::test_port_conflict_recovery_ctx -v)",
+      "Bash(python -m pytest test/project_manager/test_mcp_server.py::TestProjectManagerMCPServer::test_create_server_success test/project_manager/test_mcp_server.py::TestProjectManagerMCPServer::test_get_server_info test/project_manager/test_mcp_server.py::TestMCPServerIntegration::test_tool_registration_integration test/project_manager/test_ra_instructions.py::TestRAInstructionsManager::test_get_full_instructions -v)",
+      "Bash(python -m pytest test/project_manager/test_mcp_server.py test/project_manager/test_cli.py test/project_manager/test_ra_instructions.py -v --tb=short)",
+      "Read(//Users/dtannen/Code/serena/**)"
     ],
     "deny": [],
     "ask": []
