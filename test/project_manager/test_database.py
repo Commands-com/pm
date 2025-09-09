@@ -735,7 +735,7 @@ class TestSchemaInitialization:
                 ORDER BY name
             """)
             tables = [row[0] for row in cursor.fetchall()]
-            required_tables = ['dashboard_sessions', 'epics', 'event_log', 'projects', 'task_logs', 'tasks']
+            required_tables = ['dashboard_sessions', 'epics', 'event_log', 'knowledge_items', 'knowledge_logs', 'projects', 'task_logs', 'tasks']
             assert tables == required_tables, f"Expected {required_tables}, got {tables}"
             
             # Check required indexes exist
@@ -747,6 +747,11 @@ class TestSchemaInitialization:
             indexes = [row[0] for row in cursor.fetchall()]
             required_indexes = [
                 'idx_epics_project_id',
+                'idx_knowledge_active_updated',
+                'idx_knowledge_category_priority',
+                'idx_knowledge_hierarchy',
+                'idx_knowledge_logs_item_time',
+                'idx_knowledge_project_context',
                 'idx_task_logs_task_seq', 
                 'idx_tasks_available',
                 'idx_tasks_epic_id',

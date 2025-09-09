@@ -9,11 +9,15 @@ import sqlite3
 import threading
 import time
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from contextlib import contextmanager
 from pathlib import Path
 from .performance import timed_query
+
+# Configure logger for database operations
+logger = logging.getLogger(__name__)
 
 
 class TaskDatabase:
@@ -325,6 +329,80 @@ class TaskDatabase:
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_event_log_expires 
             ON event_log(expires_at)
+        """)
+        
+        # Knowledge Management System Tables
+        # Knowledge items table - hierarchical knowledge storage with versioning
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS knowledge_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                category TEXT,
+                tags TEXT,
+                parent_id INTEGER,
+                project_id INTEGER NOT NULL,
+                epic_id INTEGER,
+                task_id INTEGER,
+                priority INTEGER DEFAULT 0 CHECK (priority BETWEEN 0 AND 5),
+                version INTEGER DEFAULT 1,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                created_by TEXT,
+                metadata TEXT,
+                FOREIGN KEY (parent_id) REFERENCES knowledge_items (id) ON DELETE SET NULL,
+                FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE SET NULL,
+                FOREIGN KEY (epic_id) REFERENCES epics (id) ON DELETE SET NULL,
+                FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE SET NULL,
+                CONSTRAINT json_tags CHECK (tags IS NULL OR (json_valid(tags) AND json_type(tags) = 'array')),
+                CONSTRAINT json_metadata CHECK (metadata IS NULL OR (json_valid(metadata) AND json_type(metadata) = 'object'))
+            )
+        """)
+        
+        # Knowledge logs table - audit trail for knowledge changes
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS knowledge_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                knowledge_id INTEGER NOT NULL,
+                action_type TEXT NOT NULL,
+                old_content TEXT,
+                new_content TEXT,
+                changed_fields TEXT,
+                change_reason TEXT,
+                created_at TEXT NOT NULL,
+                created_by TEXT,
+                metadata TEXT,
+                FOREIGN KEY (knowledge_id) REFERENCES knowledge_items (id) ON DELETE CASCADE,
+                CONSTRAINT json_changed_fields CHECK (changed_fields IS NULL OR (json_valid(changed_fields) AND json_type(changed_fields) = 'array')),
+                CONSTRAINT json_metadata CHECK (metadata IS NULL OR (json_valid(metadata) AND json_type(metadata) = 'object'))
+            )
+        """)
+        
+        # Knowledge management performance indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_knowledge_category_priority 
+            ON knowledge_items (category, priority DESC, created_at DESC)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_knowledge_project_context 
+            ON knowledge_items (project_id, epic_id, task_id)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_knowledge_hierarchy 
+            ON knowledge_items (parent_id, created_at)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_knowledge_active_updated 
+            ON knowledge_items (is_active, updated_at DESC)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_knowledge_logs_item_time 
+            ON knowledge_logs (knowledge_id, created_at DESC)
         """)
 
     def create_project(self, name: str, description: Optional[str] = None) -> int:
@@ -2993,6 +3071,517 @@ class TaskDatabase:
                 events.append(event_data)
                 
             return events
+
+    # Knowledge Management System Methods
+    
+    def get_knowledge(
+        self, 
+        knowledge_id: Optional[int] = None,
+        category: Optional[str] = None,
+        project_id: Optional[int] = None,
+        epic_id: Optional[int] = None,
+        task_id: Optional[int] = None,
+        parent_id: Optional[int] = None,
+        limit: Optional[int] = None,
+        include_inactive: bool = False
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve knowledge items with flexible filtering options.
+        
+        Args:
+            knowledge_id: Specific knowledge item ID to retrieve
+            category: Filter by category
+            project_id: Filter by project association
+            epic_id: Filter by epic association  
+            task_id: Filter by task association
+            parent_id: Filter by parent knowledge item (hierarchical)
+            limit: Maximum number of results to return
+            include_inactive: Include inactive knowledge items
+            
+        Returns:
+            List of knowledge items with metadata
+        """
+        with self._connection_lock:
+            cursor = self._connection.cursor()
+            
+            # Base query with all necessary fields
+            query = """
+                SELECT 
+                    k.id, k.title, k.content, k.category, k.tags, 
+                    k.parent_id, k.project_id, k.epic_id, k.task_id,
+                    k.priority, k.version, k.is_active, 
+                    k.created_at, k.updated_at, k.created_by, k.metadata,
+                    p.name as project_name,
+                    e.name as epic_name,
+                    t.name as task_name,
+                    parent.title as parent_title
+                FROM knowledge_items k
+                LEFT JOIN projects p ON k.project_id = p.id
+                LEFT JOIN epics e ON k.epic_id = e.id  
+                LEFT JOIN tasks t ON k.task_id = t.id
+                LEFT JOIN knowledge_items parent ON k.parent_id = parent.id
+                WHERE 1=1
+            """
+            
+            params = []
+            
+            # Add filters based on parameters
+            if knowledge_id is not None:
+                query += " AND k.id = ?"
+                params.append(knowledge_id)
+            
+            if category is not None:
+                query += " AND k.category = ?"
+                params.append(category)
+                
+            if project_id is not None:
+                query += " AND k.project_id = ?"
+                params.append(project_id)
+                
+            if epic_id is not None:
+                query += " AND k.epic_id = ?"
+                params.append(epic_id)
+                
+            if task_id is not None:
+                query += " AND k.task_id = ?"
+                params.append(task_id)
+                
+            if parent_id is not None:
+                query += " AND k.parent_id = ?"
+                params.append(parent_id)
+            
+            if not include_inactive:
+                query += " AND k.is_active = TRUE"
+            
+            # Order by priority (descending) and updated time (most recent first)
+            query += " ORDER BY k.priority DESC, k.updated_at DESC"
+            
+            # Add limit if specified
+            if limit is not None:
+                query += " LIMIT ?"
+                params.append(limit)
+            
+            try:
+                cursor.execute(query, params)
+                rows = cursor.fetchall()
+                
+                knowledge_items = []
+                for row in rows:
+                    row_dict = dict(zip([col[0] for col in cursor.description], row))
+                    
+                    # Parse JSON fields
+                    if row_dict['tags']:
+                        try:
+                            row_dict['tags'] = json.loads(row_dict['tags'])
+                        except (json.JSONDecodeError, TypeError):
+                            row_dict['tags'] = []
+                    else:
+                        row_dict['tags'] = []
+                        
+                    if row_dict['metadata']:
+                        try:
+                            row_dict['metadata'] = json.loads(row_dict['metadata'])
+                        except (json.JSONDecodeError, TypeError):
+                            row_dict['metadata'] = {}
+                    else:
+                        row_dict['metadata'] = {}
+                    
+                    knowledge_items.append(row_dict)
+                
+                return knowledge_items
+                
+            except sqlite3.Error as e:
+                logger.error(f"Database error in get_knowledge: {e}")
+                raise
+
+    def upsert_knowledge(
+        self,
+        knowledge_id: Optional[int] = None,
+        title: str = None,
+        content: str = None,
+        category: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        parent_id: Optional[int] = None,
+        project_id: Optional[int] = None,
+        epic_id: Optional[int] = None,
+        task_id: Optional[int] = None,
+        priority: int = 0,
+        is_active: bool = True,
+        created_by: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Create or update a knowledge item with full metadata support.
+        
+        Args:
+            knowledge_id: ID for update, None for create
+            title: Knowledge item title (required for create)
+            content: Knowledge item content (required for create)
+            category: Category classification
+            tags: List of tags for organization
+            parent_id: Parent knowledge item for hierarchy
+            project_id: Associated project
+            epic_id: Associated epic
+            task_id: Associated task
+            priority: Priority level (0-5)
+            is_active: Whether item is active
+            created_by: Creator identifier
+            metadata: Additional metadata dictionary
+            
+        Returns:
+            Dict with success status, knowledge_id, and operation details
+        """
+        with self._connection_lock:
+            cursor = self._connection.cursor()
+            current_time_str = self._get_current_time_str()
+            
+            try:
+                # Validation for priority
+                if priority < 0 or priority > 5:
+                    raise ValueError(f"Priority must be between 0 and 5, got {priority}")
+                
+                # Prepare JSON fields
+                tags_json = json.dumps(tags) if tags else None
+                metadata_json = json.dumps(metadata) if metadata else None
+                
+                if knowledge_id is None:
+                    # Create new knowledge item
+                    if not title or not content:
+                        raise ValueError("Title and content are required for creating knowledge items")
+                    
+                    cursor.execute("""
+                        INSERT INTO knowledge_items (
+                            title, content, category, tags, parent_id, 
+                            project_id, epic_id, task_id, priority, 
+                            version, is_active, created_at, updated_at, 
+                            created_by, metadata
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        title, content, category, tags_json, parent_id,
+                        project_id, epic_id, task_id, priority,
+                        1, is_active, current_time_str, current_time_str,
+                        created_by, metadata_json
+                    ))
+                    
+                    knowledge_id = cursor.lastrowid
+                    operation = "created"
+                    
+                else:
+                    # Update existing knowledge item
+                    # First get current version and data for logging
+                    cursor.execute("""
+                        SELECT version, content, title, category, tags, 
+                               parent_id, project_id, epic_id, task_id, 
+                               priority, is_active, metadata
+                        FROM knowledge_items WHERE id = ?
+                    """, (knowledge_id,))
+                    
+                    current_row = cursor.fetchone()
+                    if not current_row:
+                        raise ValueError(f"Knowledge item {knowledge_id} not found")
+                    
+                    current_version, old_content, old_title, old_category, old_tags, old_parent_id, old_project_id, old_epic_id, old_task_id, old_priority, old_is_active, old_metadata = current_row
+                    
+                    # Determine what fields are being updated
+                    updates = []
+                    params = []
+                    changed_fields = []
+                    
+                    if title is not None and title != old_title:
+                        updates.append("title = ?")
+                        params.append(title)
+                        changed_fields.append("title")
+                    
+                    if content is not None and content != old_content:
+                        updates.append("content = ?")
+                        params.append(content)
+                        changed_fields.append("content")
+                    
+                    if category != old_category:
+                        updates.append("category = ?")
+                        params.append(category)
+                        changed_fields.append("category")
+                    
+                    if tags_json != old_tags:
+                        updates.append("tags = ?")
+                        params.append(tags_json)
+                        changed_fields.append("tags")
+                    
+                    if parent_id != old_parent_id:
+                        updates.append("parent_id = ?")
+                        params.append(parent_id)
+                        changed_fields.append("parent_id")
+                    
+                    if project_id != old_project_id:
+                        updates.append("project_id = ?")
+                        params.append(project_id)
+                        changed_fields.append("project_id")
+                    
+                    if epic_id != old_epic_id:
+                        updates.append("epic_id = ?")
+                        params.append(epic_id)
+                        changed_fields.append("epic_id")
+                    
+                    if task_id != old_task_id:
+                        updates.append("task_id = ?")
+                        params.append(task_id)
+                        changed_fields.append("task_id")
+                    
+                    if priority != old_priority:
+                        updates.append("priority = ?")
+                        params.append(priority)
+                        changed_fields.append("priority")
+                    
+                    if is_active != bool(old_is_active):
+                        updates.append("is_active = ?")
+                        params.append(is_active)
+                        changed_fields.append("is_active")
+                    
+                    if metadata_json != old_metadata:
+                        updates.append("metadata = ?")
+                        params.append(metadata_json)
+                        changed_fields.append("metadata")
+                    
+                    if updates:
+                        # Increment version and update timestamp
+                        updates.extend(["version = version + 1", "updated_at = ?"])
+                        params.append(current_time_str)
+                        
+                        # Perform the update
+                        update_query = f"UPDATE knowledge_items SET {', '.join(updates)} WHERE id = ?"
+                        params.append(knowledge_id)
+                        
+                        cursor.execute(update_query, params)
+                        operation = "updated"
+                    else:
+                        operation = "no_changes"
+                
+                # Get the final state for return
+                cursor.execute("""
+                    SELECT id, title, content, category, version, is_active,
+                           created_at, updated_at, priority
+                    FROM knowledge_items WHERE id = ?
+                """, (knowledge_id,))
+                
+                final_row = cursor.fetchone()
+                if not final_row:
+                    raise ValueError(f"Failed to retrieve updated knowledge item {knowledge_id}")
+                
+                final_dict = dict(zip([col[0] for col in cursor.description], final_row))
+                
+                return {
+                    "success": True,
+                    "operation": operation,
+                    "knowledge_id": knowledge_id,
+                    "knowledge_item": final_dict
+                }
+                
+            except (sqlite3.Error, ValueError) as e:
+                logger.error(f"Database error in upsert_knowledge: {e}")
+                raise
+
+    def append_knowledge_log(
+        self,
+        knowledge_id: int,
+        action_type: str,
+        change_reason: Optional[str] = None,
+        created_by: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Append a log entry to a knowledge item for audit trail.
+        
+        Args:
+            knowledge_id: ID of the knowledge item to log
+            action_type: Type of action (viewed, referenced, exported, etc.)
+            change_reason: Reason for the action/change
+            created_by: User who performed the action
+            metadata: Additional metadata about the action
+            
+        Returns:
+            Dict with success status and log entry details
+        """
+        with self._connection_lock:
+            cursor = self._connection.cursor()
+            current_time_str = self._get_current_time_str()
+            
+            try:
+                # Verify the knowledge item exists
+                cursor.execute("""
+                    SELECT id, title FROM knowledge_items WHERE id = ? AND is_active = TRUE
+                """, (knowledge_id,))
+                
+                knowledge_item = cursor.fetchone()
+                if not knowledge_item:
+                    raise ValueError(f"Knowledge item {knowledge_id} not found or is inactive")
+                
+                knowledge_item_dict = dict(zip([col[0] for col in cursor.description], knowledge_item))
+                
+                # Prepare metadata JSON
+                metadata_json = json.dumps(metadata) if metadata else None
+                
+                # Insert the log entry
+                cursor.execute("""
+                    INSERT INTO knowledge_logs (
+                        knowledge_id, action_type, change_reason,
+                        created_at, created_by, metadata
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    knowledge_id, action_type, change_reason,
+                    current_time_str, created_by, metadata_json
+                ))
+                
+                log_id = cursor.lastrowid
+                
+                # Update the knowledge item's updated_at timestamp to reflect recent activity
+                cursor.execute("""
+                    UPDATE knowledge_items SET updated_at = ? WHERE id = ?
+                """, (current_time_str, knowledge_id))
+                
+                return {
+                    "success": True,
+                    "log_id": log_id,
+                    "knowledge_id": knowledge_id,
+                    "knowledge_title": knowledge_item_dict["title"],
+                    "action_type": action_type,
+                    "change_reason": change_reason,
+                    "created_at": current_time_str,
+                    "created_by": created_by
+                }
+                
+            except (sqlite3.Error, ValueError) as e:
+                logger.error(f"Database error in append_knowledge_log: {e}")
+                raise
+
+    def get_knowledge_logs(
+        self,
+        knowledge_id: int,
+        limit: Optional[int] = 50,
+        action_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve log entries for a knowledge item.
+        
+        Args:
+            knowledge_id: ID of the knowledge item
+            limit: Maximum number of log entries to return
+            action_type: Filter by specific action type
+            
+        Returns:
+            List of log entries in chronological order (newest first)
+        """
+        with self._connection_lock:
+            cursor = self._connection.cursor()
+            
+            try:
+                # Base query
+                query = """
+                    SELECT id, knowledge_id, action_type, old_content, new_content,
+                           changed_fields, change_reason, created_at, created_by, metadata
+                    FROM knowledge_logs
+                    WHERE knowledge_id = ?
+                """
+                params = [knowledge_id]
+                
+                # Add action type filter if specified
+                if action_type is not None:
+                    query += " AND action_type = ?"
+                    params.append(action_type)
+                
+                # Order by most recent first
+                query += " ORDER BY created_at DESC"
+                
+                # Add limit if specified
+                if limit is not None:
+                    query += " LIMIT ?"
+                    params.append(limit)
+                
+                cursor.execute(query, params)
+                rows = cursor.fetchall()
+                
+                log_entries = []
+                for row in rows:
+                    row_dict = dict(zip([col[0] for col in cursor.description], row))
+                    
+                    # Parse JSON fields
+                    if row_dict['changed_fields']:
+                        try:
+                            row_dict['changed_fields'] = json.loads(row_dict['changed_fields'])
+                        except (json.JSONDecodeError, TypeError):
+                            row_dict['changed_fields'] = []
+                    else:
+                        row_dict['changed_fields'] = []
+                    
+                    if row_dict['metadata']:
+                        try:
+                            row_dict['metadata'] = json.loads(row_dict['metadata'])
+                        except (json.JSONDecodeError, TypeError):
+                            row_dict['metadata'] = {}
+                    else:
+                        row_dict['metadata'] = {}
+                    
+                    log_entries.append(row_dict)
+                
+                return log_entries
+                
+            except sqlite3.Error as e:
+                logger.error(f"Database error in get_knowledge_logs: {e}")
+                raise
+
+    def delete_knowledge_item(self, knowledge_id: int) -> bool:
+        """
+        Delete a knowledge item by ID.
+        
+        Args:
+            knowledge_id: ID of the knowledge item to delete
+            
+        Returns:
+            bool: True if deletion was successful, False if item not found
+            
+        Raises:
+            sqlite3.Error: If database operation fails
+        """
+        with self._connection_lock:
+            try:
+                cursor = self._connection.cursor()
+                
+                # First check if the item exists
+                cursor.execute(
+                    "SELECT id FROM knowledge_items WHERE id = ?",
+                    (knowledge_id,)
+                )
+                
+                if not cursor.fetchone():
+                    logger.info(f"Knowledge item {knowledge_id} not found for deletion")
+                    return False
+                
+                # Delete the knowledge item (knowledge_logs will be cascade deleted if FK constraints exist)
+                cursor.execute(
+                    "DELETE FROM knowledge_items WHERE id = ?",
+                    (knowledge_id,)
+                )
+                
+                # Check if knowledge item was deleted
+                items_deleted = cursor.rowcount
+                
+                # Also delete related logs manually to ensure cleanup
+                cursor.execute(
+                    "DELETE FROM knowledge_logs WHERE knowledge_id = ?",
+                    (knowledge_id,)
+                )
+                
+                logs_deleted = cursor.rowcount
+                
+                self._connection.commit()
+                
+                logger.info(f"Successfully deleted knowledge item {knowledge_id}: {items_deleted} items, {logs_deleted} logs")
+                
+                return items_deleted > 0
+                
+            except sqlite3.Error as e:
+                logger.error(f"Database error in delete_knowledge_item: {e}")
+                self._connection.rollback()
+                raise
 
 
 # Database schema design updated for Task 001 - Database Schema Enhancement

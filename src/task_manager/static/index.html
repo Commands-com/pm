@@ -108,6 +108,31 @@
             transform: scale(0.95);
         }
 
+        .knowledge-btn {
+            background: none;
+            border: 1px solid #475569;
+            color: #e2e8f0;
+            padding: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 1rem;
+        }
+
+        .knowledge-btn:hover {
+            background-color: #3b82f6;
+            border-color: #3b82f6;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .knowledge-btn:active {
+            transform: scale(0.95);
+        }
+
         /* Delete Modal Styles */
         .modal-overlay {
             position: fixed;
@@ -1231,6 +1256,756 @@
             margin-bottom: 1rem;
         }
         
+        /* Knowledge Management Modal Styles */
+        .knowledge-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(2px);
+        }
+        
+        .knowledge-modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90vw;
+            max-width: 800px;
+            max-height: 80vh;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            position: relative;
+            overflow: hidden;
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        .knowledge-modal-body {
+            padding: 2rem;
+            max-height: calc(80vh - 100px);
+            overflow-y: auto;
+        }
+
+        .knowledge-section {
+            margin-bottom: 2rem;
+        }
+
+        .knowledge-section h3 {
+            color: #1e293b;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+        }
+
+        .knowledge-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .knowledge-item:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .knowledge-item-title {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .knowledge-item-description {
+            color: #64748b;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .knowledge-item-tags {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .knowledge-tag {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        /* Knowledge Logs Expandable Section Styles */
+        .knowledge-logs-section {
+            margin-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 0.75rem;
+        }
+
+        .logs-toggle-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: none;
+            border: none;
+            color: #64748b;
+            font-size: 0.875rem;
+            cursor: pointer;
+            padding: 0.5rem 0;
+            transition: color 0.2s ease;
+        }
+
+        .logs-toggle-btn:hover {
+            color: #475569;
+        }
+
+        .logs-toggle-btn svg {
+            transition: transform 0.2s ease;
+        }
+
+        .logs-toggle-btn.expanded svg {
+            transform: rotate(90deg);
+        }
+
+        .knowledge-logs-container {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .knowledge-logs-container.expanded {
+            max-height: 400px;
+        }
+
+        .knowledge-log-entry {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .knowledge-log-entry:last-child {
+            margin-bottom: 0;
+        }
+
+        .knowledge-log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .knowledge-log-type {
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 0.125rem 0.375rem;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+        .knowledge-log-timestamp {
+            color: #64748b;
+            font-size: 0.75rem;
+        }
+
+        .knowledge-log-content {
+            color: #374151;
+            line-height: 1.4;
+        }
+
+        .knowledge-log-user {
+            color: #6b7280;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+
+        .logs-loading {
+            text-align: center;
+            color: #64748b;
+            padding: 1rem 0;
+            font-size: 0.875rem;
+        }
+
+        .logs-empty {
+            text-align: center;
+            color: #9ca3af;
+            padding: 1rem 0;
+            font-size: 0.875rem;
+            font-style: italic;
+        }
+        
+        /* Interactive Knowledge Management Styles */
+        .modal-header {
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 60px;
+        }
+        
+        .modal-header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .modal-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .context-indicator {
+            background: #3b82f6;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.625rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        
+        .add-btn {
+            background: #10b981;
+            color: white;
+        }
+        
+        .add-btn:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+        
+        .save-btn {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .save-btn:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+        
+        .save-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .cancel-btn {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .cancel-btn:hover {
+            background: #4b5563;
+            transform: translateY(-1px);
+        }
+        
+        .knowledge-search-container {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            align-items: center;
+        }
+        
+        .search-input-wrapper {
+            position: relative;
+            flex: 1;
+            max-width: 400px;
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+            pointer-events: none;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 0.75rem 0.75rem 2.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .clear-search-btn {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 4px;
+        }
+        
+        .clear-search-btn:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .category-filter {
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            background: white;
+            min-width: 180px;
+        }
+        
+        .category-filter:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .knowledge-edit-form {
+            background: #f8fafc;
+            border: 2px solid #3b82f6;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            animation: formSlideDown 0.3s ease-out;
+        }
+        
+        @keyframes formSlideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .form-header h3 {
+            color: #1e293b;
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .form-group label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-input, .form-select, .form-textarea {
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .textarea-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
+        
+        .char-counter {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+        
+        .field-error {
+            color: #dc2626;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+        
+        .field-help {
+            color: #6b7280;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+        
+        .tags-input-container {
+            position: relative;
+        }
+        
+        .tags-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            min-height: 20px;
+        }
+        
+        .tag-item {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 0.25rem 0.75rem;
+            border-radius: 16px;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .tag-remove {
+            background: none;
+            border: none;
+            color: #1e40af;
+            cursor: pointer;
+            padding: 0;
+            font-size: 0.875rem;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .tag-remove:hover {
+            background: #bfdbfe;
+        }
+        
+        .knowledge-item {
+            position: relative;
+        }
+        
+        .knowledge-item:hover .item-actions {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .item-actions {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            display: flex;
+            gap: 0.5rem;
+            opacity: 0;
+            transform: translateX(10px);
+            transition: all 0.2s ease;
+        }
+        
+        .item-action-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            transition: all 0.2s ease;
+        }
+        
+        .edit-btn {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .edit-btn:hover {
+            background: #2563eb;
+            transform: scale(1.1);
+        }
+        
+        .delete-btn {
+            background: #dc2626;
+            color: white;
+        }
+        
+        .delete-btn:hover {
+            background: #b91c1c;
+            transform: scale(1.1);
+        }
+        
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            color: #6b7280;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Inline editing styles */
+        .inline-edit-item {
+            border: 2px solid #3b82f6;
+            background: #eff6ff;
+            animation: highlightEdit 0.3s ease-out;
+        }
+        
+        @keyframes highlightEdit {
+            from {
+                box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+            }
+            to {
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            }
+        }
+        
+        .inline-edit-form {
+            padding: 1rem;
+        }
+        
+        .inline-form-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #d1d5db;
+        }
+        
+        .inline-form-header h4 {
+            margin: 0;
+            color: #1f2937;
+            font-size: 1.1rem;
+        }
+        
+        .inline-form-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .inline-action-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            border: 1px solid;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .inline-action-btn.save-btn {
+            background: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+        
+        .inline-action-btn.save-btn:hover {
+            background: #059669;
+            border-color: #059669;
+        }
+        
+        .inline-action-btn.cancel-btn {
+            background: #6b7280;
+            color: white;
+            border-color: #6b7280;
+        }
+        
+        .inline-action-btn.cancel-btn:hover {
+            background: #4b5563;
+            border-color: #4b5563;
+        }
+        
+        .inline-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .inline-form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .inline-form-group.full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .inline-form-group label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .inline-form-input, .inline-form-select, .inline-form-textarea {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+        
+        .inline-form-input:focus, .inline-form-select:focus, .inline-form-textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .inline-form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        @media (max-width: 768px) {
+            .inline-form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .inline-form-actions {
+                flex-direction: column;
+            }
+            
+            .inline-action-btn {
+                justify-content: center;
+            }
+        }
+        
+        .confirmation-dialog {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+        }
+        
+        .confirmation-content {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        .confirmation-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 1rem;
+        }
+        
+        .confirmation-message {
+            color: #6b7280;
+            margin-bottom: 1.5rem;
+        }
+        
+        .confirmation-actions {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+        
+        .confirm-btn {
+            background: #dc2626;
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+        
+        .confirm-btn:hover {
+            background: #b91c1c;
+        }
+        
+        .cancel-confirm-btn {
+            background: #f3f4f6;
+            color: #374151;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+        
+        .cancel-confirm-btn:hover {
+            background: #e5e7eb;
+        }
+        
         /* #SUGGEST_RESPONSIVE: Mobile responsiveness for modal interface
            Complex tabbed interface may need different layout on mobile */
         @media (max-width: 768px) {
@@ -1238,6 +2013,47 @@
                 width: 95vw;
                 height: 90vh;
                 margin: 1rem;
+            }
+            
+            .knowledge-modal-content {
+                width: 95vw;
+                margin: 1rem;
+            }
+            
+            .modal-header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+                padding: 1rem;
+            }
+            
+            .modal-header-actions {
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            
+            .knowledge-search-container {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            
+            .search-input-wrapper {
+                max-width: none;
+            }
+            
+            .category-filter {
+                min-width: auto;
+                width: 100%;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-btn {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.8rem;
             }
             
             .overview-sections {
@@ -1293,6 +2109,12 @@
                 </g>
             </svg>
             <h1>Commands.com RA PM Dashboard</h1>
+            <button id="knowledgeBtn" class="knowledge-btn" title="Knowledge Management">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+            </button>
         </div>
         <div class="header-filters">
             <div class="filter-group">
@@ -1620,6 +2442,18 @@
                 case 'epic_deleted':
                     handleEpicDeleted(data);
                     break;
+                case 'knowledge_upserted':
+                    handleKnowledgeUpserted(data);
+                    break;
+                case 'knowledge_query':
+                    handleKnowledgeQuery(data);
+                    break;
+                case 'knowledge_deleted':
+                    handleKnowledgeDeleted(data);
+                    break;
+                case 'knowledge_log':
+                    handleKnowledgeLog(data);
+                    break;
                 default:
                     console.log('Unknown event type:', data.type);
             }
@@ -1927,6 +2761,62 @@
             
             // Show notification
             showNotification(`Epic "${data.epic_name}" deleted successfully`, 'success');
+        }
+        
+        function handleKnowledgeUpserted(data) {
+            console.log('Knowledge upserted event received:', data);
+            
+            // If the knowledge modal is open, refresh its data
+            if (knowledgeModal && knowledgeModal.isOpen) {
+                knowledgeModal.loadKnowledgeData();
+            }
+            
+            // Show notification for knowledge updates
+            const operation = data.operation || 'updated';
+            const knowledgeItem = data.knowledge_item || {};
+            const title = knowledgeItem.title || 'Knowledge item';
+            
+            showNotification(`${title} ${operation} successfully`, 'success');
+        }
+        
+        function handleKnowledgeQuery(data) {
+            console.log('Knowledge query event received:', data);
+            
+            // This appears to be a query result event, could be used for search results
+            // or knowledge retrieval operations. Currently just logging for visibility.
+            const resultCount = data.result_count || 0;
+            console.log(`Knowledge query returned ${resultCount} results`);
+        }
+        
+        function handleKnowledgeDeleted(data) {
+            console.log('Knowledge deleted event received:', data);
+            
+            // If the knowledge modal is open, refresh its data to remove deleted item
+            if (knowledgeModal && knowledgeModal.isOpen) {
+                knowledgeModal.loadKnowledgeData();
+            }
+            
+            // Show notification for knowledge deletion
+            showNotification(`Knowledge item deleted successfully`, 'success');
+        }
+        
+        function handleKnowledgeLog(data) {
+            console.log('Knowledge log event received:', data);
+            
+            // If the knowledge modal is open and showing the item that was logged,
+            // refresh the log display in real-time
+            const knowledgeId = data.knowledge_id;
+            const action = data.action_type || 'activity';
+            
+            if (knowledgeModal && knowledgeModal.isOpen) {
+                console.log(`Knowledge item ${knowledgeId} had ${action} activity - refreshing logs`);
+                
+                // Refresh the logs for this specific knowledge item if they're currently expanded
+                knowledgeModal.refreshKnowledgeLogs(knowledgeId);
+                
+                // Show a subtle notification about the new activity
+                showNotification(`New ${action} logged for knowledge item`, 'info', 2000);
+            }
         }
         
         // #COMPLETION_DRIVE_INIT: Load initial board state from API
@@ -2997,19 +3887,24 @@
                 if (!timestamp) return 'N/A';
                 
                 try {
-                    // Handle ISO timestamp formats like "2025-09-08T19:52:02.220046+00:00Z"
+                    // Handle various timestamp formats
                     let cleanTimestamp = timestamp;
                     if (typeof timestamp === 'string') {
-                        // Remove trailing 'Z' if present after timezone offset
+                        // Handle format like "2025-09-09T22:17:18.852152+00:00Z" - remove Z after timezone
                         cleanTimestamp = timestamp.replace(/\+00:00Z$/, '+00:00');
-                        // Also handle just 'Z' at the end
+                        // Handle format ending with just 'Z'
                         cleanTimestamp = cleanTimestamp.replace(/Z$/, '');
+                        // Handle microseconds - truncate to milliseconds for better browser compatibility
+                        cleanTimestamp = cleanTimestamp.replace(/\.\d{6}/, function(match) {
+                            return match.substring(0, 4); // Keep only 3 digits after decimal
+                        });
                     }
                     
                     const date = new Date(cleanTimestamp);
                     
                     // Validate the date is actually valid
                     if (isNaN(date.getTime())) {
+                        console.warn('Invalid timestamp format:', timestamp, 'cleaned to:', cleanTimestamp);
                         return 'Invalid Date';
                     }
                     
@@ -3027,14 +3922,1032 @@
             }
         }
         
+        // Enhanced Interactive Knowledge Management Modal
+        // Full-featured modal with Add/Edit/Delete functionality, form validation, and API integration
+        class KnowledgeManagementModal {
+            constructor() {
+                this.modal = document.getElementById('knowledgeModal');
+                this.isOpen = false;
+                this.isEditing = false;
+                this.currentEditingItem = null;
+                this.originalData = {};
+                this.currentTags = [];
+                this.hasUnsavedChanges = false;
+                this.knowledgeItems = [];
+                this.sessionProject = null;
+                this.currentInlineEditItem = null;
+                this.sessionEpic = null;
+                
+                this.initializeEventListeners();
+            }
+            
+            initializeEventListeners() {
+                // Core modal functionality
+                this.setupCloseHandlers();
+                
+                // Interactive action buttons
+                this.setupActionButtons();
+                
+                // Form functionality
+                this.setupFormHandlers();
+                
+                // Search and filtering
+                this.setupSearchAndFiltering();
+                
+                // Confirmation dialog
+                this.setupConfirmationDialog();
+            }
+            
+            setupCloseHandlers() {
+                const closeBtn = document.getElementById('knowledgeModalCloseBtn');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => this.handleClose());
+                }
+                
+                this.modal?.addEventListener('click', (e) => {
+                    if (e.target === this.modal) {
+                        this.handleClose();
+                    }
+                });
+                
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && this.isOpen) {
+                        this.handleClose();
+                    }
+                });
+            }
+            
+            setupActionButtons() {
+                // Add New button
+                document.getElementById('addKnowledgeBtn')?.addEventListener('click', () => {
+                    this.startAddingNew();
+                });
+                
+                // Save button
+                document.getElementById('saveKnowledgeBtn')?.addEventListener('click', () => {
+                    this.saveKnowledgeItem();
+                });
+                
+                // Cancel button
+                document.getElementById('cancelKnowledgeBtn')?.addEventListener('click', () => {
+                    this.cancelEditing();
+                });
+            }
+            
+            setupFormHandlers() {
+                // Character counter for content textarea
+                const contentTextarea = document.getElementById('itemContent');
+                const charCounter = document.getElementById('contentCharCounter');
+                contentTextarea?.addEventListener('input', (e) => {
+                    const count = e.target.value.length;
+                    charCounter.textContent = `${count}/2000`;
+                    this.hasUnsavedChanges = true;
+                    this.validateField('content', e.target.value);
+                });
+                
+                // Tags input handler
+                const tagsInput = document.getElementById('itemTags');
+                tagsInput?.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.addTag(e.target.value.trim());
+                        e.target.value = '';
+                    }
+                });
+                
+                // Form field validation
+                ['itemTitle', 'itemCategory', 'itemContent'].forEach(fieldId => {
+                    const field = document.getElementById(fieldId);
+                    field?.addEventListener('input', (e) => {
+                        this.hasUnsavedChanges = true;
+                        this.validateField(fieldId.replace('item', '').toLowerCase(), e.target.value);
+                    });
+                });
+            }
+            
+            setupSearchAndFiltering() {
+                const searchInput = document.getElementById('knowledgeSearchInput');
+                const clearSearchBtn = document.getElementById('clearSearchBtn');
+                const categoryFilter = document.getElementById('categoryFilter');
+                
+                // Search with debouncing
+                let searchTimeout;
+                searchInput?.addEventListener('input', (e) => {
+                    const value = e.target.value;
+                    clearSearchBtn.style.display = value ? 'block' : 'none';
+                    
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        this.performSearch(value.toLowerCase());
+                    }, 300);
+                });
+                
+                // Clear search
+                clearSearchBtn?.addEventListener('click', () => {
+                    searchInput.value = '';
+                    clearSearchBtn.style.display = 'none';
+                    this.performSearch('');
+                });
+                
+                // Category filtering
+                categoryFilter?.addEventListener('change', (e) => {
+                    this.filterByCategory(e.target.value);
+                });
+            }
+            
+            setupConfirmationDialog() {
+                const dialog = document.getElementById('confirmationDialog');
+                const confirmBtn = document.getElementById('confirmationConfirmBtn');
+                const cancelBtn = document.getElementById('confirmationCancelBtn');
+                
+                confirmBtn?.addEventListener('click', () => {
+                    if (this.pendingAction) {
+                        this.pendingAction();
+                        this.pendingAction = null;
+                    }
+                    dialog.style.display = 'none';
+                });
+                
+                cancelBtn?.addEventListener('click', () => {
+                    this.pendingAction = null;
+                    dialog.style.display = 'none';
+                });
+            }
+            
+            async open() {
+                if (!this.modal) return;
+                
+                this.modal.style.display = 'flex';
+                this.isOpen = true;
+                
+                // Update context indicator
+                this.updateContextIndicator();
+                
+                // Load knowledge data
+                this.showLoading(true);
+                await this.loadKnowledgeData();
+                this.showLoading(false);
+                
+                // Focus management
+                const firstFocusable = this.modal.querySelector('button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                if (firstFocusable) {
+                    setTimeout(() => firstFocusable.focus(), 100);
+                }
+                
+                document.body.style.overflow = 'hidden';
+                console.log('Knowledge Management modal opened');
+            }
+            
+            async handleClose() {
+                if (this.hasUnsavedChanges) {
+                    const confirmed = await this.showConfirmation(
+                        'Unsaved Changes',
+                        'You have unsaved changes. Are you sure you want to close without saving?'
+                    );
+                    if (!confirmed) return;
+                }
+                
+                this.close();
+            }
+            
+            close() {
+                if (!this.modal) return;
+                
+                this.modal.style.display = 'none';
+                this.isOpen = false;
+                this.resetForm();
+                
+                // Reset session context when closing
+                this.sessionProject = null;
+                this.sessionEpic = null;
+                this.knowledgeItems = [];
+                
+                document.body.style.overflow = '';
+                
+                const knowledgeBtn = document.getElementById('knowledgeBtn');
+                knowledgeBtn?.focus();
+                
+                console.log('Knowledge Management modal closed');
+            }
+            
+            updateContextIndicator() {
+                const indicator = document.getElementById('knowledgeContextIndicator');
+                const projectSelector = document.getElementById('projectSelector');
+                const epicSelector = document.getElementById('epicSelector');
+                
+                const currentProject = projectSelector?.value || 1;
+                const currentEpic = epicSelector?.value;
+                
+                let contextText = 'All Projects';
+                if (currentProject && currentEpic) {
+                    contextText = `Project ${currentProject} - Epic ${currentEpic}`;
+                } else if (currentProject) {
+                    contextText = `Project ${currentProject}`;
+                }
+                
+                if (indicator) {
+                    indicator.textContent = contextText;
+                }
+            }
+            
+            startAddingNew() {
+                this.isEditing = true;
+                this.currentEditingItem = null;
+                this.showEditForm(true);
+                this.resetForm();
+                
+                document.getElementById('formTitle').textContent = 'Add New Knowledge Item';
+                document.getElementById('itemTitle').focus();
+            }
+            
+            startEditing(knowledgeId) {
+                const item = this.findKnowledgeItemById(knowledgeId);
+                if (!item) return;
+                
+                this.isEditing = true;
+                this.currentEditingItem = item;
+                this.originalData = { ...item };
+                this.showEditForm(true);
+                this.populateForm(item);
+                
+                document.getElementById('formTitle').textContent = 'Edit Knowledge Item';
+            }
+            
+            populateForm(item) {
+                document.getElementById('itemTitle').value = item.title || '';
+                document.getElementById('itemCategory').value = item.category || '';
+                document.getElementById('itemContent').value = item.content || '';
+                document.getElementById('itemPriority').value = item.priority || 2;
+                
+                // Handle tags
+                this.currentTags = Array.isArray(item.tags) ? [...item.tags] : [];
+                this.renderTags();
+                
+                // Update character counter
+                const content = item.content || '';
+                document.getElementById('contentCharCounter').textContent = `${content.length}/2000`;
+            }
+            
+            showEditForm(show) {
+                const form = document.getElementById('knowledgeEditForm');
+                const saveBtn = document.getElementById('saveKnowledgeBtn');
+                const cancelBtn = document.getElementById('cancelKnowledgeBtn');
+                
+                if (show) {
+                    form.style.display = 'block';
+                    saveBtn.style.display = 'inline-flex';
+                    cancelBtn.style.display = 'inline-flex';
+                } else {
+                    form.style.display = 'none';
+                    saveBtn.style.display = 'none';
+                    cancelBtn.style.display = 'none';
+                }
+            }
+            
+            async saveKnowledgeItem() {
+                console.log('saveKnowledgeItem called');
+                
+                if (!this.validateForm()) {
+                    console.log('Form validation failed');
+                    return;
+                }
+                
+                const formData = this.getFormData();
+                console.log('Form data:', formData);
+                
+                try {
+                    console.log('Sending PUT request to /api/knowledge');
+                    const response = await fetch('/api/knowledge', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    
+                    console.log('Response status:', response.status);
+                    const result = await response.json();
+                    console.log('Response result:', result);
+                    
+                    if (result.success) {
+                        showNotification('Knowledge item saved successfully!', 'success');
+                        this.hasUnsavedChanges = false;
+                        this.cancelEditing();
+                        await this.loadKnowledgeData(); // Refresh the list
+                    } else {
+                        showNotification(result.message || 'Failed to save knowledge item', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error saving knowledge item:', error);
+                    showNotification('Error saving knowledge item', 'error');
+                }
+            }
+            
+            getFormData() {
+                const projectSelector = document.getElementById('projectSelector');
+                const epicSelector = document.getElementById('epicSelector');
+                
+                // Ensure project_id is always provided (required by database schema)
+                const projectId = projectSelector?.value || this.sessionProject || 1;
+                const epicId = epicSelector?.value || this.sessionEpic || null;
+                
+                return {
+                    knowledge_id: this.currentEditingItem?.id || null,
+                    title: document.getElementById('itemTitle').value.trim(),
+                    content: document.getElementById('itemContent').value.trim(),
+                    category: document.getElementById('itemCategory').value,
+                    tags: this.currentTags,
+                    priority: parseInt(document.getElementById('itemPriority').value),
+                    project_id: parseInt(projectId), // Ensure it's always an integer
+                    epic_id: epicId ? parseInt(epicId) : null,
+                    is_active: true
+                };
+            }
+            
+            validateForm() {
+                console.log('validateForm called');
+                let isValid = true;
+                
+                const title = document.getElementById('itemTitle').value.trim();
+                const category = document.getElementById('itemCategory').value;
+                const content = document.getElementById('itemContent').value.trim();
+                
+                console.log('Form values:', { title, category, content });
+                
+                isValid = this.validateField('title', title) && isValid;
+                isValid = this.validateField('category', category) && isValid;
+                isValid = this.validateField('content', content) && isValid;
+                
+                console.log('Form validation result:', isValid);
+                return isValid;
+            }
+            
+            validateField(fieldName, value) {
+                const errorElement = document.getElementById(`${fieldName}Error`);
+                let errorMessage = '';
+                
+                switch (fieldName) {
+                    case 'title':
+                        if (!value.trim()) {
+                            errorMessage = 'Title is required';
+                        } else if (value.length > 200) {
+                            errorMessage = 'Title must be 200 characters or less';
+                        }
+                        break;
+                    case 'category':
+                        if (!value) {
+                            errorMessage = 'Category is required';
+                        }
+                        break;
+                    case 'content':
+                        if (!value.trim()) {
+                            errorMessage = 'Content is required';
+                        } else if (value.length > 2000) {
+                            errorMessage = 'Content must be 2000 characters or less';
+                        }
+                        break;
+                }
+                
+                if (errorElement) {
+                    errorElement.textContent = errorMessage;
+                }
+                
+                return !errorMessage;
+            }
+            
+            addTag(tagText) {
+                if (tagText && !this.currentTags.includes(tagText)) {
+                    this.currentTags.push(tagText);
+                    this.renderTags();
+                    this.hasUnsavedChanges = true;
+                }
+            }
+            
+            removeTag(tagText) {
+                this.currentTags = this.currentTags.filter(tag => tag !== tagText);
+                this.renderTags();
+                this.hasUnsavedChanges = true;
+            }
+            
+            renderTags() {
+                const tagsDisplay = document.getElementById('tagsDisplay');
+                if (!tagsDisplay) return;
+                
+                tagsDisplay.innerHTML = this.currentTags.map(tag => `
+                    <div class="tag-item">
+                        ${tag}
+                        <button class="tag-remove" onclick="knowledgeModal.removeTag('${tag}')" type="button">×</button>
+                    </div>
+                `).join('');
+            }
+            
+            cancelEditing() {
+                this.isEditing = false;
+                this.currentEditingItem = null;
+                this.hasUnsavedChanges = false;
+                this.showEditForm(false);
+                this.resetForm();
+            }
+            
+            resetForm() {
+                document.getElementById('itemTitle').value = '';
+                document.getElementById('itemCategory').value = '';
+                document.getElementById('itemContent').value = '';
+                document.getElementById('itemPriority').value = '2';
+                document.getElementById('itemTags').value = '';
+                document.getElementById('contentCharCounter').textContent = '0/2000';
+                
+                this.currentTags = [];
+                this.renderTags();
+                
+                // Clear error messages
+                ['titleError', 'categoryError', 'contentError'].forEach(errorId => {
+                    const errorElement = document.getElementById(errorId);
+                    if (errorElement) errorElement.textContent = '';
+                });
+            }
+            
+            async deleteKnowledgeItem(knowledgeId) {
+                const item = this.findKnowledgeItemById(knowledgeId);
+                if (!item) return;
+                
+                const confirmed = await this.showConfirmation(
+                    'Delete Knowledge Item',
+                    `Are you sure you want to delete "${item.title}"? This action cannot be undone.`
+                );
+                
+                if (!confirmed) return;
+                
+                try {
+                    const response = await fetch(`/api/knowledge/${knowledgeId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        showNotification(`"${item.title}" deleted successfully`, 'success');
+                        // Refresh the knowledge list to remove the deleted item
+                        await this.loadKnowledgeData();
+                    } else {
+                        const errorMsg = result.error || result.message || 'Failed to delete knowledge item';
+                        showNotification(errorMsg, 'error');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error deleting knowledge item:', error);
+                    showNotification('Error deleting knowledge item', 'error');
+                }
+            }
+            
+            // Inline editing methods
+            startInlineEditing(knowledgeId) {
+                // Cancel any existing inline edit
+                if (this.currentInlineEditItem) {
+                    this.cancelInlineEditing();
+                }
+                
+                const item = this.findKnowledgeItemById(knowledgeId);
+                if (!item) return;
+                
+                this.currentInlineEditItem = { ...item };
+                // Re-render the items to show the inline edit form
+                this.renderKnowledgeItems(this.knowledgeItems);
+            }
+            
+            renderInlineEditForm(item) {
+                const tagsList = (item.tags || []).join(', ');
+                
+                return `
+                    <div class="knowledge-item inline-edit-item" data-knowledge-id="${item.id}">
+                        <div class="inline-edit-form">
+                            <div class="inline-form-header">
+                                <h4>Edit Knowledge Item</h4>
+                                <div class="inline-form-actions">
+                                    <button class="inline-action-btn save-btn" title="Save Changes" onclick="knowledgeModal.saveInlineEdit(${item.id})">
+                                        <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                                            <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L8.5 8.293V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2.5a.5.5 0 0 1 0 1H2z"/>
+                                        </svg>
+                                        Save
+                                    </button>
+                                    <button class="inline-action-btn cancel-btn" title="Cancel Changes" onclick="knowledgeModal.cancelInlineEditing()">
+                                        <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                                        </svg>
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="inline-form-grid">
+                                <div class="inline-form-group">
+                                    <label>Title</label>
+                                    <input type="text" id="inline-title-${item.id}" value="${item.title}" maxlength="200" class="inline-form-input">
+                                </div>
+                                <div class="inline-form-group">
+                                    <label>Category</label>
+                                    <select id="inline-category-${item.id}" class="inline-form-select">
+                                        <option value="Technical Documentation" ${item.category === 'Technical Documentation' ? 'selected' : ''}>Technical Documentation</option>
+                                        <option value="Best Practices" ${item.category === 'Best Practices' ? 'selected' : ''}>Best Practices</option>
+                                        <option value="Development Workflow" ${item.category === 'Development Workflow' ? 'selected' : ''}>Development Workflow</option>
+                                        <option value="Troubleshooting" ${item.category === 'Troubleshooting' ? 'selected' : ''}>Troubleshooting</option>
+                                        <option value="Architecture" ${item.category === 'Architecture' ? 'selected' : ''}>Architecture</option>
+                                        <option value="Standards" ${item.category === 'Standards' ? 'selected' : ''}>Standards</option>
+                                    </select>
+                                </div>
+                                <div class="inline-form-group full-width">
+                                    <label>Content</label>
+                                    <textarea id="inline-content-${item.id}" rows="4" maxlength="2000" class="inline-form-textarea">${item.content}</textarea>
+                                </div>
+                                <div class="inline-form-group">
+                                    <label>Tags (comma separated)</label>
+                                    <input type="text" id="inline-tags-${item.id}" value="${tagsList}" class="inline-form-input">
+                                </div>
+                                <div class="inline-form-group">
+                                    <label>Priority</label>
+                                    <select id="inline-priority-${item.id}" class="inline-form-select">
+                                        <option value="1" ${item.priority == 1 ? 'selected' : ''}>Low</option>
+                                        <option value="2" ${item.priority == 2 ? 'selected' : ''}>Medium</option>
+                                        <option value="3" ${item.priority == 3 ? 'selected' : ''}>High</option>
+                                        <option value="4" ${item.priority == 4 ? 'selected' : ''}>Critical</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            async saveInlineEdit(knowledgeId) {
+                try {
+                    const title = document.getElementById(`inline-title-${knowledgeId}`).value.trim();
+                    const category = document.getElementById(`inline-category-${knowledgeId}`).value;
+                    const content = document.getElementById(`inline-content-${knowledgeId}`).value.trim();
+                    const tagsValue = document.getElementById(`inline-tags-${knowledgeId}`).value.trim();
+                    const priority = parseInt(document.getElementById(`inline-priority-${knowledgeId}`).value);
+                    
+                    // Parse tags
+                    const tags = tagsValue ? tagsValue.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+                    
+                    // Validate required fields
+                    if (!title) {
+                        showNotification('Title is required', 'error');
+                        return;
+                    }
+                    if (!content) {
+                        showNotification('Content is required', 'error');
+                        return;
+                    }
+                    
+                    const response = await fetch('/api/knowledge', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            knowledge_id: knowledgeId,
+                            title: title,
+                            category: category,
+                            content: content,
+                            tags: tags,
+                            priority: priority
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        showNotification('Knowledge item updated successfully!', 'success');
+                        this.currentInlineEditItem = null;
+                        await this.loadKnowledgeData();
+                    } else {
+                        const errorMsg = result.error || result.message || 'Failed to update knowledge item';
+                        showNotification(errorMsg, 'error');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error saving inline edit:', error);
+                    showNotification('Error updating knowledge item', 'error');
+                }
+            }
+            
+            cancelInlineEditing() {
+                this.currentInlineEditItem = null;
+                // Re-render to show normal view
+                this.renderKnowledgeItems(this.knowledgeItems);
+            }
+            
+            async showConfirmation(title, message) {
+                return new Promise((resolve) => {
+                    const dialog = document.getElementById('confirmationDialog');
+                    const titleElement = document.getElementById('confirmationTitle');
+                    const messageElement = document.getElementById('confirmationMessage');
+                    
+                    titleElement.textContent = title;
+                    messageElement.textContent = message;
+                    dialog.style.display = 'flex';
+                    
+                    this.pendingAction = () => resolve(true);
+                    
+                    // Handle cancel
+                    const cancelBtn = document.getElementById('confirmationCancelBtn');
+                    cancelBtn.onclick = () => {
+                        dialog.style.display = 'none';
+                        resolve(false);
+                    };
+                });
+            }
+
+            // Knowledge logs functionality
+            async toggleKnowledgeLogs(knowledgeId) {
+                const toggleBtn = document.querySelector(`[onclick="knowledgeModal.toggleKnowledgeLogs(${knowledgeId})"]`);
+                const logsContainer = document.getElementById(`logs-${knowledgeId}`);
+                
+                if (!toggleBtn || !logsContainer) return;
+                
+                const isExpanded = logsContainer.classList.contains('expanded');
+                
+                if (isExpanded) {
+                    // Collapse the logs
+                    logsContainer.classList.remove('expanded');
+                    toggleBtn.classList.remove('expanded');
+                } else {
+                    // Expand and load logs
+                    logsContainer.classList.add('expanded');
+                    toggleBtn.classList.add('expanded');
+                    
+                    // Load logs if not already loaded
+                    if (logsContainer.querySelector('.logs-loading')) {
+                        await this.loadKnowledgeLogs(knowledgeId);
+                    }
+                }
+            }
+
+            async loadKnowledgeLogs(knowledgeId) {
+                const logsContainer = document.getElementById(`logs-${knowledgeId}`);
+                if (!logsContainer) return;
+                
+                try {
+                    const response = await fetch(`/api/knowledge/${knowledgeId}/logs?limit=10`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.success && data.logs && data.logs.length > 0) {
+                        this.renderKnowledgeLogs(knowledgeId, data.logs);
+                    } else {
+                        this.renderEmptyLogs(knowledgeId);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error loading knowledge logs:', error);
+                    this.renderErrorLogs(knowledgeId);
+                }
+            }
+
+            renderKnowledgeLogs(knowledgeId, logs) {
+                const logsContainer = document.getElementById(`logs-${knowledgeId}`);
+                if (!logsContainer) return;
+                
+                const logsHtml = logs.map(log => this.renderSingleKnowledgeLog(log)).join('');
+                logsContainer.innerHTML = logsHtml;
+            }
+
+            renderSingleKnowledgeLog(log) {
+                const timestamp = this.formatTimestamp(log.created_at);
+                const actionType = log.action_type || 'activity';
+                const reason = log.change_reason || 'No details provided';
+                const user = log.created_by || 'Unknown';
+                
+                return `
+                    <div class="knowledge-log-entry">
+                        <div class="knowledge-log-header">
+                            <span class="knowledge-log-type">${actionType}</span>
+                            <span class="knowledge-log-timestamp">${timestamp}</span>
+                        </div>
+                        <div class="knowledge-log-content">${escapeHtml(reason)}</div>
+                        <div class="knowledge-log-user">by ${escapeHtml(user)}</div>
+                    </div>
+                `;
+            }
+
+            renderEmptyLogs(knowledgeId) {
+                const logsContainer = document.getElementById(`logs-${knowledgeId}`);
+                if (!logsContainer) return;
+                
+                logsContainer.innerHTML = '<div class="logs-empty">No activity logs found</div>';
+            }
+
+            renderErrorLogs(knowledgeId) {
+                const logsContainer = document.getElementById(`logs-${knowledgeId}`);
+                if (!logsContainer) return;
+                
+                logsContainer.innerHTML = '<div class="logs-empty">Error loading activity logs</div>';
+            }
+
+            // Refresh logs for a specific knowledge item (called by WebSocket handler)
+            async refreshKnowledgeLogs(knowledgeId) {
+                const logsContainer = document.getElementById(`logs-${knowledgeId}`);
+                if (!logsContainer || !logsContainer.classList.contains('expanded')) {
+                    return; // Don't refresh if logs aren't currently visible
+                }
+                
+                await this.loadKnowledgeLogs(knowledgeId);
+            }
+            
+            showLoading(show) {
+                const loadingState = document.getElementById('loadingState');
+                const container = document.getElementById('knowledgeItemsContainer');
+                
+                if (show) {
+                    loadingState.style.display = 'flex';
+                    container.style.display = 'none';
+                } else {
+                    loadingState.style.display = 'none';
+                    container.style.display = 'block';
+                }
+            }
+            
+            async loadKnowledgeData(forceProjectId = null, forceEpicId = null) {
+                try {
+                    const projectSelector = document.getElementById('projectSelector');
+                    const epicSelector = document.getElementById('epicSelector');
+                    const currentProject = forceProjectId || projectSelector?.value || 1;
+                    const currentEpic = forceEpicId || epicSelector?.value;
+                    
+                    // Store the project/epic context for this modal session
+                    if (!this.sessionProject) {
+                        this.sessionProject = currentProject;
+                        this.sessionEpic = currentEpic;
+                    }
+                    
+                    let apiUrl;
+                    if (this.sessionEpic && this.sessionProject) {
+                        apiUrl = `/api/knowledge/epic/${this.sessionProject}/${this.sessionEpic}`;
+                    } else if (this.sessionProject) {
+                        apiUrl = `/api/knowledge/project/${this.sessionProject}`;
+                    } else {
+                        apiUrl = `/api/knowledge/project/1`;
+                    }
+                    
+                    const response = await fetch(apiUrl);
+                    const data = await response.json();
+                    
+                    if (data.success && data.knowledge_items) {
+                        this.renderKnowledgeItems(data.knowledge_items);
+                    } else {
+                        this.renderEmptyState();
+                    }
+                } catch (error) {
+                    console.error('Error loading knowledge data:', error);
+                    this.renderErrorState();
+                }
+            }
+            
+            renderKnowledgeItems(knowledgeItems) {
+                const container = document.getElementById('knowledgeItemsContainer');
+                
+                // Store the knowledge items for later use
+                this.knowledgeItems = knowledgeItems;
+                
+                if (knowledgeItems.length === 0) {
+                    this.renderEmptyState();
+                    return;
+                }
+                
+                // Group by category
+                const groupedItems = knowledgeItems.reduce((groups, item) => {
+                    const category = item.category || 'General';
+                    if (!groups[category]) groups[category] = [];
+                    groups[category].push(item);
+                    return groups;
+                }, {});
+                
+                container.innerHTML = Object.entries(groupedItems).map(([category, items]) => `
+                    <div class="knowledge-section">
+                        <h3>${category}</h3>
+                        ${items.map(item => this.renderKnowledgeItem(item)).join('')}
+                    </div>
+                `).join('');
+                
+                this.attachItemEventListeners();
+            }
+            
+            renderKnowledgeItem(item) {
+                const isEditing = this.currentInlineEditItem && this.currentInlineEditItem.id === item.id;
+                
+                if (isEditing) {
+                    return this.renderInlineEditForm(item);
+                }
+                
+                return `
+                    <div class="knowledge-item" data-knowledge-id="${item.id}">
+                        <div class="item-actions">
+                            <button class="item-action-btn edit-btn" title="Edit Item" onclick="knowledgeModal.startInlineEditing(${item.id})">
+                                <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708L4.707 15.001H1v-3.707L12.146.146zM11.207 1.207L13.707 3.707 14.5 3l-2.5-2.5L11.207 1.207z"/>
+                                </svg>
+                            </button>
+                            <button class="item-action-btn delete-btn" title="Delete Item" onclick="knowledgeModal.deleteKnowledgeItem(${item.id})">
+                                <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                                    <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4L4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="knowledge-item-title">${item.title}</div>
+                        <div class="knowledge-item-description">${item.content}</div>
+                        <div class="knowledge-item-tags">
+                            ${(item.tags || []).map(tag => `<span class="knowledge-tag">${tag}</span>`).join('')}
+                        </div>
+                        <div class="knowledge-logs-section">
+                            <button class="logs-toggle-btn" onclick="knowledgeModal.toggleKnowledgeLogs(${item.id})">
+                                <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                    <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                                </svg>
+                                Activity Logs
+                            </button>
+                            <div class="knowledge-logs-container" id="logs-${item.id}">
+                                <div class="logs-loading">Loading logs...</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            attachItemEventListeners() {
+                // Item hover effects and interactions are handled by CSS and inline onclick handlers
+                // This could be expanded for more complex interactions
+            }
+            
+            findKnowledgeItemById(id) {
+                if (!this.knowledgeItems || !Array.isArray(this.knowledgeItems)) {
+                    return null;
+                }
+                return this.knowledgeItems.find(item => item.id == id);
+            }
+            
+            performSearch(searchTerm) {
+                const items = this.modal.querySelectorAll('.knowledge-item');
+                const sections = this.modal.querySelectorAll('.knowledge-section');
+                let hasResults = false;
+                
+                sections.forEach(section => {
+                    let sectionHasVisibleItems = false;
+                    const sectionItems = section.querySelectorAll('.knowledge-item');
+                    
+                    sectionItems.forEach(item => {
+                        const title = item.querySelector('.knowledge-item-title')?.textContent.toLowerCase() || '';
+                        const description = item.querySelector('.knowledge-item-description')?.textContent.toLowerCase() || '';
+                        const tags = Array.from(item.querySelectorAll('.knowledge-tag'))
+                                         .map(tag => tag.textContent.toLowerCase()).join(' ');
+                        
+                        const isMatch = !searchTerm || 
+                                       title.includes(searchTerm) || 
+                                       description.includes(searchTerm) || 
+                                       tags.includes(searchTerm);
+                        
+                        if (isMatch) {
+                            item.style.display = '';
+                            sectionHasVisibleItems = true;
+                            hasResults = true;
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                    
+                    const sectionHeader = section.querySelector('h3');
+                    if (sectionHeader) {
+                        sectionHeader.style.display = sectionHasVisibleItems ? '' : 'none';
+                    }
+                });
+                
+                this.toggleNoResultsMessage(!hasResults && searchTerm);
+            }
+            
+            filterByCategory(category) {
+                const sections = this.modal.querySelectorAll('.knowledge-section');
+                
+                sections.forEach(section => {
+                    const sectionTitle = section.querySelector('h3')?.textContent.trim();
+                    const shouldShow = !category || sectionTitle === category;
+                    section.style.display = shouldShow ? '' : 'none';
+                });
+            }
+            
+            toggleNoResultsMessage(show) {
+                let noResultsMsg = this.modal.querySelector('.no-results-message');
+                
+                if (show && !noResultsMsg) {
+                    noResultsMsg = document.createElement('div');
+                    noResultsMsg.className = 'no-results-message';
+                    noResultsMsg.style.cssText = `
+                        text-align: center; 
+                        color: #6b7280; 
+                        padding: 2rem; 
+                        font-style: italic;
+                    `;
+                    noResultsMsg.textContent = 'No knowledge items match your search.';
+                    document.getElementById('knowledgeItemsContainer').appendChild(noResultsMsg);
+                } else if (!show && noResultsMsg) {
+                    noResultsMsg.remove();
+                }
+            }
+            
+            renderEmptyState() {
+                const container = document.getElementById('knowledgeItemsContainer');
+                container.innerHTML = `
+                    <div class="knowledge-section">
+                        <h3>No Knowledge Items</h3>
+                        <div class="knowledge-item">
+                            <div class="knowledge-item-title">No knowledge has been added yet</div>
+                            <div class="knowledge-item-description">
+                                Click the "Add New" button above to create your first knowledge item.
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            renderErrorState() {
+                const container = document.getElementById('knowledgeItemsContainer');
+                container.innerHTML = `
+                    <div class="knowledge-section">
+                        <h3>Error Loading Knowledge</h3>
+                        <div class="knowledge-item">
+                            <div class="knowledge-item-title">Failed to load knowledge items</div>
+                            <div class="knowledge-item-description">
+                                There was an error loading knowledge from the server. Please try again later.
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Utility method for timestamp formatting
+            formatTimestamp(timestamp) {
+                if (!timestamp) return 'N/A';
+                
+                try {
+                    // Handle various timestamp formats
+                    let cleanTimestamp = timestamp;
+                    if (typeof timestamp === 'string') {
+                        // Handle format like "2025-09-09T22:17:18.852152+00:00Z" - remove Z after timezone
+                        cleanTimestamp = timestamp.replace(/\+00:00Z$/, '+00:00');
+                        // Handle format ending with just 'Z'
+                        cleanTimestamp = cleanTimestamp.replace(/Z$/, '');
+                        // Handle microseconds - truncate to milliseconds for better browser compatibility
+                        cleanTimestamp = cleanTimestamp.replace(/\.\d{6}/, function(match) {
+                            return match.substring(0, 4); // Keep only 3 digits after decimal
+                        });
+                    }
+                    
+                    const date = new Date(cleanTimestamp);
+                    
+                    // Validate the date is actually valid
+                    if (isNaN(date.getTime())) {
+                        console.warn('Invalid timestamp format:', timestamp, 'cleaned to:', cleanTimestamp);
+                        return 'Invalid Date';
+                    }
+                    
+                    // Format as local date/time
+                    return date.toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    });
+                } catch (error) {
+                    console.error('Error formatting timestamp:', error, 'for timestamp:', timestamp);
+                    return 'Format Error';
+                }
+            }
+        }
+
         // Initialize modal instance
         let taskDetailModal = null;
+        let knowledgeModal = null;
         
         function openTaskDetailModal(task) {
             if (!taskDetailModal) {
                 taskDetailModal = new TaskDetailModal();
             }
             taskDetailModal.open(task);
+        }
+        
+        async function openKnowledgeModal() {
+            if (!knowledgeModal) {
+                knowledgeModal = new KnowledgeManagementModal();
+            }
+            await knowledgeModal.open();
         }
         
         function updateTaskCounts() {
@@ -3435,6 +5348,45 @@
                 }
             });
         }
+
+        // #COMPLETION_DRIVE_SETUP: Knowledge Management button event handler setup
+        // RA-Light Mode: Comprehensive event binding with error handling
+        function setupKnowledgeHandlers() {
+            const knowledgeBtn = document.getElementById('knowledgeBtn');
+            
+            if (knowledgeBtn) {
+                knowledgeBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    try {
+                        await openKnowledgeModal();
+                    } catch (error) {
+                        console.error('Error opening knowledge modal:', error);
+                        showNotification('Error opening Knowledge Management', 'error');
+                    }
+                });
+                
+                // Add keyboard accessibility (Enter and Space keys)
+                knowledgeBtn.addEventListener('keydown', async (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        try {
+                            await openKnowledgeModal();
+                        } catch (error) {
+                            console.error('Error opening knowledge modal via keyboard:', error);
+                            showNotification('Error opening Knowledge Management', 'error');
+                        }
+                    }
+                });
+                
+                console.log('Knowledge Management button handlers initialized');
+            } else {
+                console.warn('Knowledge button not found during initialization');
+            }
+        }
         
         // #COMPLETION_DRIVE_LIFECYCLE: Application initialization and cleanup
         // Pattern: Proper resource management and event handling setup
@@ -3452,6 +5404,9 @@
             
             // Setup delete handlers
             setupDeleteHandlers();
+            
+            // Setup knowledge management handlers
+            setupKnowledgeHandlers();
             
             // Setup filter event listeners
             const projectSelector = document.getElementById('projectSelector');
@@ -3788,6 +5743,141 @@
             <div class="modal-footer">
                 <button class="modal-btn modal-btn-cancel" onclick="closeDeleteModal()">Cancel</button>
                 <button id="confirmDeleteBtn" class="modal-btn modal-btn-danger" onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Knowledge Management Modal -->
+    <div id="knowledgeModal" class="knowledge-modal">
+        <div class="knowledge-modal-content">
+            <!-- Interactive Modal Header with Action Buttons -->
+            <div class="modal-header">
+                <div class="modal-header-left">
+                    <h2 class="modal-title">Knowledge Management</h2>
+                    <div class="context-indicator" id="knowledgeContextIndicator">Project Context</div>
+                </div>
+                <div class="modal-header-actions">
+                    <button id="addKnowledgeBtn" class="action-btn add-btn" title="Add New Knowledge Item">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8 0a1 1 0 0 1 1 1v6h6a1 1 0 1 1 0 2H9v6a1 1 0 1 1-2 0V9H1a1 1 0 0 1 0-2h6V1a1 1 0 0 1 1-1z"/>
+                        </svg>
+                        Add New
+                    </button>
+                    <button id="saveKnowledgeBtn" class="action-btn save-btn" title="Save Changes" style="display: none;">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L8.5 8.293V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2.5a.5.5 0 0 1 0 1H2z"/>
+                        </svg>
+                        Save
+                    </button>
+                    <button id="cancelKnowledgeBtn" class="action-btn cancel-btn" title="Cancel Changes" style="display: none;">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                        </svg>
+                        Cancel
+                    </button>
+                    <button id="knowledgeModalCloseBtn" class="modal-close-btn" aria-label="Close Knowledge Modal">&times;</button>
+                </div>
+            </div>
+            
+            <div class="knowledge-modal-body">
+                <!-- Enhanced Search and Filter Bar -->
+                <div class="knowledge-search-container">
+                    <div class="search-input-wrapper">
+                        <svg class="search-icon" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                        </svg>
+                        <input type="text" id="knowledgeSearchInput" placeholder="Search knowledge items..." class="search-input">
+                        <button id="clearSearchBtn" class="clear-search-btn" title="Clear search" style="display: none;">
+                            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <select id="categoryFilter" class="category-filter">
+                        <option value="">All Categories</option>
+                        <option value="Technical Documentation">Technical Documentation</option>
+                        <option value="Best Practices">Best Practices</option>
+                        <option value="Development Workflow">Development Workflow</option>
+                        <option value="Troubleshooting">Troubleshooting</option>
+                        <option value="Architecture">Architecture</option>
+                        <option value="Standards">Standards</option>
+                    </select>
+                </div>
+                
+                <!-- Add/Edit Form (hidden by default) -->
+                <div id="knowledgeEditForm" class="knowledge-edit-form" style="display: none;">
+                    <div class="form-header">
+                        <h3 id="formTitle">Add New Knowledge Item</h3>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="itemTitle">Title *</label>
+                            <input type="text" id="itemTitle" class="form-input" required maxlength="200">
+                            <span class="field-error" id="titleError"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="itemCategory">Category *</label>
+                            <select id="itemCategory" class="form-select" required>
+                                <option value="">Select Category</option>
+                                <option value="Technical Documentation">Technical Documentation</option>
+                                <option value="Best Practices">Best Practices</option>
+                                <option value="Development Workflow">Development Workflow</option>
+                                <option value="Troubleshooting">Troubleshooting</option>
+                                <option value="Architecture">Architecture</option>
+                                <option value="Standards">Standards</option>
+                            </select>
+                            <span class="field-error" id="categoryError"></span>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="itemContent">Description/Content *</label>
+                            <textarea id="itemContent" class="form-textarea" required rows="4" maxlength="2000" placeholder="Provide detailed description or content..."></textarea>
+                            <div class="textarea-footer">
+                                <span class="field-error" id="contentError"></span>
+                                <span class="char-counter" id="contentCharCounter">0/2000</span>
+                            </div>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="itemTags">Tags</label>
+                            <div class="tags-input-container">
+                                <input type="text" id="itemTags" class="form-input" placeholder="Enter tags (press Enter to add)">
+                                <div class="tags-display" id="tagsDisplay"></div>
+                            </div>
+                            <small class="field-help">Press Enter after typing each tag</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="itemPriority">Priority</label>
+                            <select id="itemPriority" class="form-select">
+                                <option value="1">Low</option>
+                                <option value="2" selected>Medium</option>
+                                <option value="3">High</option>
+                                <option value="4">Critical</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Loading State -->
+                <div id="loadingState" class="loading-state" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <p>Loading knowledge items...</p>
+                </div>
+                
+                <!-- Knowledge Items Container -->
+                <div id="knowledgeItemsContainer" class="knowledge-items-container">
+                    <!-- Dynamic content will be rendered here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Dialog -->
+    <div id="confirmationDialog" class="confirmation-dialog" style="display: none;">
+        <div class="confirmation-content">
+            <div class="confirmation-title" id="confirmationTitle">Confirm Action</div>
+            <div class="confirmation-message" id="confirmationMessage">Are you sure you want to perform this action?</div>
+            <div class="confirmation-actions">
+                <button id="confirmationCancelBtn" class="cancel-confirm-btn">Cancel</button>
+                <button id="confirmationConfirmBtn" class="confirm-btn">Confirm</button>
             </div>
         </div>
     </div>

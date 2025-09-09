@@ -253,7 +253,7 @@ class TestProjectManagerMCPServer:
         assert info["name"] == "Test MCP Server"
         assert info["version"] == "1.0.0-test"
         assert "task coordination capabilities" in info["instructions"]
-        assert len(info["registered_tools"]) == 11
+        assert len(info["registered_tools"]) == 14
         assert "get_available_tasks" in info["registered_tools"]
         assert "acquire_task_lock" in info["registered_tools"]
         assert "update_task_status" in info["registered_tools"]

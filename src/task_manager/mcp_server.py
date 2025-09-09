@@ -248,17 +248,30 @@ class ProjectManagerMCPServer:
             get_instructions_tool = GetInstructionsTool(self.database, self.websocket_manager)
 
             @mcp.tool
-            async def get_instructions(format: str = "concise") -> str:
+            async def get_instructions(
+                format: str = "concise", 
+                project_id: str = None,
+                epic_id: str = None,
+                include_knowledge_context: str = "true"
+            ) -> str:
                 """
-                Get RA methodology instructions.
+                Get RA methodology instructions with optional knowledge context injection.
 
                 Args:
                     format: "full" or "concise" (default: "concise")
+                    project_id: Project ID for knowledge context (optional)
+                    epic_id: Epic ID for knowledge context (optional)
+                    include_knowledge_context: Whether to inject knowledge context (default: "true")
 
                 Returns:
-                    JSON string containing instructions text and metadata
+                    JSON string containing instructions text, metadata, and knowledge context
                 """
-                return await get_instructions_tool.apply(format=format)
+                return await get_instructions_tool.apply(
+                    format=format,
+                    project_id=project_id,
+                    epic_id=epic_id,
+                    include_knowledge_context=include_knowledge_context
+                )
 
             # CreateTaskTool tool registration
             create_task_tool = create_tool_instance("create_task", self.database, self.websocket_manager)
@@ -645,7 +658,134 @@ class ProjectManagerMCPServer:
                     limit=limit_int
                 )
             
-            logger.info(f"FastMCP server '{self.server_name}' created with 11 registered tools")
+            # Knowledge Management Tools
+            @mcp.tool
+            async def get_knowledge(
+                project_id: Optional[str] = None,
+                epic_id: Optional[str] = None,
+                category: Optional[str] = None,
+                knowledge_id: Optional[str] = None,
+                parent_id: Optional[str] = None,
+                limit: Optional[str] = None,
+                include_inactive: bool = False
+            ) -> str:
+                """
+                Retrieve knowledge items with flexible filtering options.
+                
+                Args:
+                    project_id: Filter by project association
+                    epic_id: Filter by epic association
+                    category: Filter by category
+                    knowledge_id: Specific knowledge item ID to retrieve
+                    parent_id: Filter by parent knowledge item (hierarchical)
+                    limit: Maximum number of results to return
+                    include_inactive: Include inactive knowledge items
+                    
+                Returns:
+                    JSON string with knowledge items and metadata
+                """
+                from .tools import GetKnowledgeTool
+                
+                get_knowledge_tool = GetKnowledgeTool(self.database, self.websocket_manager)
+                return await get_knowledge_tool.apply(
+                    project_id=project_id,
+                    epic_id=epic_id,
+                    category=category,
+                    knowledge_id=knowledge_id,
+                    parent_id=parent_id,
+                    limit=limit,
+                    include_inactive=str(include_inactive).lower() if include_inactive else None
+                )
+            
+            @mcp.tool
+            async def upsert_knowledge(
+                title: str,
+                content: str,
+                knowledge_id: Optional[str] = None,
+                category: Optional[str] = None,
+                tags: Optional[str] = None,
+                parent_id: Optional[str] = None,
+                project_id: Optional[str] = None,
+                epic_id: Optional[str] = None,
+                task_id: Optional[str] = None,
+                priority: Optional[str] = None,
+                is_active: Optional[str] = None,
+                created_by: Optional[str] = None,
+                metadata: Optional[str] = None
+            ) -> str:
+                """
+                Create or update knowledge items with validation.
+                
+                Args:
+                    title: Knowledge item title (required)
+                    content: Knowledge item content (required)
+                    knowledge_id: ID for update, None for create
+                    category: Category classification
+                    tags: JSON string of tags list (e.g., '["tag1", "tag2"]')
+                    parent_id: Parent knowledge item for hierarchy
+                    project_id: Associated project
+                    epic_id: Associated epic
+                    task_id: Associated task
+                    priority: Priority level (0-5)
+                    is_active: Whether item is active
+                    created_by: Creator identifier
+                    metadata: JSON string of additional metadata
+                    
+                Returns:
+                    JSON string with operation result
+                """
+                from .tools import UpsertKnowledgeTool
+                
+                upsert_knowledge_tool = UpsertKnowledgeTool(self.database, self.websocket_manager)
+                return await upsert_knowledge_tool.apply(
+                    title=title,
+                    content=content,
+                    knowledge_id=knowledge_id,
+                    category=category,
+                    tags=tags,
+                    parent_id=parent_id,
+                    project_id=project_id,
+                    epic_id=epic_id,
+                    task_id=task_id,
+                    priority=priority,
+                    is_active=is_active,
+                    created_by=created_by,
+                    metadata=metadata
+                )
+            
+            @mcp.tool
+            async def append_knowledge_log(
+                knowledge_id: str,
+                action_type: str,
+                change_reason: Optional[str] = None,
+                created_by: Optional[str] = None,
+                metadata: Optional[str] = None
+            ) -> str:
+                """
+                Append log entry to knowledge item history.
+                
+                Args:
+                    knowledge_id: ID of knowledge item to log to
+                    action_type: Type of action performed
+                    change_reason: Reason for the change
+                    created_by: User who made the change
+                    metadata: JSON string of additional metadata
+                    
+                Returns:
+                    JSON string with log operation result
+                """
+                from .tools import AppendKnowledgeLogTool
+                
+                append_log_tool = AppendKnowledgeLogTool(self.database, self.websocket_manager)
+                return await append_log_tool.apply(
+                    knowledge_id=knowledge_id,
+                    action_type=action_type,
+                    change_reason=change_reason,
+                    created_by=created_by,
+                    metadata=metadata
+                )
+            
+            logger.info(f"FastMCP server '{self.server_name}' created with 14 registered tools")
             return mcp
             
         except Exception as e:
@@ -792,7 +932,10 @@ class ProjectManagerMCPServer:
                 "get_task_details",
                 "list_projects",
                 "list_epics", 
-                "list_tasks"
+                "list_tasks",
+                "get_knowledge",
+                "upsert_knowledge",
+                "append_knowledge_log"
             ],
             "server_created": self.mcp_server is not None,
             # Enhancement opportunity: Add health check capabilities
