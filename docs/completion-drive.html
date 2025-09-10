@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Completion Drive Spectrum - Response Awareness</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: #f8f9fa;
+        }
+        
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .title {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .tagline {
+            font-size: 1.5rem;
+            font-weight: 300;
+            margin-bottom: 3rem;
+            opacity: 0.9;
+        }
+        
+        .spectrum-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 3rem;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .spectrum-line {
+            position: relative;
+            height: 12px;
+            background: linear-gradient(to right, #e74c3c 0%, #f39c12 25%, #2ecc71 50%, #3498db 75%, #9b59b6 100%);
+            border-radius: 6px;
+            margin: 2rem 0 1rem 0;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            role: img;
+            aria-label: "Completion Drive spectrum with optimal zone in center";
+        }
+        
+        .spectrum-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 0.5rem 0 0.25rem 0;
+        }
+        
+        .spectrum-caption {
+            text-align: center;
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 1.5rem;
+        }
+        
+        .optimal-zone {
+            position: absolute;
+            top: -6px;
+            left: 35%;
+            width: 30%;
+            height: 24px;
+            background: linear-gradient(135deg, rgba(46, 204, 113, 0.3), rgba(52, 152, 219, 0.3));
+            border-radius: 12px;
+            border: 2px solid #2ecc71;
+            box-shadow: 0 0 20px rgba(46, 204, 113, 0.4);
+        }
+        
+        .optimal-label {
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #ffffff;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .endpoints {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-top: 2rem;
+        }
+        
+        .endpoint {
+            flex: 1;
+            padding: 0 2rem;
+        }
+        
+        .endpoint-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        .low-cd {
+            color: #3498db;
+        }
+        
+        .high-cd {
+            color: #e74c3c;
+        }
+        
+        .outcomes {
+            list-style: none;
+            text-align: left;
+        }
+        
+        .outcomes li {
+            margin: 0.5rem 0;
+            padding: 0.75rem 1rem;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            border-left: 4px solid;
+            font-size: 1.1rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .outcomes li:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(5px);
+        }
+        
+        .low-cd .outcomes li {
+            border-left-color: #3498db;
+        }
+        
+        .high-cd .outcomes li {
+            border-left-color: #e74c3c;
+        }
+        
+        .negative {
+            opacity: 0.8;
+        }
+        
+        .center-zone {
+            flex: 0.8;
+            padding: 0 1rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .sweet-spot {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #ffffff;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .context-examples {
+            background: linear-gradient(135deg, rgba(46, 204, 113, 0.1), rgba(52, 152, 219, 0.1));
+            padding: 1.5rem;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            border: 1px solid rgba(46, 204, 113, 0.3);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+        
+        .interactive-demo {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem 0;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        
+        .demo-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-align: center;
+            color: #2ecc71;
+        }
+        
+        .cd-slider {
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(to right, #e74c3c 0%, #f39c12 30%, #2ecc71 50%, #3498db 70%, #9b59b6 100%);
+            border-radius: 4px;
+            outline: none;
+            -webkit-appearance: none;
+            margin: 1rem 0;
+        }
+        
+        .cd-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #ffffff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .cd-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #ffffff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .cd-level {
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0.5rem 0;
+        }
+        
+        .cd-recos {
+            list-style: none;
+            margin: 1rem 0;
+        }
+        
+        .cd-recos li {
+            margin: 0.5rem 0;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid #2ecc71;
+            font-size: 0.95rem;
+        }
+        
+        .ra-tags {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.85rem;
+            color: #2ecc71;
+            border: 1px solid rgba(46, 204, 113, 0.3);
+        }
+        
+        @media (prefers-reduced-transparency) {
+            .spectrum-container, 
+            .interactive-demo, 
+            .outcomes li,
+            .context-examples {
+                backdrop-filter: none;
+            }
+        }
+        
+        .footer {
+            margin-top: 2rem;
+            font-size: 1.2rem;
+            font-weight: 500;
+            opacity: 0.9;
+        }
+        
+        @media (max-width: 768px) {
+            .title {
+                font-size: 2rem;
+            }
+            
+            .tagline {
+                font-size: 1.2rem;
+            }
+            
+            .endpoints {
+                flex-direction: column;
+                gap: 2rem;
+            }
+            
+            .center-zone {
+                order: -1;
+                margin-bottom: 2rem;
+            }
+            
+            .spectrum-container {
+                padding: 2rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">Completion Drive Spectrum</h1>
+        <p class="tagline">Context-Aware Agent Intelligence</p>
+        
+        <div class="spectrum-container">
+            <div class="spectrum-line">
+                <div class="optimal-zone">
+                    <div class="optimal-label">Optimal Zone</div>
+                </div>
+            </div>
+            <div class="spectrum-labels">
+                <span>Low CD ↔</span>
+                <span>↔ High CD</span>
+            </div>
+            <div class="spectrum-caption">Tune by task type</div>
+            
+            <div class="endpoints">
+                <div class="endpoint low-cd">
+                    <h2 class="endpoint-title">Low CD</h2>
+                    <ul class="outcomes">
+                        <li>🔍 Thorough planning & research</li>
+                        <li>✅ Comprehensive error handling</li>
+                        <li class="negative">⏳ Analysis paralysis</li>
+                        <li class="negative">🏗️ Overengineering</li>
+                        <li class="negative">📚 Gold-plating features</li>
+                        <li class="negative">🚫 Never ships</li>
+                    </ul>
+                </div>
+                
+                <div class="center-zone">
+                    <div class="sweet-spot">🎯 Context-Driven Balance</div>
+                    <div class="context-examples">
+                        <strong>Database migrations:</strong> Low CD<br>
+                        <strong>API integrations:</strong> Medium CD<br>
+                        <strong>Prototypes:</strong> High CD<br>
+                        <strong>Novel architectures:</strong> Low CD<br>
+                        <strong>Known patterns:</strong> High CD
+                    </div>
+                </div>
+                
+                <div class="endpoint high-cd">
+                    <h2 class="endpoint-title">High CD</h2>
+                    <ul class="outcomes">
+                        <li>🚀 Ships quickly</li>
+                        <li>💡 Decisive action</li>
+                        <li class="negative">🏃‍♂️ Rushed assumptions</li>
+                        <li class="negative">🕳️ Missing edge cases</li>
+                        <li class="negative">❌ Insufficient validation</li>
+                        <li class="negative">🔥 Production failures</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="interactive-demo">
+            <div class="demo-title">🎯 Interactive CD Tuning</div>
+            <label for="cd-slider" style="display:block;margin:.5rem 0 .25rem;font-weight:500;">Completion Drive</label>
+            <input id="cd-slider" type="range" min="0" max="100" value="50" class="cd-slider" 
+                   aria-label="Completion Drive level from 0 to 100">
+            <div id="cd-level" class="cd-level">CD: Medium</div>
+            <ul id="cd-recos" class="cd-recos"></ul>
+            <div class="ra-tags" id="ra-tags"></div>
+        </div>
+
+        <div class="footer">
+            <strong>Response Awareness:</strong> Teaching agents when to pause vs. when to ship
+        </div>
+    </div>
+
+    <script>
+        const slider = document.getElementById('cd-slider');
+        const levelEl = document.getElementById('cd-level');
+        const recosEl = document.getElementById('cd-recos');
+        const tagsEl = document.getElementById('ra-tags');
+        
+        const recos = {
+            Low: [
+                "Timebox planning (≤10m) then ship a stub",
+                "Require VERIFY before COMMIT",
+                "Ask 1 clarifying question if spec_coverage < 0.7"
+            ],
+            Medium: [
+                "Write 1 quick test or evidence check",
+                "Proceed if uncertainty ≤ 0.3; else pause",
+                "Log assumptions with #COMPLETION_DRIVE tags"
+            ],
+            High: [
+                "Force a VERIFY gate for irreversible actions",
+                "Add rollback plan; capture #SUGGEST_VERIFY",
+                "Prefer concise output; avoid gap-filling"
+            ],
+        };
+        
+        const tagExamples = {
+            Low: [
+                "#COMPLETION_DRIVE:low",
+                "#SUGGEST_VERIFY:unit+spec", 
+                "#UNCERTAINTY:0.42",
+                "#STOP_REASON:needs_info"
+            ],
+            Medium: [
+                "#COMPLETION_DRIVE:medium",
+                "#SUGGEST_ERROR_HANDLING:timeout+retry",
+                "#UNCERTAINTY:0.25", 
+                "#STOP_REASON:verified"
+            ],
+            High: [
+                "#COMPLETION_DRIVE:high",
+                "#SUGGEST_VERIFY:rollback_plan",
+                "#UNCERTAINTY:0.15",
+                "#STOP_REASON:shipping"
+            ]
+        };
+        
+        function render(v) {
+            const lvl = v < 35 ? "Low" : v > 65 ? "High" : "Medium";
+            levelEl.textContent = `CD: ${lvl}`;
+            recosEl.innerHTML = recos[lvl].map(x => `<li>${x}</li>`).join("");
+            tagsEl.innerHTML = tagExamples[lvl].join("&nbsp;&nbsp;");
+            
+            // Emit RA tags your platform can ingest:
+            window.RA = { 
+                cd_target: lvl.toLowerCase(), 
+                tags: tagExamples[lvl],
+                spec_coverage: v < 35 ? 0.8 : v > 65 ? 0.4 : 0.6,
+                uncertainty: v < 35 ? 0.42 : v > 65 ? 0.15 : 0.25
+            };
+            
+            // Demo logging (replace with your actual logging endpoint)
+            console.log('RA State:', window.RA);
+        }
+        
+        slider.addEventListener('input', e => render(+e.target.value));
+        render(+slider.value);
+    </script>
+</body>
+</html>
