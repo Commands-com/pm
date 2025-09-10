@@ -478,7 +478,11 @@ class TestToolRegistry:
             "list_projects",
             "list_epics",
             "list_tasks",
-            "delete_task"
+            "delete_task",
+            "get_knowledge",
+            "upsert_knowledge",
+            "append_knowledge_log",
+            "get_knowledge_logs"
         }
         
         assert set(AVAILABLE_TOOLS.keys()) == expected_tools

@@ -35,7 +35,7 @@ class RAInstructionsManager:
     
     def __init__(self):
         """Initialize RA instructions manager with current version."""
-        self.version = "2.0.0"
+        self.version = "3.0.0"
         self.last_updated = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
     
     def get_full_instructions(self) -> str:
@@ -55,9 +55,11 @@ NO CODE CHANGES, IMPLEMENTATIONS, OR PROGRAMMING WORK WITHOUT A TASK FIRST!
 
 === PROJECT MANAGER MCP SYSTEM ===
 
-SYSTEM HIERARCHY: Project → Epic → Tasks
+SYSTEM HIERARCHY: Project → Epic → Tasks → Knowledge Items
 
 You have access to a Project Manager MCP server with these tools:
+
+TASK MANAGEMENT:
 - create_task(epic_name, name, description, ra_mode, ra_tags, etc.)
 - update_task(task_id, agent_id, ra_tags, ra_metadata, log_entry, etc.)
 - get_task_details(task_id) - comprehensive task info with RA metadata
@@ -66,6 +68,11 @@ You have access to a Project Manager MCP server with these tools:
 - release_task_lock(task_id, agent_id) - explicit lock release
 - get_available_tasks(status, include_locked) - task discovery
 - list_projects(), list_epics(), list_tasks() - hierarchy browsing
+
+KNOWLEDGE MANAGEMENT:
+- get_knowledge(project_id, epic_id, task_id, category, etc.) - retrieve knowledge items
+- upsert_knowledge(title, content, category, tags, project_id, epic_id, task_id, etc.) - create/update knowledge
+- append_knowledge_log(knowledge_id, action_type, change_reason, etc.) - track knowledge changes
 
 === RA METHODOLOGY WORKFLOW ===
 
@@ -83,8 +90,8 @@ You have access to a Project Manager MCP server with these tools:
    ⛔ DO NOT: Write code, edit files, implement features, or make changes without a task
    ✅ DO: Create task first, then proceed with implementation
 
-3. USE RA TAGS FOR ASSUMPTIONS (RA-Light/Full modes):
-   Mark EVERY assumption, no matter how small:
+3. USE RA TAGS FOR ASSUMPTION AWARENESS (ALL MODES):
+   RA tags help you recognize and track assumptions across ALL complexity levels:
    
    IMPLEMENTATION TAGS:
    - #COMPLETION_DRIVE_IMPL: {{specific implementation assumption}}
@@ -108,10 +115,11 @@ You have access to a Project Manager MCP server with these tools:
    - #SUGGEST_CLEANUP: {{resource cleanup feels necessary}}
    - #SUGGEST_DEFENSIVE: {{defensive programming seems prudent}}
 
-4. IMPLEMENT WITH RA TAGGING:
-   - Simple/Standard: minimal/no RA tags, focus on working code
-   - RA-Light: tag assumptions as you code, update_task with ra_tags
-   - RA-Full: coordinate with multiple agents, full verification workflow
+4. IMPLEMENT WITH RA TAGGING AND KNOWLEDGE CAPTURE:
+   - Simple: Optional RA tags for learning and awareness, capture key insights as knowledge
+   - Standard: Encouraged RA tags for key assumptions, document decisions in knowledge items
+   - RA-Light: Required RA tags for all assumptions, comprehensive knowledge documentation
+   - RA-Full: Extensive RA tagging with verification, coordinated knowledge management
 
 5. LOG PROGRESS:
    Use update_task(task_id, agent_id, log_entry="Progress update...") regularly
@@ -121,32 +129,123 @@ You have access to a Project Manager MCP server with these tools:
    - IN_PROGRESS → REVIEW: update_task_status(task_id, "REVIEW", agent_id) # Releases lock for handoff
    - REVIEW → DONE: update_task_status(task_id, "DONE", agent_id) # Reviewer marks done, auto-releases
    - PREFERRED: Use update_task_status() for automatic lock management
+   
+   CRITICAL: If RA tags were used during implementation, task MUST go to REVIEW status, not directly to DONE.
+   RA tags indicate assumptions that require validation before completion.
 
 === MODE-SPECIFIC IMPLEMENTATION ===
 
 SIMPLE MODE (Complexity 1-3):
-- Direct implementation, minimal overhead
+- Direct implementation with optional RA awareness
 - Basic error handling and testing
-- No RA tags required
-- Standard completion workflow
+- RA tags welcome for learning: help identify your thinking patterns
+- Knowledge capture: document any useful insights for future reference
+- Completion: If no RA tags → DONE, if RA tags used → REVIEW for assumption validation
 
 STANDARD MODE (Complexity 4-6):
-- Document key assumptions in code comments
+- Structured implementation with assumption awareness
+- RA tags encouraged for key decisions and uncertainties
+- Document assumptions in code comments AND knowledge items
 - Comprehensive error handling and testing
-- Brief verification against acceptance criteria
-- This is the most common mode for regular development
+- Knowledge management: capture architectural decisions and lessons learned
+- Completion: If RA tags used → REVIEW for assumption validation, then DONE
 
 RA-LIGHT MODE (Complexity 7-8):
-- Use RA tags extensively during implementation
+- Implementation with extensive RA tagging required
 - Every assumption must be tagged with specific content
 - Don't implement SUGGEST_* items - just tag them
+- Comprehensive knowledge documentation of all decisions
 - Flag for verification: update_task(ra_metadata={{"verification_needed": True}})
+- Knowledge items must be created for all major assumptions
+- Completion: ALWAYS goes to REVIEW for thorough assumption validation
 
 RA-FULL MODE (Complexity 9-10):
 - DO NOT implement directly - requires orchestration
 - Deploy survey, planning, synthesis, implementation, and verification agents
 - Coordinate multi-agent workflow with atomic task locking
 - Full assumption validation and verification phase
+- Comprehensive knowledge management across all agents
+- Knowledge items serve as coordination mechanism between agents
+- Completion: Multi-stage REVIEW process with verification agents before DONE
+
+=== KNOWLEDGE MANAGEMENT INTEGRATION ===
+
+KNOWLEDGE HIERARCHY:
+- Project-level: Hard-won architectural insights, non-obvious gotchas, time-saving patterns
+- Epic-level: Integration challenges that required multiple attempts to solve
+- Task-level: Trial-and-error solutions, what-not-to-do insights, user corrections
+- Category-based: Group by type (gotchas, workarounds, multi-attempt-solutions, etc.)
+
+KNOWLEDGE WORKFLOW PATTERNS:
+
+CAPTURE HARD-WON INSIGHTS AFTER TRIAL-AND-ERROR:
+# Only capture knowledge when something took multiple attempts or was non-obvious
+
+# Example: After struggling with API integration
+upsert_knowledge(
+  title="WebServer API Response Fix - Multiple Attempts Required",
+  content="Problem: API kept returning 500 errors. Tried: 1) Different headers (failed), 2) JSON format change (failed), 3) URL encoding (failed), 4) Finally discovered: API requires 'Content-Type: application/json' AND body must be valid JSON string, not object. Took 4 attempts over 2 hours.",
+  category="gotchas", 
+  tags='["api", "webserver", "trial_and_error", "content_type"]',
+  task_id="current_task_id"
+)
+
+# Example: User correction - what NOT to do
+upsert_knowledge(
+  title="FastMCP Parameter Types - User Correction",
+  content="Critical gotcha: FastMCP server only accepts string parameters, never integers or objects. Attempted to pass task_id=123 (integer) - failed silently. User correction: Must use task_id='123' (string). This applies to ALL MCP tool parameters.",
+  category="user_corrections",
+  tags='["fastmcp", "parameters", "string_only", "gotcha"]',
+  task_id="current_task_id"
+)
+
+CAPTURE CSS SOLUTIONS AFTER MULTIPLE ATTEMPTS:
+upsert_knowledge(
+  title="CSS Flexbox Alignment - What Finally Worked",
+  content="Problem: Button alignment broken on Safari. Tried: 1) text-align: center (failed), 2) margin: auto (failed), 3) position: absolute + transform (failed), 4) Finally worked: display: flex + align-items: center + justify-content: center on parent container. Safari quirk: needs -webkit-flex for older versions.",
+  category="css_gotchas",
+  tags='["css", "flexbox", "safari", "trial_and_error", "alignment"]',
+  task_id="current_task_id"
+)
+
+CAPTURE INTEGRATION CHALLENGES:
+upsert_knowledge(
+  title="Database Connection Pool - Trial and Error Solution",
+  content="Problem: App crashing under load. Tried: 1) Increasing memory (failed), 2) Connection timeout changes (failed), 3) Finally discovered: Need to explicitly close connections in error handlers. Pool exhaustion was from unclosed connections in catch blocks. Added conn.close() to all error paths.",
+  category="database_gotchas",
+  tags='["database", "connection_pool", "error_handling", "memory_leak"]',
+  task_id="current_task_id"
+)
+
+KNOWLEDGE RETRIEVAL PATTERNS:
+# Get project-wide architectural knowledge
+get_knowledge(project_id="3", category="architecture")
+
+# Get task-specific implementation notes  
+get_knowledge(task_id="current_task_id")
+
+# Get all authentication-related knowledge
+get_knowledge(project_id="3", category="security", limit="20")
+
+=== INTEGRATED TASK + KNOWLEDGE WORKFLOW ===
+
+1. CREATE TASK with initial knowledge context
+2. REVIEW existing knowledge for context and patterns
+3. IMPLEMENT with RA tagging for assumptions and uncertainties
+4. VALIDATE assumptions through testing/research/review
+5. CAPTURE knowledge ONLY for hard-won insights, trial-and-error solutions, and gotchas
+6. LINK knowledge items to task for future reference
+7. UPDATE task logs with knowledge item references
+8. VERIFY implementation against captured knowledge
+9. MARK DONE with validated knowledge documentation
+
+CRITICAL DISTINCTION:
+- RA TAGS: Temporary assumptions and uncertainties during implementation
+- KNOWLEDGE: Hard-won insights that took multiple attempts, gotchas, user corrections, and time-saving solutions
+
+WHEN TO CAPTURE KNOWLEDGE:
+✅ DO capture: Trial-and-error solutions, non-obvious gotchas, user corrections, integration challenges
+❌ DON'T capture: Routine implementation details, standard patterns, obvious solutions
 
 === MCP INTEGRATION PATTERNS ===
 
@@ -185,11 +284,57 @@ update_task(
   log_entry="Added additional RA tags for search patterns and security considerations"
 )
 
-TASK COORDINATION WORKFLOW:
+ENHANCED TASK + KNOWLEDGE COORDINATION WORKFLOW:
 1. create_task(...) - MUST CREATE TASK FIRST BEFORE ANY WORK
-2. update_task_status(task_id, "IN_PROGRESS", agent_id) - Auto-acquires lock
-3. Implement with RA tagging: update_task with ra_tags and progress logs
-4. update_task_status(task_id, "DONE", agent_id) - Auto-releases lock
+2. get_knowledge(...) - Review existing project/epic knowledge for context
+3. update_task_status(task_id, "IN_PROGRESS", agent_id) - Auto-acquires lock
+4. Implement with RA tagging: update_task with ra_tags and progress logs
+5. upsert_knowledge(...) - Capture key decisions and assumptions as knowledge
+6. update_task(task_id, log_entry="Added knowledge item X for assumption Y")
+7. update_task_status(task_id, "REVIEW", agent_id) - Ready for review
+8. Review knowledge items and implementation together
+9. update_task_status(task_id, "DONE", agent_id) - Auto-releases lock
+
+KNOWLEDGE-ENHANCED EXAMPLES:
+
+SIMPLE MODE WITH RA TAGS - KNOWLEDGE ONLY IF NEEDED:
+# Simple tasks usually don't need knowledge capture unless something was tricky
+create_task(name="Fix button alignment", ra_mode="simple", ra_score="2")
+
+# During implementation - tag assumptions:
+update_task(ra_tags='["#PATTERN_MOMENTUM: Using standard flexbox pattern for alignment"]')
+
+# ONLY capture knowledge if it took multiple attempts or was non-obvious:
+# If flexbox worked immediately - NO knowledge needed
+# If you struggled with Safari compatibility - THEN capture:
+upsert_knowledge(
+  title="Button Alignment Safari Quirk",
+  content="Problem: Flexbox alignment worked in Chrome/Firefox but failed in Safari. Tried: 1) Regular flexbox (failed in Safari), 2) Finally needed -webkit-flex prefix for Safari 14. Standard flexbox works in Safari 15+.",
+  category="css_gotchas",
+  tags='["css", "flexbox", "safari", "browser_compatibility"]',
+  task_id="current_task_id"
+)
+
+STANDARD MODE WITH RA TAGS → KNOWLEDGE FOR GOTCHAS ONLY:
+create_task(name="Implement user search", ra_mode="standard", ra_score="5")
+
+# During implementation - tag assumptions:
+update_task(
+  task_id="search_task",
+  ra_tags='["#SUGGEST_VALIDATION: Search input should be sanitized", "#COMPLETION_DRIVE_IMPL: Assuming fuzzy search is needed"]',
+  log_entry="Added RA tags for search assumptions"
+)
+
+# ONLY capture knowledge if you encountered non-obvious problems:
+# If PostgreSQL FTS worked smoothly - NO knowledge needed
+# If you struggled with configuration - THEN capture:
+upsert_knowledge(
+  title="PostgreSQL FTS GIN Index Gotcha",
+  content="Problem: Search was slow (2000ms). Tried: 1) BTREE index (no improvement), 2) Increasing work_mem (no improvement), 3) Finally discovered: FTS needs GIN index, not BTREE. Command: CREATE INDEX USING gin(to_tsvector('english', content)). Reduced search time to 50ms.",
+  category="database_gotchas",
+  tags='["postgresql", "fts", "gin_index", "performance"]',
+  task_id="search_task"
+)
 
 LOCKING BEST PRACTICES:
 - PREFERRED: Use update_task_status("IN_PROGRESS") for auto-locking
@@ -386,12 +531,12 @@ Version: {self.version}"""
             validation_result["errors"].append(f"Invalid RA score {ra_score} - must be 1-10")
             validation_result["compliant"] = False
         
-        # Validate RA mode consistency
+        # Validate RA mode consistency with new broader tag usage
         if ra_mode in ['ra-light', 'ra-full'] and not ra_tags:
             validation_result["warnings"].append(f"RA mode '{ra_mode}' should include assumption tags")
         
         if ra_mode in ['simple', 'standard'] and ra_tags:
-            validation_result["recommendations"].append(f"RA tags not needed for '{ra_mode}' mode")
+            validation_result["recommendations"].append(f"RA tags are encouraged for '{ra_mode}' mode for assumption awareness")
         
         # Validate tag format
         valid_tag_prefixes = [
@@ -426,21 +571,25 @@ Version: {self.version}"""
             mode = "simple"
             guidelines = {
                 "mode": mode,
-                "approach": "Direct implementation with minimal overhead",
+                "approach": "Direct implementation with optional RA awareness",
                 "tagging_required": False,
+                "tagging_encouraged": True,
+                "knowledge_capture": "Optional, useful insights",
                 "testing_level": "Basic unit tests",
                 "verification_needed": False,
-                "implementation_pattern": "Read requirements → implement → basic tests → done"
+                "implementation_pattern": "Read requirements → implement with optional RA tags → basic tests → capture useful knowledge → done"
             }
         elif complexity_score <= 6:
             mode = "standard"
             guidelines = {
                 "mode": mode,
-                "approach": "Structured implementation with assumption documentation",
+                "approach": "Structured implementation with assumption awareness",
                 "tagging_required": False,
+                "tagging_encouraged": True,
+                "knowledge_capture": "Key decisions and lessons learned",
                 "testing_level": "Unit + integration tests",
                 "verification_needed": True,
-                "implementation_pattern": "Plan → implement → document key assumptions in comments → comprehensive tests → verify against criteria"
+                "implementation_pattern": "Plan → implement with RA tags for key assumptions → document decisions in knowledge → comprehensive tests → verify against criteria"
             }
         elif complexity_score <= 8:
             mode = "ra-light"
@@ -448,9 +597,11 @@ Version: {self.version}"""
                 "mode": mode,
                 "approach": "Implementation with extensive RA tagging",
                 "tagging_required": True,
+                "tagging_encouraged": True,
+                "knowledge_capture": "Comprehensive documentation of all decisions",
                 "testing_level": "Unit + integration + edge case tests",
                 "verification_needed": True,
-                "implementation_pattern": "Plan → implement with RA tags → flag for verification → comprehensive testing"
+                "implementation_pattern": "Plan → implement with comprehensive RA tags → create knowledge items for all assumptions → flag for verification → comprehensive testing"
             }
         else:
             mode = "ra-full"
@@ -458,9 +609,11 @@ Version: {self.version}"""
                 "mode": mode,
                 "approach": "Multi-agent orchestration with full RA workflow",
                 "tagging_required": True,
+                "tagging_encouraged": True,
+                "knowledge_capture": "Full knowledge management across agents",
                 "testing_level": "Complete test coverage with validation",
                 "verification_needed": True,
-                "implementation_pattern": "Deploy survey agent → parallel planning → synthesis → coordinated implementation → verification"
+                "implementation_pattern": "Deploy survey agent → parallel planning → synthesis → coordinated implementation with knowledge sharing → verification phase"
             }
         
         guidelines["complexity_score"] = complexity_score
@@ -507,6 +660,8 @@ Version: {self.version}"""
             "features": [
                 "comprehensive_ra_workflow",
                 "mcp_tool_integration", 
+                "knowledge_management_integration",
+                "broader_ra_tag_usage",
                 "complexity_assessment",
                 "tag_taxonomy",
                 "mode_guidelines",
