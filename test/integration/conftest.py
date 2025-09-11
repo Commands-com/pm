@@ -29,7 +29,7 @@ CLITestProcess = project_manager_conftest.CLITestProcess
 def integration_db():
     """Provide isolated integration test database."""
     test_db = IntegrationTestDatabase()
-    yield test_db
+    yield test_db.database  # Yield the actual TaskDatabase instance
     test_db.cleanup()
 
 

@@ -10,8 +10,9 @@ import threading
 import time
 import json
 import logging
+import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from contextlib import contextmanager
 from pathlib import Path
 from .performance import timed_query
@@ -404,6 +405,64 @@ class TaskDatabase:
             CREATE INDEX IF NOT EXISTS idx_knowledge_logs_item_time 
             ON knowledge_logs (knowledge_id, created_at DESC)
         """)
+        
+        # Assumption validations table - stores RA tag validation outcomes during review
+        # #COMPLETION_DRIVE_IMPL: Foreign keys to tasks, projects, epics for hierarchical context
+        # Enhanced with ra_tag_id for exact tag matching
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS assumption_validations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER NOT NULL,
+                project_id INTEGER,
+                epic_id INTEGER,
+                ra_tag_id TEXT NOT NULL,
+                ra_tag TEXT NOT NULL,
+                validator_id TEXT NOT NULL,
+                outcome TEXT NOT NULL CHECK (outcome IN ('validated', 'rejected', 'partial')),
+                confidence INTEGER NOT NULL CHECK (confidence BETWEEN 0 AND 100),
+                notes TEXT,
+                context_snapshot TEXT,
+                validated_at TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE,
+                FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+                FOREIGN KEY (epic_id) REFERENCES epics (id) ON DELETE CASCADE,
+                UNIQUE(task_id, ra_tag_id, validator_id)
+            )
+        """)
+        
+        # Performance indexes for assumption validations queries
+        # #PATH_DECISION: Multiple targeted indexes for query flexibility per task specification
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_assumption_validations_task_context 
+            ON assumption_validations (task_id, outcome, validated_at DESC)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_assumption_validations_reviewer_history 
+            ON assumption_validations (validator_id, validated_at DESC)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_assumption_validations_project_context 
+            ON assumption_validations (project_id, epic_id, outcome)
+        """)
+        
+        # Additional individual indexes for test compatibility
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_assumption_validations_task_id 
+            ON assumption_validations (task_id)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_assumption_validations_validated_at 
+            ON assumption_validations (validated_at DESC)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_assumption_validations_outcome 
+            ON assumption_validations (outcome)
+        """)
 
     def create_project(self, name: str, description: Optional[str] = None) -> int:
         """Create a new project and return its ID.
@@ -563,12 +622,27 @@ class TaskDatabase:
         cursor.execute("DROP INDEX IF EXISTS idx_tasks_lock_holder")
         cursor.execute("DROP INDEX IF EXISTS idx_tasks_available")
         cursor.execute("DROP INDEX IF EXISTS idx_tasks_lock_expiration")
+        # Assumption validations indexes
+        cursor.execute("DROP INDEX IF EXISTS idx_assumption_validations_task_context")
+        cursor.execute("DROP INDEX IF EXISTS idx_assumption_validations_reviewer_history")
+        cursor.execute("DROP INDEX IF EXISTS idx_assumption_validations_project_context")
+        # Knowledge management indexes
+        cursor.execute("DROP INDEX IF EXISTS idx_knowledge_category_priority")
+        cursor.execute("DROP INDEX IF EXISTS idx_knowledge_project_context")
+        cursor.execute("DROP INDEX IF EXISTS idx_knowledge_hierarchy")
+        cursor.execute("DROP INDEX IF EXISTS idx_knowledge_active_updated")
+        cursor.execute("DROP INDEX IF EXISTS idx_knowledge_logs_item_time")
         # Legacy indexes from old schema
         cursor.execute("DROP INDEX IF EXISTS idx_stories_epic_id")
         cursor.execute("DROP INDEX IF EXISTS idx_tasks_status")
         cursor.execute("DROP INDEX IF EXISTS idx_tasks_status_updated")
         
         # Drop tables in dependency order
+        cursor.execute("DROP TABLE IF EXISTS assumption_validations")  # Depends on tasks, projects, epics
+        cursor.execute("DROP TABLE IF EXISTS knowledge_logs")  # Depends on knowledge_items
+        cursor.execute("DROP TABLE IF EXISTS knowledge_items")
+        cursor.execute("DROP TABLE IF EXISTS event_log")
+        cursor.execute("DROP TABLE IF EXISTS dashboard_sessions")
         cursor.execute("DROP TABLE IF EXISTS task_logs")
         cursor.execute("DROP TABLE IF EXISTS tasks")
         cursor.execute("DROP TABLE IF EXISTS stories")  # Legacy table removal
@@ -1611,6 +1685,87 @@ class TaskDatabase:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
     
+    def _process_ra_tags_with_ids(self, ra_tags: Optional[Union[List[str], List[Dict[str, Any]]]], 
+                                  existing_tags: Optional[List[Dict[str, Any]]] = None, 
+                                  mode: str = "replace") -> Optional[List[Dict[str, Any]]]:
+        """
+        Process RA tags to ensure they have unique IDs for exact validation matching.
+        
+        Converts string format tags to structured format with auto-generated IDs.
+        Supports both creation (new tags) and update (merge/replace existing tags).
+        
+        Args:
+            ra_tags: Input tags (strings or dicts)
+            existing_tags: Current tags for merge operations
+            mode: "merge" or "replace" for update operations
+            
+        Returns:
+            List of structured tag objects with IDs, or None if no tags
+            
+        Example:
+            Input: ["#COMPLETION_DRIVE: Assumption about API"]
+            Output: [{"id": "ra_tag_abc123", "type": "COMPLETION_DRIVE", 
+                     "text": "#COMPLETION_DRIVE: Assumption about API", 
+                     "created_at": "2025-09-10T..."}]
+        """
+        if not ra_tags:
+            return existing_tags if mode == "merge" and existing_tags else None
+            
+        processed_tags = []
+        
+        # Process new tags
+        for tag in ra_tags:
+            if isinstance(tag, str):
+                # Convert string format to structured format with auto-generated ID
+                tag_type = self._extract_tag_type(tag)
+                tag_obj = {
+                    "id": f"ra_tag_{uuid.uuid4().hex[:8]}",
+                    "type": tag_type,
+                    "text": tag,
+                    "created_at": datetime.now(timezone.utc).isoformat() + 'Z'
+                }
+                processed_tags.append(tag_obj)
+            elif isinstance(tag, dict):
+                # Ensure dict format has an ID
+                if "id" not in tag:
+                    tag["id"] = f"ra_tag_{uuid.uuid4().hex[:8]}"
+                if "created_at" not in tag:
+                    tag["created_at"] = datetime.now(timezone.utc).isoformat() + 'Z'
+                processed_tags.append(tag)
+        
+        # Handle merge mode for updates
+        if mode == "merge" and existing_tags:
+            # Combine existing tags with new tags, avoiding duplicates by ID
+            existing_ids = {tag.get("id") for tag in existing_tags if tag.get("id")}
+            merged_tags = list(existing_tags)  # Start with existing
+            
+            # Add new tags that don't conflict
+            for new_tag in processed_tags:
+                if new_tag.get("id") not in existing_ids:
+                    merged_tags.append(new_tag)
+            
+            return merged_tags
+        
+        return processed_tags
+    
+    def _extract_tag_type(self, tag_text: str) -> str:
+        """
+        Extract tag type from string format tag.
+        
+        Args:
+            tag_text: String like "#COMPLETION_DRIVE: description"
+            
+        Returns:
+            Tag type like "COMPLETION_DRIVE"
+        """
+        if isinstance(tag_text, str) and tag_text.startswith('#'):
+            colon_index = tag_text.find(':')
+            if colon_index != -1:
+                return tag_text[1:colon_index].strip()
+            else:
+                return tag_text[1:].strip()
+        return "UNKNOWN"
+    
     def initialize_fresh(self) -> None:
         """
         Initialize database with clean slate - drops all existing tables first.
@@ -1853,8 +2008,9 @@ class TaskDatabase:
         """
         current_time_str = datetime.now(timezone.utc).isoformat() + 'Z'
         
-        # #COMPLETION_DRIVE_IMPL: Convert Python objects to JSON strings for database storage
-        ra_tags_json = json.dumps(ra_tags) if ra_tags else None
+        # Process RA tags to ensure they have unique IDs for exact validation matching
+        processed_ra_tags = self._process_ra_tags_with_ids(ra_tags)
+        ra_tags_json = json.dumps(processed_ra_tags) if processed_ra_tags else None
         ra_metadata_json = json.dumps(ra_metadata) if ra_metadata else None
         dependencies_json = json.dumps(dependencies) if dependencies else None
         conflicts_with_json = json.dumps(conflicts_with) if conflicts_with else None
@@ -2361,9 +2517,8 @@ class TaskDatabase:
                         params.append(ra_score)
                         updated_fields["ra_score"] = {"old": current_ra_score, "new": ra_score}
                     
-                    # RA tags processing with merge/replace logic
-                    # RA tags merge logic combines existing and new tags as required by task spec
-                    # Tags are stored as JSON arrays and merge means union of values
+                    # RA tags processing with merge/replace logic and ID assignment
+                    # Process tags to ensure they have unique IDs for exact validation matching
                     if ra_tags is not None:
                         try:
                             current_tags = []
@@ -2373,16 +2528,10 @@ class TaskDatabase:
                                 if not isinstance(current_tags, list):
                                     current_tags = []
                             
-                            if ra_tags_mode == "merge":
-                                # Merge mode preserves existing tags and adds new ones as required
-                                # Set union logic prevents duplicate tags while preserving order
-                                merged_tags = list(dict.fromkeys(current_tags + ra_tags))  # Preserve order, remove duplicates
-                                final_tags = merged_tags
-                            else:  # replace mode
-                                # Replace mode completely overwrites existing tags as required
-                                final_tags = ra_tags
+                            # Process new tags with ID assignment using helper function
+                            final_tags = self._process_ra_tags_with_ids(ra_tags, current_tags, ra_tags_mode)
                             
-                            final_tags_json = json.dumps(final_tags)
+                            final_tags_json = json.dumps(final_tags) if final_tags else None
                             if final_tags_json != current_ra_tags_json:
                                 update_fields.append("ra_tags = ?")
                                 params.append(final_tags_json)
@@ -2392,10 +2541,11 @@ class TaskDatabase:
                             # #SUGGEST_ERROR_HANDLING: RA tags JSON parsing errors should not fail entire update
                             logger.warning(f"Failed to parse existing ra_tags for task {task_id}: {e}")
                             # Fallback to replace mode when current data is corrupted
-                            final_tags_json = json.dumps(ra_tags)
+                            processed_tags = self._process_ra_tags_with_ids(ra_tags)
+                            final_tags_json = json.dumps(processed_tags) if processed_tags else None
                             update_fields.append("ra_tags = ?")
                             params.append(final_tags_json)
-                            updated_fields["ra_tags"] = {"old": None, "new": ra_tags, "mode": "replace", "parsing_error": True}
+                            updated_fields["ra_tags"] = {"old": None, "new": processed_tags, "mode": "replace", "parsing_error": True}
                     
                     # RA metadata processing with merge/replace logic
                     # RA metadata merge logic combines dictionary structures as required by task spec

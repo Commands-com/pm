@@ -116,10 +116,10 @@ KNOWLEDGE MANAGEMENT:
    - #SUGGEST_DEFENSIVE: {{defensive programming seems prudent}}
 
 4. IMPLEMENT WITH RA TAGGING AND KNOWLEDGE CAPTURE:
-   - Simple: Optional RA tags for learning and awareness, capture key insights as knowledge
-   - Standard: Encouraged RA tags for key assumptions, document decisions in knowledge items
-   - RA-Light: Required RA tags for all assumptions, comprehensive knowledge documentation
-   - RA-Full: Extensive RA tagging with verification, coordinated knowledge management
+   - Simple: **MANDATORY RA tags for ALL assumptions** - no implementation without tagging, capture knowledge ONLY for problems/gotchas
+   - Standard: **MANDATORY RA tags for ALL assumptions** - every decision must be tagged, capture knowledge ONLY for issues encountered
+   - RA-Light: Required RA tags for all assumptions, knowledge capture for problems that required multiple attempts
+   - RA-Full: Extensive RA tagging with verification, comprehensive problem/solution knowledge capture
 
 5. LOG PROGRESS:
    Use update_task(task_id, agent_id, log_entry="Progress update...") regularly
@@ -136,19 +136,19 @@ KNOWLEDGE MANAGEMENT:
 === MODE-SPECIFIC IMPLEMENTATION ===
 
 SIMPLE MODE (Complexity 1-3):
-- Direct implementation with optional RA awareness
+- Direct implementation with **MANDATORY RA awareness**
 - Basic error handling and testing
-- RA tags welcome for learning: help identify your thinking patterns
-- Knowledge capture: document any useful insights for future reference
-- Completion: If no RA tags → DONE, if RA tags used → REVIEW for assumption validation
+- **RA tags REQUIRED for ALL assumptions** - every implementation decision must be tagged
+- Knowledge capture: document ONLY problems, gotchas, and multi-attempt solutions  
+- Completion: **ALL implementations use RA tags** → MUST go to REVIEW for assumption validation before DONE
 
 STANDARD MODE (Complexity 4-6):
-- Structured implementation with assumption awareness
-- RA tags encouraged for key decisions and uncertainties
-- Document assumptions in code comments AND knowledge items
+- Structured implementation with **MANDATORY RA awareness**
+- **RA tags REQUIRED for ALL decisions and uncertainties**
+- Document assumptions in code comments AND RA tags (NOT knowledge items)
 - Comprehensive error handling and testing
-- Knowledge management: capture architectural decisions and lessons learned
-- Completion: If RA tags used → REVIEW for assumption validation, then DONE
+- Knowledge capture: document ONLY problems, gotchas, and multi-attempt solutions
+- Completion: **ALL implementations use RA tags** → MUST go to REVIEW for assumption validation before DONE
 
 RA-LIGHT MODE (Complexity 7-8):
 - Implementation with extensive RA tagging required

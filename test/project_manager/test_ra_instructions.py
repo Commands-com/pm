@@ -43,7 +43,7 @@ class TestRAInstructionsManager:
         """Test RAInstructionsManager initialization and metadata."""
         manager = RAInstructionsManager()
         
-        assert manager.version == "2.0.0"
+        assert manager.version == "3.0.0"
         assert isinstance(manager.last_updated, str)
         
         # Verify timestamp format

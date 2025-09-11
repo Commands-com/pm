@@ -12,6 +12,7 @@ Package provides:
 """
 
 from .database import TaskDatabase
+from . import ra_tag_utils
 
 # Package version - synchronized with pyproject.toml
 # ASSUMPTION: Version will be managed manually until automated versioning is implemented
@@ -26,6 +27,7 @@ __license__ = "MIT"
 # Public API exports
 __all__ = [
     'TaskDatabase',
+    'ra_tag_utils',
     '__version__',
     '__title__',
     '__description__',

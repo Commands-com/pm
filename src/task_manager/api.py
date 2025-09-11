@@ -25,8 +25,10 @@ from .performance import OptimizedConnectionManager, DatabaseOptimizer
 from .models import (
     KnowledgeRequest, KnowledgeResponse, LogRequest, LogResponse,
     KnowledgeDetailResponse, ErrorResponse, create_error_response, 
-    create_success_response
+    create_success_response, InsightsSummary, RecentValidationsResponse, 
+    TagTypesResponse
 )
+from .assumptions import router as assumptions_router
 
 # Configure logging for debugging WebSocket connections and API operations
 logging.basicConfig(level=logging.INFO)
@@ -439,6 +441,8 @@ except Exception as e:
     # #SUGGEST_ERROR_HANDLING: Static file serving is optional for API functionality
     logger.warning(f"Static file serving not available: {e}")
 
+# Include assumption intelligence API router
+app.include_router(assumptions_router)
 
 # Health check endpoint for monitoring and load balancers
 @app.get("/healthz", response_model=HealthResponse)

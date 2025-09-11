@@ -785,7 +785,43 @@ class ProjectManagerMCPServer:
                     metadata=metadata
                 )
             
-            logger.info(f"FastMCP server '{self.server_name}' created with 14 registered tools")
+            # Assumption Validation Tools
+            @mcp.tool
+            async def capture_assumption_validation(
+                task_id: str,
+                ra_tag_id: str,
+                outcome: str,
+                reason: str,
+                confidence: Optional[int] = None,
+                reviewer_agent_id: Optional[str] = None
+            ) -> str:
+                """
+                Capture structured validation outcome for RA tags during task review.
+                
+                Args:
+                    task_id: ID of the task being reviewed
+                    ra_tag_id: Unique ID of the specific RA tag being validated
+                    outcome: Validation outcome ('validated', 'rejected', 'partial')
+                    reason: Explanation of the validation decision
+                    confidence: Optional confidence level (0-100), auto-set based on outcome if not provided
+                    reviewer_agent_id: Optional reviewer identifier, auto-populated from context if available
+                    
+                Returns:
+                    JSON string with success confirmation and validation record details
+                """
+                from .tools import CaptureAssumptionValidationTool
+                
+                capture_tool = CaptureAssumptionValidationTool(self.database, self.websocket_manager)
+                return await capture_tool.apply(
+                    task_id=task_id,
+                    ra_tag_id=ra_tag_id,
+                    outcome=outcome,
+                    reason=reason,
+                    confidence=confidence,
+                    reviewer_agent_id=reviewer_agent_id
+                )
+            
+            logger.info(f"FastMCP server '{self.server_name}' created with 15 registered tools")
             return mcp
             
         except Exception as e:
@@ -935,7 +971,8 @@ class ProjectManagerMCPServer:
                 "list_tasks",
                 "get_knowledge",
                 "upsert_knowledge",
-                "append_knowledge_log"
+                "append_knowledge_log",
+                "capture_assumption_validation"
             ],
             "server_created": self.mcp_server is not None,
             # Enhancement opportunity: Add health check capabilities

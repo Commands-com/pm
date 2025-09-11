@@ -133,6 +133,514 @@
             transform: scale(0.95);
         }
 
+        /* Assumption Insights Modal Styles */
+        .assumption-insights-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(2px);
+        }
+        
+        .assumption-insights-modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 95vw;
+            max-width: 1200px;
+            height: 90vh;
+            max-height: 900px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            position: relative;
+            overflow: hidden;
+            animation: modalSlideIn 0.3s ease-out;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .assumption-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            background-color: #f8fafc;
+            min-height: 80px;
+        }
+        
+        .assumption-modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+        }
+        
+        .assumption-modal-subtitle {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin-top: 0.25rem;
+        }
+        
+        .assumption-modal-body {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+        
+        .assumption-filters-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .assumption-filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .assumption-filter-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .assumption-filter-select {
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            color: #374151;
+            font-size: 0.875rem;
+        }
+        
+        .assumption-filter-select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .date-range-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+        
+        .date-input {
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            color: #374151;
+            font-size: 0.875rem;
+        }
+        
+        .date-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .assumption-kpi-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .assumption-kpi-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+        
+        .kpi-card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .kpi-card-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .kpi-card-icon.success {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        
+        .kpi-card-icon.total {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        
+        .kpi-card-icon.partial {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .kpi-card-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #64748b;
+            margin: 0;
+        }
+        
+        .kpi-card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+        }
+        
+        .kpi-card-subtitle {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 0.25rem;
+        }
+        
+        .assumption-data-section {
+            margin-bottom: 2rem;
+        }
+        
+        .data-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        
+        .data-section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+        }
+        
+        .assumption-data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .assumption-data-table th {
+            background: #f8fafc;
+            color: #374151;
+            font-weight: 600;
+            font-size: 0.875rem;
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .assumption-data-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.875rem;
+            color: #374151;
+        }
+        
+        .assumption-data-table tbody tr:hover {
+            background: #f8fafc;
+        }
+        
+        .assumption-data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .tag-type-cell {
+            font-family: monospace;
+            font-weight: 500;
+            color: #1e293b;
+        }
+        
+        .success-rate-cell {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .success-rate-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .success-rate-badge.high {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .success-rate-badge.medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .success-rate-badge.low {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .validation-counts {
+            display: flex;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+        }
+        
+        .count-badge {
+            padding: 0.125rem 0.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        
+        .count-badge.validated {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .count-badge.rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .count-badge.partial {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .outcome-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .outcome-badge.validated {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .outcome-badge.rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .outcome-badge.partial {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .reason-preview {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #64748b;
+        }
+        
+        .timestamp-cell {
+            color: #64748b;
+            font-size: 0.8125rem;
+        }
+        
+        .table-row-clickable {
+            cursor: pointer;
+        }
+        
+        .table-row-clickable:hover {
+            background: #f1f5f9 !important;
+        }
+        
+        .assumption-detail-drawer {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: white;
+            box-shadow: -4px 0 15px -3px rgba(0, 0, 0, 0.1);
+            transition: right 0.3s ease-in-out;
+            z-index: 1100;
+            overflow-y: auto;
+        }
+        
+        .assumption-detail-drawer.open {
+            right: 0;
+        }
+        
+        .drawer-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+        
+        .drawer-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+        }
+        
+        .drawer-subtitle {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin-top: 0.25rem;
+        }
+        
+        .drawer-close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #64748b;
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        }
+        
+        .drawer-close-btn:hover {
+            background: #f1f5f9;
+            color: #374151;
+        }
+        
+        .drawer-body {
+            padding: 1.5rem;
+        }
+        
+        .drawer-section {
+            margin-bottom: 2rem;
+        }
+        
+        .drawer-section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .assumption-empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem 2rem;
+            text-align: center;
+            color: #64748b;
+        }
+        
+        .empty-state-icon {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .empty-state-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        
+        .empty-state-message {
+            font-size: 0.875rem;
+            line-height: 1.5;
+            max-width: 400px;
+        }
+        
+        .assumption-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+        
+        .assumption-loading .spinner {
+            width: 32px;
+            height: 32px;
+            margin-bottom: 1rem;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .assumption-insights-modal-content {
+                width: 98vw;
+                height: 95vh;
+                margin: 1rem;
+            }
+            
+            .assumption-modal-header {
+                padding: 1rem;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1rem;
+            }
+            
+            .assumption-modal-body {
+                padding: 1rem;
+            }
+            
+            .assumption-filters-section {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .assumption-kpi-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .assumption-data-table {
+                font-size: 0.8125rem;
+            }
+            
+            .assumption-data-table th,
+            .assumption-data-table td {
+                padding: 0.75rem 0.5rem;
+            }
+            
+            .assumption-detail-drawer {
+                width: 100vw;
+                right: -100vw;
+            }
+            
+            .date-range-inputs {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* Delete Modal Styles */
         .modal-overlay {
             position: fixed;
@@ -920,6 +1428,61 @@
             border-color: #3b82f6;
         }
         
+        /* RA Validation Summary Styles */
+        .ra-validation-summary {
+            margin-bottom: 1.5rem;
+        }
+        
+        .ra-validation-summary h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.75rem;
+        }
+        
+        .ra-stats {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .ra-stats-item {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: capitalize;
+            border: 1px solid;
+            transition: all 0.2s ease;
+        }
+        
+        .ra-stats-item.validated {
+            background: #dcfce7;
+            color: #166534;
+            border-color: #bbf7d0;
+        }
+        
+        .ra-stats-item.partial {
+            background: #fef3c7;
+            color: #92400e;
+            border-color: #fde68a;
+        }
+        
+        .ra-stats-item.rejected {
+            background: #fee2e2;
+            color: #991b1b;
+            border-color: #fecaca;
+        }
+        
+        .ra-stats-item.pending {
+            background: #f1f5f9;
+            color: #64748b;
+            border-color: #e2e8f0;
+        }
+        
         .ra-tags-container {
             display: flex;
             flex-direction: column;
@@ -967,6 +1530,120 @@
             color: #64748b;
             font-size: 0.875rem;
             line-height: 1.5;
+        }
+        
+        /* Enhanced validation details styles */
+        .validation-details {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #f1f5f9;
+        }
+        
+        .validation-summary {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .validation-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .validation-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #6b7280;
+            min-width: 5rem;
+        }
+        
+        .confidence-badge {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 0.125rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .validator-name {
+            background: #f3f4f6;
+            color: #374151;
+            padding: 0.125rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        
+        .validation-date {
+            color: #6b7280;
+            font-size: 0.75rem;
+        }
+        
+        .validation-reasoning {
+            margin-top: 0.5rem;
+        }
+        
+        .reason-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.375rem;
+        }
+        
+        .reason-text {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            color: #374151;
+        }
+        
+        .reason-text.pending-text {
+            background: #fafafa;
+            color: #9ca3af;
+            text-align: center;
+            font-style: italic;
+        }
+        
+        /* Validation status badges */
+        .validation-status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.375rem 0.75rem;
+            border-radius: 16px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            gap: 0.25rem;
+            border: 1px solid;
+        }
+        
+        .validation-status-badge.validated {
+            background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+            border-color: #16a34a;
+            color: #15803d;
+        }
+        
+        .validation-status-badge.rejected {
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+            border-color: #dc2626;
+            color: #dc2626;
+        }
+        
+        .validation-status-badge.partial {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-color: #d97706;
+            color: #92400e;
+        }
+        
+        .validation-status-badge.pending {
+            background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+            border-color: #9ca3af;
+            color: #6b7280;
         }
         
         /* Execution Log Tab Styles */
@@ -2095,6 +2772,248 @@
                 min-width: 120px;
             }
         }
+        
+        /* Additional styles for assumption insights functionality */
+        .table-row.clickable {
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .table-row.clickable:hover {
+            background-color: #f8fafc;
+        }
+        
+        .success-rate-value.high-risk {
+            color: #dc2626;
+            font-weight: 600;
+        }
+        
+        .success-rate-value.medium-risk {
+            color: #ea580c;
+            font-weight: 600;
+        }
+        
+        .success-rate-value.low-risk {
+            color: #16a34a;
+            font-weight: 600;
+        }
+        
+        .success-rate-bar {
+            width: 100%;
+            height: 4px;
+            background-color: #e5e7eb;
+            border-radius: 2px;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+        
+        .success-rate-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        
+        .success-rate-fill.high-risk {
+            background-color: #dc2626;
+        }
+        
+        .success-rate-fill.medium-risk {
+            background-color: #ea580c;
+        }
+        
+        .success-rate-fill.low-risk {
+            background-color: #16a34a;
+        }
+        
+        .outcome-badge.success {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        
+        .outcome-badge.warning {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        
+        .outcome-badge.danger {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .validation-counts {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .tag-pill {
+            background-color: #eff6ff;
+            color: #1e40af;
+            padding: 0.125rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border: 1px solid #dbeafe;
+        }
+        
+        .task-link {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .task-link:hover {
+            text-decoration: underline;
+        }
+        
+        .reason-cell {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .drawer-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+        
+        .drawer-loading .spinner {
+            margin-right: 0.5rem;
+        }
+        
+        .metric-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .metric-item:last-child {
+            border-bottom: none;
+        }
+        
+        .metric-label {
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .metric-value {
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+        
+        .metric-value.success {
+            color: #16a34a;
+        }
+        
+        .metric-value.warning {
+            color: #ea580c;
+        }
+        
+        .metric-value.danger {
+            color: #dc2626;
+        }
+        
+        .history-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            background-color: #ffffff;
+        }
+        
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .history-timestamp {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+        
+        .history-content {
+            font-size: 0.875rem;
+        }
+        
+        .history-reason {
+            margin: 0.5rem 0;
+            color: #374151;
+        }
+        
+        .history-task {
+            margin: 0;
+            font-size: 0.8125rem;
+            color: #6b7280;
+            font-style: italic;
+        }
+        
+        .reason-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            background-color: #ffffff;
+        }
+        
+        .reason-text {
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        
+        .reason-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8125rem;
+            color: #6b7280;
+        }
+        
+        .reason-count {
+            font-weight: 500;
+        }
+        
+        .reason-outcome {
+            font-weight: 500;
+        }
+        
+        .reason-outcome.success {
+            color: #16a34a;
+        }
+        
+        .reason-outcome.warning {
+            color: #ea580c;
+        }
+        
+        .reason-outcome.danger {
+            color: #dc2626;
+        }
+        
+        .no-data {
+            text-align: center;
+            color: #6b7280;
+            font-style: italic;
+            padding: 2rem;
+        }
+        
+        .error-state {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .error-message {
+            color: #dc2626;
+            font-weight: 500;
+        }
+
     </style>
 </head>
 <body>
@@ -2113,6 +3032,13 @@
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+            </button>
+            <button id="assumptionInsightsBtn" class="knowledge-btn" title="Assumption Insights Dashboard">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
                 </svg>
             </button>
         </div>
@@ -3166,6 +4092,7 @@
                 this.modal = document.getElementById('taskDetailModal');
                 this.currentTask = null;
                 this.currentTaskData = null;
+                this.raValidations = [];
                 this.activeTab = 'overview';
                 this.logCursor = null;
                 this.filteredLogs = [];
@@ -3319,38 +4246,50 @@
             
             async loadTaskDetails(taskId) {
                 try {
-                    // #COMPLETION_DRIVE_INTEGRATION: Fetch task details from backend via API
-                    // Pattern: Use REST API for MCP tool integration
-                    const response = await fetch('/api/task/details', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            task_id: String(taskId),
-                            log_limit: 100
-                        })
-                    });
+                    // Load task details and RA validations in parallel
+                    const [taskResponse, validationsResponse] = await Promise.all([
+                        fetch('/api/task/details', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                task_id: String(taskId),
+                                log_limit: 100
+                            })
+                        }),
+                        fetch(`/api/assumptions/recent?limit=50`)
+                    ]);
                     
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    if (!taskResponse.ok) {
+                        throw new Error(`HTTP ${taskResponse.status}: ${taskResponse.statusText}`);
                     }
                     
-                    const result = await response.json();
+                    const taskResult = await taskResponse.json();
                     
                     // #SUGGEST_ERROR_HANDLING: Handle MCP tool error responses gracefully
-                    if (result.error) {
-                        throw new Error(result.error.message || 'Unknown error occurred');
+                    if (taskResult.error) {
+                        throw new Error(taskResult.error.message || 'Unknown error occurred');
                     }
                     
                     // Parse the MCP tool response (it returns JSON string)
-                    if (typeof result.result === 'string') {
-                        this.currentTaskData = JSON.parse(result.result);
+                    if (typeof taskResult.result === 'string') {
+                        this.currentTaskData = JSON.parse(taskResult.result);
                     } else {
-                        this.currentTaskData = result.result;
+                        this.currentTaskData = taskResult.result;
+                    }
+                    
+                    // Load RA validations if available and filter for this task
+                    this.raValidations = [];
+                    if (validationsResponse.ok) {
+                        const validationsResult = await validationsResponse.json();
+                        const allValidations = validationsResult.validations || [];
+                        // Filter to only include validations for this specific task
+                        this.raValidations = allValidations.filter(v => v.task_id === parseInt(taskId));
                     }
                     
                     console.log('Loaded task details:', this.currentTaskData);
+                    console.log('Loaded RA validations:', this.raValidations);
                     
                 } catch (error) {
                     console.error('Error loading task details:', error);
@@ -3498,17 +4437,17 @@
                 const task = this.currentTaskData.task;
                 const raTags = task.ra_tags || [];
                 
-                // Category filter buttons
+                // Create validation status filter buttons
                 const categoryFilterElement = document.getElementById('tagsCategoryFilter');
                 if (categoryFilterElement) {
-                    const categories = ['All', ...new Set(raTags.map(tag => this.getTagCategory(tag)))];
+                    const statuses = ['All', 'Validated', 'Partial', 'Rejected', 'Pending'];
                     
-                    categoryFilterElement.innerHTML = categories.map(category => `
-                        <button class="category-filter-btn ${category === 'All' ? 'active' : ''}" 
-                                data-category="${category}">${category}</button>
+                    categoryFilterElement.innerHTML = statuses.map(status => `
+                        <button class="category-filter-btn ${status === 'All' ? 'active' : ''}" 
+                                data-category="${status}">${status}</button>
                     `).join('');
                     
-                    // Add category filter event listeners
+                    // Add status filter event listeners
                     categoryFilterElement.addEventListener('click', (e) => {
                         if (e.target.classList.contains('category-filter-btn')) {
                             // Update active button
@@ -3522,10 +4461,18 @@
                     });
                 }
                 
-                this.displayRATags(raTags);
+                // Add search input event listener
+                const searchInput = document.getElementById('tagsSearchInput');
+                if (searchInput) {
+                    searchInput.addEventListener('input', () => {
+                        this.filterRATags();
+                    });
+                }
+                
+                this.displayRATagsWithValidations(raTags);
             }
             
-            displayRATags(tags) {
+            displayRATagsWithValidations(tags) {
                 const containerElement = document.getElementById('raTagsContainer');
                 if (!containerElement) return;
                 
@@ -3539,27 +4486,63 @@
                     return;
                 }
                 
-                // Group tags by category
-                const categorizedTags = {};
-                tags.forEach(tag => {
-                    const category = this.getTagCategory(tag);
-                    if (!categorizedTags[category]) {
-                        categorizedTags[category] = [];
-                    }
-                    categorizedTags[category].push(tag);
+                // Process tags with validation information
+                const tagData = tags.map(tag => {
+                    const tagInfo = this.parseRATag(tag);
+                    const tagId = typeof tag === 'object' ? tag.id : null;
+                    const validation = tagId ? this.findValidationForTag(tagId) : null;
+                    
+                    return {
+                        ...tagInfo,
+                        id: tagId,
+                        validation: validation,
+                        status: validation ? validation.outcome : 'pending'
+                    };
                 });
                 
-                containerElement.innerHTML = Object.entries(categorizedTags).map(([category, categoryTags]) => `
-                    <div class="ra-tag-category">
-                        <div class="ra-tag-category-header">
-                            <span>${category}</span>
-                            <span style="font-weight: 400; font-size: 0.875rem; color: #64748b;">${categoryTags.length} tags</span>
-                        </div>
-                        <div class="ra-tag-list">
-                            ${categoryTags.map(tag => this.renderRATag(tag)).join('')}
-                        </div>
+                // Group by validation status
+                const statusGroups = {
+                    'validated': tagData.filter(t => t.status === 'validated'),
+                    'partial': tagData.filter(t => t.status === 'partial'), 
+                    'rejected': tagData.filter(t => t.status === 'rejected'),
+                    'pending': tagData.filter(t => t.status === 'pending')
+                };
+                
+                // Summary stats
+                const stats = Object.entries(statusGroups).map(([status, tags]) => 
+                    `<span class="ra-stats-item ${status}">${tags.length} ${status}</span>`
+                ).join('');
+                
+                containerElement.innerHTML = `
+                    <div class="ra-validation-summary">
+                        <h4>Validation Summary</h4>
+                        <div class="ra-stats">${stats}</div>
                     </div>
-                `).join('');
+                    
+                    ${Object.entries(statusGroups).map(([status, statusTags]) => {
+                        if (statusTags.length === 0) return '';
+                        
+                        return `
+                            <div class="ra-status-group">
+                                <div class="ra-status-header">
+                                    <span class="status-badge ${status}">${status === 'validated' ? 'Validated' : 
+                                                                         status === 'rejected' ? 'Rejected' : 
+                                                                         status === 'partial' ? 'Partial' : 
+                                                                         'Pending'}</span>
+                                    <span class="status-count">${statusTags.length} tags</span>
+                                </div>
+                                <div class="ra-tag-list">
+                                    ${statusTags.map(tagData => this.renderRATagWithValidation(tagData)).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                `;
+            }
+            
+            displayRATags(tags) {
+                // Keep original method for backward compatibility
+                this.displayRATagsWithValidations(tags);
             }
             
             renderRATag(tag) {
@@ -3567,8 +4550,21 @@
                 let tagName, tagDescription;
                 
                 if (typeof tag === 'object') {
-                    tagName = tag.name || tag.tag || 'Unknown Tag';
-                    tagDescription = tag.description || tag.content || 'No description';
+                    // New format: tag has 'type' and 'text' fields
+                    if (tag.type && tag.text) {
+                        tagName = tag.type;
+                        // Extract description from text (format: "#TYPE: description")
+                        const colonIndex = tag.text.indexOf(':');
+                        if (colonIndex !== -1) {
+                            tagDescription = tag.text.substring(colonIndex + 1).trim();
+                        } else {
+                            tagDescription = tag.text;
+                        }
+                    } else {
+                        // Fallback to old format
+                        tagName = tag.name || tag.tag || 'Unknown Tag';
+                        tagDescription = tag.description || tag.content || 'No description';
+                    }
                 } else {
                     // Parse string format: "#TAG_NAME: Description"
                     const tagString = String(tag);
@@ -3591,6 +4587,102 @@
                 `;
             }
             
+            parseRATag(tag) {
+                let tagName, tagDescription;
+                
+                if (typeof tag === 'object') {
+                    // New format: tag has 'type' and 'text' fields
+                    if (tag.type && tag.text) {
+                        tagName = tag.type;
+                        // Extract description from text (format: "#TYPE: description")
+                        const colonIndex = tag.text.indexOf(':');
+                        if (colonIndex !== -1) {
+                            tagDescription = tag.text.substring(colonIndex + 1).trim();
+                        } else {
+                            tagDescription = tag.text;
+                        }
+                    } else {
+                        // Fallback to old format
+                        tagName = tag.name || tag.tag || 'Unknown Tag';
+                        tagDescription = tag.description || tag.content || 'No description';
+                    }
+                } else {
+                    // Parse string format: "#TAG_NAME: Description"
+                    const tagString = String(tag);
+                    const colonIndex = tagString.indexOf(':');
+                    
+                    if (colonIndex !== -1) {
+                        tagName = tagString.substring(0, colonIndex).trim().replace('#', '');
+                        tagDescription = tagString.substring(colonIndex + 1).trim();
+                    } else {
+                        tagName = tagString.replace('#', '');
+                        tagDescription = 'No description';
+                    }
+                }
+                
+                return { name: tagName, description: tagDescription };
+            }
+            
+            findValidationForTag(tagId) {
+                if (!this.raValidations || this.raValidations.length === 0) return null;
+                
+                // Find validation that matches this exact tag ID
+                return this.raValidations.find(validation => 
+                    validation.ra_tag_id === tagId
+                );
+            }
+            
+            renderRATagWithValidation(tagData) {
+                const validation = tagData.validation;
+                const statusClass = tagData.status;
+                
+                return `
+                    <div class="ra-tag-item ${statusClass}">
+                        <div class="ra-tag-header">
+                            <div class="ra-tag-name">${this.escapeHtml(tagData.name)}</div>
+                            <span class="validation-status-badge ${statusClass}">
+                                ${tagData.status === 'validated' ? 'Validated ✓' : 
+                                  tagData.status === 'rejected' ? 'Rejected ✗' : 
+                                  tagData.status === 'partial' ? 'Partial ~' : 
+                                  'Pending...'}
+                            </span>
+                        </div>
+                        <div class="ra-tag-description">${this.escapeHtml(tagData.description)}</div>
+                        
+                        ${validation ? `
+                            <div class="validation-details">
+                                <div class="validation-summary">
+                                    <div class="validation-row">
+                                        <span class="validation-label">Confidence:</span>
+                                        <span class="confidence-badge">${validation.confidence}%</span>
+                                    </div>
+                                    <div class="validation-row">
+                                        <span class="validation-label">Reviewed by:</span>
+                                        <span class="validator-name">${validation.validator_id.replace('mcp-reviewer-agent', 'MCP Reviewer').replace('-', ' ')}</span>
+                                    </div>
+                                    <div class="validation-row">
+                                        <span class="validation-label">Date:</span>
+                                        <span class="validation-date">${this.formatTimestamp(validation.validated_at)}</span>
+                                    </div>
+                                </div>
+                                <div class="validation-reasoning">
+                                    <div class="reason-label">Validation Notes:</div>
+                                    <div class="reason-text">${this.escapeHtml(validation.notes || 'No reason provided')}</div>
+                                </div>
+                            </div>
+                        ` : `
+                            <div class="validation-details pending">
+                                <div class="validation-reasoning">
+                                    <div class="reason-text pending-text">
+                                        <em>No validation performed yet</em>
+                                    </div>
+                                </div>
+                            </div>
+                        `}
+                    </div>
+                `;
+            }
+            
             getTagCategory(tag) {
                 const tagName = typeof tag === 'object' ? (tag.name || tag.tag || '') : String(tag);
                 
@@ -3603,32 +4695,75 @@
                 return 'Other';
             }
             
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+            
             filterRATags() {
                 if (!this.currentTaskData) return;
                 
                 const searchInput = document.getElementById('tagsSearchInput');
-                const activeCategory = document.querySelector('.category-filter-btn.active');
+                const activeStatus = document.querySelector('.category-filter-btn.active');
                 
                 const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
-                const category = activeCategory ? activeCategory.dataset.category : 'All';
+                const statusFilter = activeStatus ? activeStatus.dataset.category : 'All';
                 
                 let tags = this.currentTaskData.task.ra_tags || [];
                 
-                // Filter by category
-                if (category !== 'All') {
-                    tags = tags.filter(tag => this.getTagCategory(tag) === category);
+                // Process tags with validation information
+                let tagData = tags.map(tag => {
+                    const tagInfo = this.parseRATag(tag);
+                    const tagId = typeof tag === 'object' ? tag.id : null;
+                    const validation = tagId ? this.findValidationForTag(tagId) : null;
+                    
+                    return {
+                        ...tagInfo,
+                        id: tagId,
+                        validation: validation,
+                        status: validation ? validation.outcome : 'pending'
+                    };
+                });
+                
+                // Filter by validation status
+                if (statusFilter !== 'All') {
+                    const filterStatus = statusFilter.toLowerCase();
+                    tagData = tagData.filter(tag => tag.status === filterStatus);
                 }
                 
                 // Filter by search term
                 if (searchTerm) {
-                    tags = tags.filter(tag => {
-                        const tagName = typeof tag === 'object' ? (tag.name || tag.tag || '') : String(tag);
-                        const tagDescription = typeof tag === 'object' ? (tag.description || tag.content || '') : '';
-                        return tagName.toLowerCase().includes(searchTerm) || tagDescription.toLowerCase().includes(searchTerm);
+                    tagData = tagData.filter(tag => {
+                        return tag.name.toLowerCase().includes(searchTerm) || 
+                               tag.description.toLowerCase().includes(searchTerm) ||
+                               (tag.validation && tag.validation.notes && tag.validation.notes.toLowerCase().includes(searchTerm));
                     });
                 }
                 
-                this.displayRATags(tags);
+                // Rebuild the display with filtered data
+                this.displayFilteredTags(tagData);
+            }
+            
+            displayFilteredTags(tagData) {
+                const containerElement = document.getElementById('raTagsContainer');
+                if (!containerElement) return;
+                
+                if (tagData.length === 0) {
+                    containerElement.innerHTML = `
+                        <div style="text-align: center; color: #64748b; padding: 2rem;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+                            <div>No tags match the current filter</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                containerElement.innerHTML = `
+                    <div class="ra-tag-list">
+                        ${tagData.map(tagData => this.renderRATagWithValidation(tagData)).join('')}
+                    </div>
+                `;
             }
             
             // #COMPLETION_DRIVE_IMPL: Execution Log tab with timeline display and filtering
@@ -4932,9 +6067,625 @@
             }
         }
 
+        class AssumptionInsightsModal {
+            constructor() {
+                this.modal = document.getElementById('assumption-insights-modal');
+                this.drawer = document.getElementById('assumption-detail-drawer');
+                this.isLoading = false;
+                this.cache = {
+                    projects: null,
+                    epics: null,
+                    lastRefresh: null
+                };
+                this.filters = {
+                    project_id: '',
+                    epic_id: '',
+                    start_date: '',
+                    end_date: ''
+                };
+                
+                this.initializeEventListeners();
+            }
+            
+            initializeEventListeners() {
+                // Close button and backdrop click
+                const closeBtn = document.getElementById('assumptionModalCloseBtn');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => this.close());
+                }
+                
+                // Backdrop click closes modal
+                this.modal.addEventListener('click', (e) => {
+                    if (e.target === this.modal) {
+                        this.close();
+                    }
+                });
+                
+                // Escape key closes modal
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && this.modal.style.display !== 'none') {
+                        this.close();
+                    }
+                });
+                
+                // Filter change handlers
+                const projectSelect = document.getElementById('assumption-project-select');
+                if (projectSelect) {
+                    projectSelect.addEventListener('change', (e) => {
+                        this.filters.project_id = e.target.value;
+                        this.updateEpicOptions();
+                        this.debouncedLoadData();
+                    });
+                }
+                
+                const epicSelect = document.getElementById('assumption-epic-select');
+                if (epicSelect) {
+                    epicSelect.addEventListener('change', (e) => {
+                        this.filters.epic_id = e.target.value;
+                        this.debouncedLoadData();
+                    });
+                }
+                
+                const startDateInput = document.getElementById('assumption-start-date');
+                if (startDateInput) {
+                    startDateInput.addEventListener('change', (e) => {
+                        this.filters.start_date = e.target.value;
+                        this.debouncedLoadData();
+                    });
+                }
+                
+                const endDateInput = document.getElementById('assumption-end-date');
+                if (endDateInput) {
+                    endDateInput.addEventListener('change', (e) => {
+                        this.filters.end_date = e.target.value;
+                        this.debouncedLoadData();
+                    });
+                }
+                
+                // Drawer close button
+                const drawerCloseBtn = document.getElementById('drawerCloseBtn');
+                if (drawerCloseBtn) {
+                    drawerCloseBtn.addEventListener('click', () => this.closeDrawer());
+                }
+            }
+            
+            // Debounced data loading to prevent excessive API calls
+            debouncedLoadData() {
+                clearTimeout(this.loadDataTimeout);
+                this.loadDataTimeout = setTimeout(() => {
+                    this.loadInsightsData();
+                }, 300);
+            }
+            
+            async open() {
+                if (this.isLoading) return;
+                
+                this.modal.style.display = 'flex';
+                
+                // Show global loading state
+                this.showGlobalLoading();
+                
+                try {
+                    // Load filter options first (cached for performance)
+                    await this.loadFilterOptions();
+                    
+                    // Load insights data
+                    await this.loadInsightsData();
+                    
+                    this.hideGlobalLoading();
+                } catch (error) {
+                    console.error('Error opening assumption insights modal:', error);
+                    this.showError('Failed to load assumption insights. Please try again.');
+                    this.hideGlobalLoading();
+                }
+            }
+            
+            close() {
+                this.modal.style.display = 'none';
+                this.closeDrawer();
+            }
+            
+            async loadFilterOptions() {
+                try {
+                    // Use cache if available and recent (5 minutes)
+                    const now = Date.now();
+                    if (this.cache.projects && this.cache.lastRefresh && 
+                        (now - this.cache.lastRefresh) < 5 * 60 * 1000) {
+                        this.populateFilterOptions();
+                        return;
+                    }
+                    
+                    // Load projects and epics
+                    const [projectsResponse, epicsResponse] = await Promise.all([
+                        fetch('/api/projects'),
+                        fetch('/api/epics')
+                    ]);
+                    
+                    if (!projectsResponse.ok) throw new Error(`Projects API error: ${projectsResponse.status}`);
+                    if (!epicsResponse.ok) throw new Error(`Epics API error: ${epicsResponse.status}`);
+                    
+                    const [projects, epics] = await Promise.all([
+                        projectsResponse.json(),
+                        epicsResponse.json()
+                    ]);
+                    
+                    this.cache.projects = projects;
+                    this.cache.epics = epics;
+                    this.cache.lastRefresh = now;
+                    
+                    this.populateFilterOptions();
+                } catch (error) {
+                    console.error('Error loading filter options:', error);
+                    this.showError('Failed to load filter options.');
+                }
+            }
+            
+            populateFilterOptions() {
+                const projectSelect = document.getElementById('assumption-project-select');
+                const epicSelect = document.getElementById('assumption-epic-select');
+                
+                if (projectSelect && this.cache.projects) {
+                    projectSelect.innerHTML = '<option value="">All Projects</option>';
+                    this.cache.projects.forEach(project => {
+                        const option = document.createElement('option');
+                        option.value = project.id;
+                        option.textContent = project.name;
+                        if (this.filters.project_id == project.id) option.selected = true;
+                        projectSelect.appendChild(option);
+                    });
+                }
+                
+                this.updateEpicOptions();
+            }
+            
+            updateEpicOptions() {
+                const epicSelect = document.getElementById('assumption-epic-select');
+                if (!epicSelect || !this.cache.epics) return;
+                
+                epicSelect.innerHTML = '<option value="">All Epics</option>';
+                
+                // Filter epics by selected project
+                let epicsToShow = this.cache.epics;
+                if (this.filters.project_id) {
+                    epicsToShow = this.cache.epics.filter(epic => epic.project_id == this.filters.project_id);
+                }
+                
+                epicsToShow.forEach(epic => {
+                    const option = document.createElement('option');
+                    option.value = epic.id;
+                    option.textContent = epic.name;
+                    if (this.filters.epic_id == epic.id) option.selected = true;
+                    epicSelect.appendChild(option);
+                });
+                
+                // Reset epic filter if current selection is not valid for project
+                if (this.filters.project_id && this.filters.epic_id) {
+                    const validEpic = epicsToShow.find(epic => epic.id == this.filters.epic_id);
+                    if (!validEpic) {
+                        this.filters.epic_id = '';
+                        epicSelect.value = '';
+                    }
+                }
+            }
+            
+            async loadInsightsData() {
+                if (this.isLoading) return;
+                
+                this.isLoading = true;
+                this.showLoadingStates();
+                
+                try {
+                    // Build query parameters
+                    const params = new URLSearchParams();
+                    if (this.filters.project_id) params.append('project_id', this.filters.project_id);
+                    if (this.filters.epic_id) params.append('epic_id', this.filters.epic_id);
+                    if (this.filters.start_date) params.append('start_date', this.filters.start_date);
+                    if (this.filters.end_date) params.append('end_date', this.filters.end_date);
+                    
+                    // Load all data in parallel
+                    const [insightsResponse, recentResponse] = await Promise.all([
+                        fetch(`/api/assumptions/insights?${params.toString()}`),
+                        fetch(`/api/assumptions/recent?${params.toString()}`)
+                    ]);
+                    
+                    if (!insightsResponse.ok) throw new Error(`Insights API error: ${insightsResponse.status}`);
+                    if (!recentResponse.ok) throw new Error(`Recent validations API error: ${recentResponse.status}`);
+                    
+                    const [insights, recent] = await Promise.all([
+                        insightsResponse.json(),
+                        recentResponse.json()
+                    ]);
+                    
+                    // Update UI with loaded data
+                    this.updateKPICards(insights);
+                    this.updateTopRisksTable(insights.tag_type_breakdown || {}, insights.recent_examples || []);
+                    this.updateRecentValidationsTable(recent.validations || []);
+                    
+                    this.hideLoadingStates();
+                } catch (error) {
+                    console.error('Error loading insights data:', error);
+                    this.showError('Failed to load insights data. Please try again.');
+                    this.hideLoadingStates();
+                } finally {
+                    this.isLoading = false;
+                }
+            }
+            
+            updateKPICards(insights) {
+                // Extract data from outcome_breakdown
+                const outcomeBreakdown = insights.outcome_breakdown || {};
+                const totalValidations = insights.total_validations || 0;
+                const successfulValidations = outcomeBreakdown.validated || 0;
+                const partialValidations = outcomeBreakdown.partial || 0;
+                const rejectedValidations = outcomeBreakdown.rejected || 0;
+                
+                // Use the success_rate from API (already calculated with partial weighting)
+                const successRate = (insights.success_rate || 0) * 100;
+                
+                // Update KPI values
+                document.getElementById('success-rate-value').textContent = totalValidations > 0 ? `${successRate.toFixed(1)}%` : '--';
+                document.getElementById('success-rate-subtitle').textContent = totalValidations > 0 
+                    ? `${successfulValidations} successful, ${partialValidations} partial` 
+                    : 'No data available';
+                
+                document.getElementById('total-validations-value').textContent = totalValidations.toLocaleString();
+                document.getElementById('total-validations-subtitle').textContent = totalValidations > 0
+                    ? `${rejectedValidations} failed validations`
+                    : 'No validations recorded';
+                
+                document.getElementById('partial-validations-value').textContent = partialValidations.toLocaleString();
+                document.getElementById('partial-validations-subtitle').textContent = partialValidations > 0
+                    ? `${((partialValidations / totalValidations) * 100).toFixed(1)}% of total`
+                    : 'No partial validations';
+            }
+            
+            updateTopRisksTable(tagTypeBreakdown, recentExamples) {
+                const tbody = document.getElementById('top-risks-tbody');
+                const emptyState = document.getElementById('top-risks-empty');
+                const table = document.getElementById('top-risks-table');
+                
+                // Convert tag_type_breakdown object to array and get detailed stats from recent examples
+                const tagTypes = Object.entries(tagTypeBreakdown).map(([tagType, count]) => {
+                    // Calculate stats for this tag type from recent examples
+                    const tagExamples = recentExamples.filter(ex => ex.ra_tag === tagType);
+                    const validated = tagExamples.filter(ex => ex.outcome === 'validated').length;
+                    const rejected = tagExamples.filter(ex => ex.outcome === 'rejected').length;
+                    const partial = tagExamples.filter(ex => ex.outcome === 'partial').length;
+                    const total = validated + rejected + partial;
+                    
+                    // Calculate success rate (partial = 0.5 weight)
+                    const successRate = total > 0 ? (validated + (partial * 0.5)) / total : 0;
+                    
+                    // Get most recent timestamp
+                    const lastSeen = tagExamples.length > 0 
+                        ? Math.max(...tagExamples.map(ex => new Date(ex.validated_at).getTime()))
+                        : Date.now();
+                    
+                    return {
+                        tag_type: tagType,
+                        success_rate: successRate,
+                        total_count: total,
+                        validated_count: validated,
+                        rejected_count: rejected,
+                        partial_count: partial,
+                        last_seen: lastSeen
+                    };
+                });
+                
+                if (tagTypes.length === 0) {
+                    table.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    return;
+                }
+                
+                table.style.display = 'table';
+                emptyState.style.display = 'none';
+                
+                // Sort by success rate (ascending - lowest first are highest risk)
+                tagTypes.sort((a, b) => a.success_rate - b.success_rate);
+                
+                tbody.innerHTML = tagTypes.map(tag => {
+                    const successRate = tag.success_rate * 100;
+                    const validations = tag.validated_count;
+                    const rejected = tag.rejected_count;
+                    const partial = tag.partial_count;
+                    const lastSeen = this.formatDate(new Date(tag.last_seen));
+                    
+                    const riskClass = successRate < 50 ? 'high-risk' : successRate < 75 ? 'medium-risk' : 'low-risk';
+                    
+                    return `
+                        <tr class="table-row clickable" data-tag-type="${tag.tag_type}" onclick="assumptionInsightsModal.openTagDetails('${tag.tag_type}')">
+                            <td class="tag-type-cell">
+                                <span class="tag-pill">${tag.tag_type}</span>
+                            </td>
+                            <td>
+                                <div class="success-rate-cell">
+                                    <span class="success-rate-value ${riskClass}">${successRate.toFixed(1)}%</span>
+                                    <div class="success-rate-bar">
+                                        <div class="success-rate-fill ${riskClass}" style="width: ${successRate}%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="validations-cell">
+                                <span class="validation-counts">${validations}/${rejected}/${partial}</span>
+                            </td>
+                            <td class="last-seen-cell">${lastSeen}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+            
+            updateRecentValidationsTable(validations) {
+                const tbody = document.getElementById('recent-validations-tbody');
+                const emptyState = document.getElementById('recent-validations-empty');
+                const table = document.getElementById('recent-validations-table');
+                
+                if (validations.length === 0) {
+                    table.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    return;
+                }
+                
+                table.style.display = 'table';
+                emptyState.style.display = 'none';
+                
+                tbody.innerHTML = validations.map(validation => {
+                    const timestamp = this.formatTimestamp(validation.validated_at);
+                    const outcome = validation.outcome || 'unknown';
+                    const reason = validation.notes || 'No reason provided';
+                    const truncatedReason = reason.length > 50 ? reason.substring(0, 50) + '...' : reason;
+                    
+                    const outcomeClass = (outcome === 'validated' || outcome === 'successful') ? 'success' : 
+                                       outcome === 'partial' ? 'warning' : 'danger';
+                    
+                    return `
+                        <tr class="table-row">
+                            <td class="timestamp-cell">${timestamp}</td>
+                            <td class="tag-type-cell">
+                                <span class="tag-pill">${validation.ra_tag || validation.ra_tag_type}</span>
+                            </td>
+                            <td>
+                                <span class="outcome-badge ${outcomeClass}">${outcome}</span>
+                            </td>
+                            <td class="reason-cell" title="${reason}">${truncatedReason}</td>
+                            <td class="task-cell">
+                                ${validation.task_name ? `<a href="#" onclick="openTaskDetailModal({id: ${validation.task_id}, name: '${validation.task_name.replace(/'/g, "\\'")}'}); return false;" class="task-link">${validation.task_name}</a>` : 'N/A'}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+            
+            async openTagDetails(tagType) {
+                try {
+                    this.showDrawerLoading();
+                    this.openDrawer(tagType);
+                    
+                    // Load tag-specific data
+                    const params = new URLSearchParams();
+                    params.append('tag_type', tagType);
+                    if (this.filters.project_id) params.append('project_id', this.filters.project_id);
+                    if (this.filters.epic_id) params.append('epic_id', this.filters.epic_id);
+                    if (this.filters.start_date) params.append('start_date', this.filters.start_date);
+                    if (this.filters.end_date) params.append('end_date', this.filters.end_date);
+                    
+                    const response = await fetch(`/api/assumptions/tag-details?${params.toString()}`);
+                    if (!response.ok) throw new Error(`Tag details API error: ${response.status}`);
+                    
+                    const data = await response.json();
+                    this.updateDrawerContent(tagType, data);
+                    this.hideDrawerLoading();
+                } catch (error) {
+                    console.error('Error loading tag details:', error);
+                    this.showDrawerError('Failed to load tag details.');
+                    this.hideDrawerLoading();
+                }
+            }
+            
+            openDrawer(tagType) {
+                const title = document.getElementById('drawer-tag-title');
+                const subtitle = document.getElementById('drawer-tag-subtitle');
+                
+                if (title) title.textContent = tagType;
+                if (subtitle) subtitle.textContent = 'Loading validation data...';
+                
+                this.drawer.classList.add('open');
+            }
+            
+            closeDrawer() {
+                this.drawer.classList.remove('open');
+            }
+            
+            updateDrawerContent(tagType, data) {
+                const subtitle = document.getElementById('drawer-tag-subtitle');
+                const metricsContent = document.getElementById('drawer-metrics-content');
+                const historyContent = document.getElementById('drawer-history-content');
+                const reasonsContent = document.getElementById('drawer-reasons-content');
+                
+                if (subtitle) {
+                    subtitle.textContent = `${data.total_validations || 0} total validations`;
+                }
+                
+                // Update metrics
+                if (metricsContent) {
+                    const successRate = (data.success_rate || 0) * 100;
+                    metricsContent.innerHTML = `
+                        <div class="metric-item">
+                            <span class="metric-label">Success Rate:</span>
+                            <span class="metric-value ${successRate < 50 ? 'danger' : successRate < 75 ? 'warning' : 'success'}">
+                                ${successRate.toFixed(1)}%
+                            </span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Successful:</span>
+                            <span class="metric-value">${data.successful_count || 0}</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Partial:</span>
+                            <span class="metric-value">${data.partial_count || 0}</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Failed:</span>
+                            <span class="metric-value">${data.rejected_count || 0}</span>
+                        </div>
+                    `;
+                }
+                
+                // Update validation history
+                if (historyContent) {
+                    const validations = data.recent_validations || [];
+                    if (validations.length === 0) {
+                        historyContent.innerHTML = '<p class="no-data">No validation history available.</p>';
+                    } else {
+                        historyContent.innerHTML = validations.map(v => `
+                            <div class="history-item">
+                                <div class="history-header">
+                                    <span class="outcome-badge ${(v.outcome === 'successful' || v.outcome === 'validated') ? 'success' : v.outcome === 'partial' ? 'warning' : 'danger'}">
+                                        ${v.outcome === 'validated' ? 'successful' : v.outcome}
+                                    </span>
+                                    <span class="history-timestamp">${this.formatTimestamp(v.validated_at)}</span>
+                                </div>
+                                <div class="history-content">
+                                    <p class="history-reason">${v.notes || 'No reason provided'}</p>
+                                    ${v.task_name ? `<p class="history-task">Task: ${v.task_name}</p>` : ''}
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                }
+                
+                // Update common reasons
+                if (reasonsContent) {
+                    const reasons = data.common_reasons || [];
+                    if (reasons.length === 0) {
+                        reasonsContent.innerHTML = '<p class="no-data">No common reasons identified.</p>';
+                    } else {
+                        reasonsContent.innerHTML = reasons.map(reason => `
+                            <div class="reason-item">
+                                <div class="reason-text">${reason.reason}</div>
+                                <div class="reason-meta">
+                                    <span class="reason-count">${reason.count} times</span>
+                                    <span class="reason-outcome ${reason.primary_outcome === 'successful' ? 'success' : reason.primary_outcome === 'partial' ? 'warning' : 'danger'}">
+                                        Usually: ${reason.primary_outcome}
+                                    </span>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                }
+            }
+            
+            showGlobalLoading() {
+                const globalLoading = document.getElementById('assumption-global-loading');
+                if (globalLoading) globalLoading.style.display = 'flex';
+            }
+            
+            hideGlobalLoading() {
+                const globalLoading = document.getElementById('assumption-global-loading');
+                if (globalLoading) globalLoading.style.display = 'none';
+            }
+            
+            showLoadingStates() {
+                const topRisksLoading = document.getElementById('top-risks-loading');
+                const recentValidationsLoading = document.getElementById('recent-validations-loading');
+                
+                if (topRisksLoading) topRisksLoading.style.display = 'flex';
+                if (recentValidationsLoading) recentValidationsLoading.style.display = 'flex';
+            }
+            
+            hideLoadingStates() {
+                const topRisksLoading = document.getElementById('top-risks-loading');
+                const recentValidationsLoading = document.getElementById('recent-validations-loading');
+                
+                if (topRisksLoading) topRisksLoading.style.display = 'none';
+                if (recentValidationsLoading) recentValidationsLoading.style.display = 'none';
+            }
+            
+            showDrawerLoading() {
+                const metricsContent = document.getElementById('drawer-metrics-content');
+                const historyContent = document.getElementById('drawer-history-content');
+                const reasonsContent = document.getElementById('drawer-reasons-content');
+                
+                const loadingHTML = '<div class="drawer-loading"><div class="spinner"></div><span>Loading...</span></div>';
+                
+                if (metricsContent) metricsContent.innerHTML = loadingHTML;
+                if (historyContent) historyContent.innerHTML = loadingHTML;
+                if (reasonsContent) reasonsContent.innerHTML = loadingHTML;
+            }
+            
+            hideDrawerLoading() {
+                // Content is replaced by updateDrawerContent, no explicit hide needed
+            }
+            
+            showDrawerError(message) {
+                const metricsContent = document.getElementById('drawer-metrics-content');
+                const historyContent = document.getElementById('drawer-history-content');
+                const reasonsContent = document.getElementById('drawer-reasons-content');
+                
+                const errorHTML = `<div class="error-state"><span class="error-message">${message}</span></div>`;
+                
+                if (metricsContent) metricsContent.innerHTML = errorHTML;
+                if (historyContent) historyContent.innerHTML = errorHTML;
+                if (reasonsContent) reasonsContent.innerHTML = errorHTML;
+            }
+            
+            showError(message) {
+                // Show error in a toast notification
+                this.showNotification(message, 'error');
+            }
+            
+            showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                
+                document.body.appendChild(notification);
+                
+                // Auto-remove after 5 seconds
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 5000);
+            }
+            
+            formatDate(dateString) {
+                if (!dateString) return 'Never';
+                
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffTime = Math.abs(now - date);
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                
+                if (diffDays === 0) return 'Today';
+                if (diffDays === 1) return 'Yesterday';
+                if (diffDays < 7) return `${diffDays} days ago`;
+                if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+                if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+                
+                return date.toLocaleDateString();
+            }
+            
+            formatTimestamp(timestampString) {
+                if (!timestampString) return 'Unknown';
+                
+                const date = new Date(timestampString);
+                const now = new Date();
+                const diffTime = Math.abs(now - date);
+                const diffMinutes = Math.floor(diffTime / (1000 * 60));
+                
+                if (diffMinutes < 1) return 'Just now';
+                if (diffMinutes < 60) return `${diffMinutes}m ago`;
+                if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)}h ago`;
+                
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            }
+        }
+
         // Initialize modal instance
         let taskDetailModal = null;
         let knowledgeModal = null;
+        let assumptionInsightsModal = null;
         
         function openTaskDetailModal(task) {
             if (!taskDetailModal) {
@@ -4948,6 +6699,13 @@
                 knowledgeModal = new KnowledgeManagementModal();
             }
             await knowledgeModal.open();
+        }
+        
+        async function openAssumptionInsightsModal() {
+            if (!assumptionInsightsModal) {
+                assumptionInsightsModal = new AssumptionInsightsModal();
+            }
+            await assumptionInsightsModal.open();
         }
         
         function updateTaskCounts() {
@@ -5387,6 +7145,44 @@
                 console.warn('Knowledge button not found during initialization');
             }
         }
+
+        // Assumption Insights button event handler setup
+        function setupAssumptionInsightsHandlers() {
+            const assumptionInsightsBtn = document.getElementById('assumptionInsightsBtn');
+            
+            if (assumptionInsightsBtn) {
+                assumptionInsightsBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    try {
+                        await openAssumptionInsightsModal();
+                    } catch (error) {
+                        console.error('Error opening assumption insights modal:', error);
+                        showNotification('Error opening Assumption Insights', 'error');
+                    }
+                });
+                
+                // Add keyboard accessibility (Enter and Space keys)
+                assumptionInsightsBtn.addEventListener('keydown', async (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        try {
+                            await openAssumptionInsightsModal();
+                        } catch (error) {
+                            console.error('Error opening assumption insights modal via keyboard:', error);
+                            showNotification('Error opening Assumption Insights', 'error');
+                        }
+                    }
+                });
+                
+                console.log('Assumption Insights button handlers initialized');
+            } else {
+                console.warn('Assumption Insights button not found during initialization');
+            }
+        }
         
         // #COMPLETION_DRIVE_LIFECYCLE: Application initialization and cleanup
         // Pattern: Proper resource management and event handling setup
@@ -5407,6 +7203,9 @@
             
             // Setup knowledge management handlers
             setupKnowledgeHandlers();
+            
+            // Setup assumption insights handlers
+            setupAssumptionInsightsHandlers();
             
             // Setup filter event listeners
             const projectSelector = document.getElementById('projectSelector');
@@ -5865,6 +7664,196 @@
                 <!-- Knowledge Items Container -->
                 <div id="knowledgeItemsContainer" class="knowledge-items-container">
                     <!-- Dynamic content will be rendered here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assumption Insights Modal -->
+    <div id="assumption-insights-modal" class="assumption-insights-modal" style="display: none;">
+        <div class="assumption-insights-modal-content">
+            <div class="assumption-modal-header">
+                <div>
+                    <h2 class="assumption-modal-title">Assumption Insights Dashboard</h2>
+                    <p class="assumption-modal-subtitle">Track and validate RA tag assumptions across projects</p>
+                </div>
+                <button id="assumptionModalCloseBtn" class="modal-close-btn" aria-label="Close Assumption Insights Modal">&times;</button>
+            </div>
+            
+            <div class="assumption-modal-body">
+                <!-- Filter Section -->
+                <div class="assumption-filters-section">
+                    <div class="assumption-filter-group">
+                        <label for="assumption-project-select" class="assumption-filter-label">Project</label>
+                        <select id="assumption-project-select" class="assumption-filter-select">
+                            <option value="">All Projects</option>
+                            <!-- Dynamic options will be populated here -->
+                        </select>
+                    </div>
+                    <div class="assumption-filter-group">
+                        <label for="assumption-epic-select" class="assumption-filter-label">Epic</label>
+                        <select id="assumption-epic-select" class="assumption-filter-select">
+                            <option value="">All Epics</option>
+                            <!-- Dynamic options will be populated here -->
+                        </select>
+                    </div>
+                    <div class="assumption-filter-group">
+                        <label class="assumption-filter-label">Date Range</label>
+                        <div class="date-range-inputs">
+                            <input type="date" id="assumption-start-date" class="date-input" title="Start Date">
+                            <input type="date" id="assumption-end-date" class="date-input" title="End Date">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- KPI Cards Section -->
+                <div class="assumption-kpi-cards">
+                    <div class="assumption-kpi-card">
+                        <div class="kpi-card-header">
+                            <div class="kpi-card-icon success">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20,6 9,17 4,12"></polyline>
+                                </svg>
+                            </div>
+                            <p class="kpi-card-title">Success Rate</p>
+                        </div>
+                        <div class="kpi-card-value" id="success-rate-value">--</div>
+                        <p class="kpi-card-subtitle" id="success-rate-subtitle">Loading...</p>
+                    </div>
+                    
+                    <div class="assumption-kpi-card">
+                        <div class="kpi-card-header">
+                            <div class="kpi-card-icon total">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
+                            </div>
+                            <p class="kpi-card-title">Total Validations</p>
+                        </div>
+                        <div class="kpi-card-value" id="total-validations-value">--</div>
+                        <p class="kpi-card-subtitle" id="total-validations-subtitle">Loading...</p>
+                    </div>
+                    
+                    <div class="assumption-kpi-card">
+                        <div class="kpi-card-header">
+                            <div class="kpi-card-icon partial">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M12 6v6l4 2"></path>
+                                </svg>
+                            </div>
+                            <p class="kpi-card-title">Partial Validations</p>
+                        </div>
+                        <div class="kpi-card-value" id="partial-validations-value">--</div>
+                        <p class="kpi-card-subtitle" id="partial-validations-subtitle">Loading...</p>
+                    </div>
+                </div>
+                
+                <!-- Top Risks Table -->
+                <div class="assumption-data-section">
+                    <div class="data-section-header">
+                        <h3 class="data-section-title">Top Risks (Lowest Success Rates)</h3>
+                    </div>
+                    <div class="assumption-loading" id="top-risks-loading" style="display: none;">
+                        <div class="spinner"></div>
+                        <span>Loading top risks...</span>
+                    </div>
+                    <table class="assumption-data-table" id="top-risks-table">
+                        <thead>
+                            <tr>
+                                <th>Tag Type</th>
+                                <th>Success Rate</th>
+                                <th>Validations (V/R/P)</th>
+                                <th>Last Seen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-risks-tbody">
+                            <!-- Dynamic content will be populated here -->
+                        </tbody>
+                    </table>
+                    <div class="assumption-empty-state" id="top-risks-empty" style="display: none;">
+                        <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="M12 6v6l4 2"></path>
+                        </svg>
+                        <h4 class="empty-state-title">No Risk Data Available</h4>
+                        <p class="empty-state-message">Start using RA tags in your tasks to see assumption insights here.</p>
+                    </div>
+                </div>
+                
+                <!-- Recent Validations Table -->
+                <div class="assumption-data-section">
+                    <div class="data-section-header">
+                        <h3 class="data-section-title">Recent Validations</h3>
+                    </div>
+                    <div class="assumption-loading" id="recent-validations-loading" style="display: none;">
+                        <div class="spinner"></div>
+                        <span>Loading recent validations...</span>
+                    </div>
+                    <table class="assumption-data-table" id="recent-validations-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Tag Type</th>
+                                <th>Outcome</th>
+                                <th>Reason</th>
+                                <th>Task</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-validations-tbody">
+                            <!-- Dynamic content will be populated here -->
+                        </tbody>
+                    </table>
+                    <div class="assumption-empty-state" id="recent-validations-empty" style="display: none;">
+                        <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        <h4 class="empty-state-title">No Validations Yet</h4>
+                        <p class="empty-state-message">Complete tasks with RA tags and capture validation results during review phase.</p>
+                    </div>
+                </div>
+                
+                <!-- Global Loading State -->
+                <div class="assumption-loading" id="assumption-global-loading">
+                    <div class="spinner"></div>
+                    <span>Loading assumption insights...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Assumption Detail Drawer -->
+    <div id="assumption-detail-drawer" class="assumption-detail-drawer">
+        <div class="drawer-header">
+            <h3 class="drawer-title" id="drawer-tag-title">Tag Details</h3>
+            <p class="drawer-subtitle" id="drawer-tag-subtitle">Historical validation data</p>
+            <button id="drawerCloseBtn" class="drawer-close-btn" aria-label="Close Detail Drawer">&times;</button>
+        </div>
+        <div class="drawer-body">
+            <div class="drawer-section">
+                <h4 class="drawer-section-title">Success Metrics</h4>
+                <div id="drawer-metrics-content">
+                    <!-- Dynamic metrics content -->
+                </div>
+            </div>
+            
+            <div class="drawer-section">
+                <h4 class="drawer-section-title">Validation History</h4>
+                <div id="drawer-history-content">
+                    <!-- Dynamic validation history -->
+                </div>
+            </div>
+            
+            <div class="drawer-section">
+                <h4 class="drawer-section-title">Common Reasons</h4>
+                <div id="drawer-reasons-content">
+                    <!-- Dynamic common validation reasons -->
                 </div>
             </div>
         </div>
