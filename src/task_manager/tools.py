@@ -2694,7 +2694,7 @@ class CaptureAssumptionValidationTool(BaseTool):
                 self.db._connection.commit()
             
             # Broadcast WebSocket event for real-time updates
-            if hasattr(self, 'websocket_manager'):
+            if hasattr(self, 'websocket_manager') and self.websocket_manager is not None:
                 await self.websocket_manager.broadcast({
                     "type": "assumption_validation_captured",
                     "data": {

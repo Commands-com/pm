@@ -416,7 +416,6 @@ class TaskDatabase:
                 project_id INTEGER,
                 epic_id INTEGER,
                 ra_tag_id TEXT NOT NULL,
-                ra_tag TEXT NOT NULL,
                 validator_id TEXT NOT NULL,
                 outcome TEXT NOT NULL CHECK (outcome IN ('validated', 'rejected', 'partial')),
                 confidence INTEGER NOT NULL CHECK (confidence BETWEEN 0 AND 100),
