@@ -25,6 +25,8 @@ from typing import Dict, Any, List, Optional
 from .database import TaskDatabase
 from .api import ConnectionManager
 from .ra_instructions import ra_instructions_manager
+from .context_utils import create_enriched_context
+from .ra_tag_utils import normalize_ra_tag
 
 # Configure logging for tool operations
 logger = logging.getLogger(__name__)
@@ -2772,3 +2774,156 @@ class CaptureAssumptionValidationTool(BaseTool):
         # For now, return None as session context management is not implemented
         # This method exists for test compatibility and future session management
         return None
+
+
+class AddRATagTool(BaseTool):
+    """
+    MCP tool for creating RA tags with automatic context enrichment.
+    
+    Creates RA tags with zero-effort automatic detection of file path, line number,
+    git branch/commit, programming language, and symbol context. Integrates with
+    existing task management system and WebSocket broadcasting.
+    
+    Standard Mode Implementation:
+    - Validates task existence and RA tag format
+    - Auto-enriches with file, git, and development context
+    - Generates unique RA tag IDs for validation system compatibility
+    - Broadcasts creation events for real-time dashboard updates
+    - Handles graceful degradation when context detection fails
+    """
+    
+    async def apply(
+        self, 
+        task_id: str,
+        ra_tag_text: str, 
+        file_path: Optional[str] = None,
+        line_number: Optional[int] = None,
+        code_snippet: Optional[str] = None,
+        agent_id: str = "system"
+    ) -> str:
+        """
+        Create RA tag with automatic context enrichment.
+        
+        Args:
+            task_id: ID of the task to associate the RA tag with
+            ra_tag_text: Full RA tag text (e.g., "#COMPLETION_DRIVE_IMPL: Description")
+            file_path: Optional file path, will be auto-detected if not provided
+            line_number: Optional line number for context
+            code_snippet: Optional code snippet (only when user selects text)
+            agent_id: Agent creating the tag
+            
+        Returns:
+            JSON string with success/error status and created tag information
+        """
+        try:
+            # Validate required parameters
+            if not task_id or not task_id.strip():
+                return self._format_error_response("task_id is required")
+            
+            if not ra_tag_text or not ra_tag_text.strip():
+                return self._format_error_response("ra_tag_text is required")
+            
+            # Validate and convert task_id
+            try:
+                task_id_int = int(task_id.strip())
+            except ValueError:
+                return self._format_error_response(f"Invalid task_id '{task_id}'. Must be a number.")
+            
+            # Validate RA tag format
+            ra_tag_text = ra_tag_text.strip()
+            if not ra_tag_text.startswith('#'):
+                return self._format_error_response("RA tag text must start with '#'")
+            
+            if ':' not in ra_tag_text:
+                return self._format_error_response("RA tag text must contain ':' to separate tag type from description")
+            
+            # Validate task exists
+            task = self.db.get_task_by_id(task_id_int)
+            if not task:
+                return self._format_error_response(f"Task {task_id} not found")
+            
+            # Validate line_number if provided
+            if line_number is not None:
+                try:
+                    line_number = int(line_number)
+                    if line_number <= 0:
+                        return self._format_error_response("line_number must be a positive integer")
+                except (ValueError, TypeError):
+                    return self._format_error_response("line_number must be a valid integer")
+            
+            # Create enriched context with auto-detection
+            context = create_enriched_context(file_path, line_number, code_snippet)
+            
+            # Normalize RA tag for consistent categorization
+            normalized_type, original_text = normalize_ra_tag(ra_tag_text)
+            
+            # Generate unique RA tag ID for validation system compatibility
+            import hashlib
+            import uuid
+            tag_id = f"ra_tag_{hashlib.md5(f'{task_id_int}_{ra_tag_text}_{uuid.uuid4().hex[:8]}'.encode()).hexdigest()[:12]}"
+            
+            # Create RA tag object with context
+            ra_tag = {
+                'id': tag_id,
+                'type': normalized_type,
+                'text': original_text,
+                'created_at': datetime.now(timezone.utc).isoformat(),
+                'created_by': agent_id.strip() if agent_id else 'system'
+            }
+            
+            # Add context fields if detected
+            ra_tag.update(context)
+            
+            # Get existing RA tags from task
+            existing_tags = []
+            if task.get('ra_tags'):
+                try:
+                    existing_tags = json.loads(task['ra_tags']) if isinstance(task['ra_tags'], str) else task['ra_tags']
+                    if not isinstance(existing_tags, list):
+                        existing_tags = []
+                except (json.JSONDecodeError, TypeError):
+                    existing_tags = []
+            
+            # Add new tag to list
+            existing_tags.append(ra_tag)
+            
+            # Update task with new RA tags
+            success = self.db.update_task_ra_fields(task_id_int, ra_tags=existing_tags)
+            
+            if not success:
+                return self._format_error_response("Failed to save RA tag to database")
+            
+            # Broadcast RA tag creation event
+            await self._broadcast_event(
+                "ra_tag.created",
+                task_id=task_id_int,
+                ra_tag_id=tag_id,
+                ra_tag_type=normalized_type,
+                ra_tag_text=original_text,
+                context=context,
+                agent_id=agent_id
+            )
+            
+            return json.dumps({
+                "success": True,
+                "message": "RA tag created successfully with context enrichment",
+                "ra_tag_id": tag_id,
+                "task_id": task_id_int,
+                "ra_tag_type": normalized_type,
+                "ra_tag_text": original_text,
+                "context": context,
+                "created_by": agent_id,
+                "created_at": ra_tag['created_at']
+            })
+            
+        except Exception as e:
+            logger.error(f"Error in add_ra_tag: {e}")
+            return self._format_error_response(f"Failed to create RA tag: {str(e)}")
+    
+    async def _broadcast_event(self, event_type: str, **event_data):
+        """Broadcast RA tag events to WebSocket connections."""
+        if hasattr(self, 'websocket_manager') and self.websocket_manager is not None:
+            await self.websocket_manager.broadcast({
+                "type": event_type,
+                "data": event_data
+            })

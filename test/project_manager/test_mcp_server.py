@@ -104,7 +104,7 @@ class TestProjectManagerMCPServer:
         
         # Validate that tool decorator was called for all ten tools
         # Verifies: Each tool is registered using @mcp.tool decorator pattern
-        assert mock_tool_decorator.call_count == 15, "All fifteen MCP tools should be registered"
+        assert mock_tool_decorator.call_count == 16, "All sixteen MCP tools should be registered"
     
     @pytest.mark.asyncio
     @patch('src.task_manager.mcp_server.FastMCP')
@@ -253,7 +253,7 @@ class TestProjectManagerMCPServer:
         assert info["name"] == "Test MCP Server"
         assert info["version"] == "1.0.0-test"
         assert "task coordination capabilities" in info["instructions"]
-        assert len(info["registered_tools"]) == 15
+        assert len(info["registered_tools"]) == 16
         assert "get_available_tasks" in info["registered_tools"]
         assert "acquire_task_lock" in info["registered_tools"]
         assert "update_task_status" in info["registered_tools"]
@@ -423,7 +423,7 @@ class TestMCPServerIntegration:
         await server._create_server()
         
         # Validate all fourteen tools were registered
-        assert len(registered_tools) == 15
+        assert len(registered_tools) == 16
         assert "get_available_tasks" in registered_tools
         assert "acquire_task_lock" in registered_tools
         assert "update_task_status" in registered_tools

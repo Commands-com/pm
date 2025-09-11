@@ -68,6 +68,7 @@ TASK MANAGEMENT:
 - release_task_lock(task_id, agent_id) - explicit lock release
 - get_available_tasks(status, include_locked) - task discovery
 - list_projects(), list_epics(), list_tasks() - hierarchy browsing
+- add_ra_tag(task_id, ra_tag_text, agent_id) - ADD RA TAGS DURING IMPLEMENTATION
 
 KNOWLEDGE MANAGEMENT:
 - get_knowledge(project_id, epic_id, task_id, category, etc.) - retrieve knowledge items
@@ -114,6 +115,21 @@ KNOWLEDGE MANAGEMENT:
    - #SUGGEST_VALIDATION: {{input validation seems important}}
    - #SUGGEST_CLEANUP: {{resource cleanup feels necessary}}
    - #SUGGEST_DEFENSIVE: {{defensive programming seems prudent}}
+
+🚨 CRITICAL: ADD RA TAGS TO THE TASK USING MCP TOOL DURING IMPLEMENTATION 🚨
+   
+   YOU MUST use the add_ra_tag MCP tool to record assumptions as you implement:
+   
+   add_ra_tag(
+     task_id="current_task_id", 
+     ra_tag_text="#COMPLETION_DRIVE_IMPL: Assuming database connection pooling",
+     agent_id="claude"
+   )
+   
+   OR use CLI: python -m task_manager.cli add-ra-tag "#COMPLETION_DRIVE_IMPL: Description" --task-id X
+   
+   ⛔ DO NOT: Just think about assumptions - you MUST record them using the tool
+   ✅ DO: Add every assumption to the task using add_ra_tag MCP tool as you work
 
 4. IMPLEMENT WITH RA TAGGING AND KNOWLEDGE CAPTURE:
    - Simple: **MANDATORY RA tags for ALL assumptions** - no implementation without tagging, capture knowledge ONLY for problems/gotchas

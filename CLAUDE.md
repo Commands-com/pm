@@ -82,6 +82,12 @@ The project implements RA methodology with:
 - **RA Modes**: simple, standard, ra-light, ra-full
 - **Verification Phases**: For complex implementations
 
+🚨 **CRITICAL REQUIREMENT**: During ANY implementation work, you MUST add RA tags to the task using:
+- **MCP Tool**: `add_ra_tag(task_id="X", ra_tag_text="#COMPLETION_DRIVE_IMPL: Description", agent_id="claude")`
+- **CLI**: `python -m task_manager.cli add-ra-tag "#COMPLETION_DRIVE_IMPL: Description" --task-id X`
+
+DO NOT just think about assumptions - you must actively record them using the add_ra_tag tool as you work.
+
 ## Status Vocabulary
 
 **UI Vocabulary**: TODO, IN_PROGRESS, REVIEW, DONE

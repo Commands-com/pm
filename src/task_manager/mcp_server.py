@@ -41,6 +41,7 @@ from .tools import (
     ListProjectsTool,
     ListEpicsTool,
     ListTasksTool,
+    AddRATagTool,
     create_tool_instance
 )
 
@@ -821,7 +822,46 @@ class ProjectManagerMCPServer:
                     reviewer_agent_id=reviewer_agent_id
                 )
             
-            logger.info(f"FastMCP server '{self.server_name}' created with 15 registered tools")
+            # RA Tag Creation Tool
+            @mcp.tool
+            async def add_ra_tag(
+                task_id: str,
+                ra_tag_text: str,
+                file_path: Optional[str] = None,
+                line_number: Optional[int] = None,
+                code_snippet: Optional[str] = None,
+                agent_id: str = "system"
+            ) -> str:
+                """
+                Create RA tag with automatic context enrichment.
+                
+                Streamlined RA tag creation with zero-effort automatic detection of file path, 
+                line number, git branch/commit, programming language, and symbol context.
+                
+                Args:
+                    task_id: ID of the task to associate the RA tag with
+                    ra_tag_text: Full RA tag text (e.g., "#COMPLETION_DRIVE_IMPL: Description")  
+                    file_path: Optional file path, will be auto-detected if not provided
+                    line_number: Optional line number for context
+                    code_snippet: Optional code snippet (only when user selects text)
+                    agent_id: Agent creating the tag
+                
+                Returns:
+                    JSON string with success/error status and created tag information with context
+                """
+                from .tools import AddRATagTool
+                
+                add_ra_tag_tool = AddRATagTool(self.database, self.websocket_manager)
+                return await add_ra_tag_tool.apply(
+                    task_id=task_id,
+                    ra_tag_text=ra_tag_text,
+                    file_path=file_path,
+                    line_number=line_number,
+                    code_snippet=code_snippet,
+                    agent_id=agent_id
+                )
+            
+            logger.info(f"FastMCP server '{self.server_name}' created with 16 registered tools")
             return mcp
             
         except Exception as e:
@@ -972,7 +1012,8 @@ class ProjectManagerMCPServer:
                 "get_knowledge",
                 "upsert_knowledge",
                 "append_knowledge_log",
-                "capture_assumption_validation"
+                "capture_assumption_validation",
+                "add_ra_tag"
             ],
             "server_created": self.mcp_server is not None,
             # Enhancement opportunity: Add health check capabilities

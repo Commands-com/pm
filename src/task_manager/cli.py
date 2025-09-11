@@ -29,6 +29,8 @@ from fastapi import FastAPI
 from .api import app as fastapi_app, connection_manager
 from .database import TaskDatabase
 from .mcp_server import create_mcp_server
+from .context_utils import create_enriched_context
+from .tools import AddRATagTool
 
 # Configure logging for CLI operations
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -157,7 +159,7 @@ def validate_project_yaml(project_path: str) -> Dict[str, Any]:
         raise click.ClickException(f"Failed to load project file {project_path}: {e}")
 
 
-@click.command()
+@click.group(invoke_without_command=True)
 @click.version_option(package_name="project-manager-mcp")
 @click.option('--port', default=DEFAULT_DASHBOARD_PORT, type=int, 
               help=f'Port for dashboard server (default: {DEFAULT_DASHBOARD_PORT})')
@@ -173,8 +175,24 @@ def validate_project_yaml(project_path: str) -> Dict[str, Any]:
               help=f'Database file path (default: {DEFAULT_DB_PATH})')
 @click.option('--verbose', '-v', is_flag=True,
               help='Enable verbose logging')
-def main(port: int, mcp_transport: str, project: Optional[str], no_browser: bool, 
+@click.pass_context
+def main(ctx, port: int, mcp_transport: str, project: Optional[str], no_browser: bool, 
          host: str, db_path: str, verbose: bool):
+    """
+    Project Manager MCP - AI-powered task management system.
+    
+    Starts the server automatically when run without subcommands.
+    Use subcommands like 'add-ra-tag' for specific operations.
+    """
+    ctx.ensure_object(dict)
+    
+    # If no subcommand was invoked, start the server
+    if ctx.invoked_subcommand is None:
+        start_server(port, mcp_transport, project, no_browser, host, db_path, verbose)
+
+
+def start_server(port: int, mcp_transport: str, project: Optional[str], no_browser: bool, 
+                host: str, db_path: str, verbose: bool):
     """
     Start Project Manager MCP with zero-config multi-server coordination.
     
@@ -574,6 +592,103 @@ def shutdown_gracefully():
     
     _server_processes.clear()
     logger.info("All processes shutdown complete")
+
+
+@main.command()
+@click.argument('ra_tag_text', type=str)
+@click.option('--task-id', '-t', required=True, type=str,
+              help='Task ID to associate the RA tag with')
+@click.option('--file', '-f', type=str, 
+              help='File path (auto-detected if not specified)')
+@click.option('--line', '-l', type=int,
+              help='Line number for context')
+@click.option('--snippet', '-s', type=str,
+              help='Code snippet (optional)')
+@click.option('--db-path', default=DEFAULT_DB_PATH,
+              help=f'Database file path (default: {DEFAULT_DB_PATH})')
+@click.option('--verbose', '-v', is_flag=True,
+              help='Enable verbose output')
+def add_ra_tag(ra_tag_text: str, task_id: str, file: Optional[str], 
+              line: Optional[int], snippet: Optional[str], 
+              db_path: str, verbose: bool):
+    """
+    Add an RA tag to a task with automatic context detection.
+    
+    Creates RA tags with zero-effort automatic detection of file path, line number,
+    git branch/commit, programming language, and symbol context.
+    
+    Examples:
+      pm add-ra-tag "#COMPLETION_DRIVE_IMPL: Database connection pooling" -t 5
+      pm add-ra-tag "#SUGGEST_ERROR_HANDLING: Input validation needed" -t 3 --file src/api.py --line 45
+      pm add-ra-tag "#PATTERN_MOMENTUM: Standard React pattern" -t 8 --snippet "const [state, setState] = useState()"
+    """
+    if verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    
+    try:
+        # Initialize database
+        database = TaskDatabase(db_path)
+        
+        # Create AddRATagTool instance (no WebSocket manager needed for CLI)
+        add_ra_tag_tool = AddRATagTool(database, None)
+        
+        # Create enriched context
+        context = create_enriched_context(file, line, snippet)
+        
+        # Create the RA tag
+        result = asyncio.run(add_ra_tag_tool.apply(
+            task_id=task_id,
+            ra_tag_text=ra_tag_text,
+            file_path=file,
+            line_number=line,
+            code_snippet=snippet,
+            agent_id="cli-user"
+        ))
+        
+        # Parse and display result
+        import json
+        result_data = json.loads(result)
+        
+        if result_data.get('success'):
+            click.echo(click.style("✓ RA tag created successfully!", fg='green'))
+            click.echo(f"  Tag ID: {result_data.get('ra_tag_id')}")
+            click.echo(f"  Task ID: {result_data.get('task_id')}")
+            click.echo(f"  Type: {result_data.get('ra_tag_type')}")
+            click.echo(f"  Text: {result_data.get('ra_tag_text')}")
+            
+            # Display context if detected
+            context_data = result_data.get('context', {})
+            if context_data:
+                click.echo("\n  Detected Context:")
+                if context_data.get('file_path'):
+                    click.echo(f"    File: {context_data['file_path']}")
+                if context_data.get('line_number'):
+                    click.echo(f"    Line: {context_data['line_number']}")
+                if context_data.get('git_branch'):
+                    click.echo(f"    Branch: {context_data['git_branch']}")
+                if context_data.get('git_commit'):
+                    click.echo(f"    Commit: {context_data['git_commit']}")
+                if context_data.get('language'):
+                    click.echo(f"    Language: {context_data['language']}")
+                if context_data.get('symbol_context'):
+                    click.echo(f"    Symbol: {context_data['symbol_context']}")
+        else:
+            click.echo(click.style("✗ Failed to create RA tag", fg='red'))
+            click.echo(f"  Error: {result_data.get('message', 'Unknown error')}")
+            sys.exit(1)
+    
+    except Exception as e:
+        click.echo(click.style(f"✗ Error: {str(e)}", fg='red'))
+        if verbose:
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
+    
+    finally:
+        try:
+            database.close()
+        except:
+            pass
 
 
 def cleanup_resources():

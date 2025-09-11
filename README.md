@@ -11,6 +11,7 @@ A comprehensive project management system with Model Context Protocol (MCP) supp
 - **SQLite Backend**: Lightweight, serverless database with WAL mode
 - **Zero-Config Setup**: Single command deployment with automatic port allocation
 - **Project Import**: YAML-based project definition and import system
+- **RA Tag Context Detection**: Zero-effort context capture for Response Awareness tags
 
 ## Quick Start
 
@@ -38,6 +39,9 @@ project-manager-mcp --project examples/simple-project.yaml
 
 # MCP over stdio (default; for shell integration)
 project-manager-mcp --mcp-transport stdio
+
+# Add RA tags with automatic context detection
+python -m task_manager.cli add-ra-tag "#COMPLETION_DRIVE_IMPL: Assuming user validation upstream" --task-id 123
 ```
 
 After startup, access the dashboard at `http://localhost:8080` (or your chosen port).
@@ -63,7 +67,8 @@ project-manager-mcp --mcp-transport sse
 - **FastAPI Backend** (`task_manager.api`): REST endpoints and WebSocket broadcasting
 - **MCP Server** (`task_manager.mcp_server`): AI agent tool integration
 - **Database Layer** (`task_manager.database`): SQLite with atomic locking
-- **MCP Tools** (`task_manager.tools`): GetAvailableTasks, AcquireTaskLock, UpdateTaskStatus, ReleaseTaskLock
+- **MCP Tools** (`task_manager.tools`): GetAvailableTasks, AcquireTaskLock, UpdateTaskStatus, ReleaseTaskLock, AddRATag
+- **Context Detection** (`task_manager.context_utils`): Automatic file, git, and symbol context detection
 
 ### Data Model
 
@@ -78,6 +83,7 @@ Each task supports:
 - **Atomic locking**: Prevent concurrent modifications
 - **Agent assignment**: Track work ownership
 - **Real-time updates**: WebSocket broadcasting
+- **RA Tag Context**: Automatic context detection for Response Awareness tags
 
 ### Transport Modes
 
@@ -254,6 +260,7 @@ project-manager-mcp --mcp-transport stdio --verbose
 - [Detailed Usage Guide](docs/usage.md) - CLI options, MCP tools, WebSocket events
 - [API Documentation](docs/api.md) - REST endpoints, request/response formats
 - [Development Guide](docs/development.md) - Contributing, testing, architecture decisions
+- [RA Tag Context Usage Guide](docs/ra-tag-context-usage.md) - Complete guide for Response Awareness tag context detection
 
 ## Examples
 

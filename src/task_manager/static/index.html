@@ -1532,6 +1532,60 @@
             line-height: 1.5;
         }
         
+        /* RA Tag Context Styles */
+        .ra-tag-context {
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.75rem;
+        }
+        
+        .context-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+            color: #64748b;
+        }
+        
+        .context-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .context-label {
+            font-weight: 500;
+            min-width: 4rem;
+            color: #475569;
+        }
+        
+        .context-value {
+            font-family: 'Monaco', 'Menlo', monospace;
+            color: #1e293b;
+        }
+        
+        .context-value.file-path {
+            color: #0369a1;
+        }
+        
+        .context-value.git-info {
+            color: #059669;
+        }
+        
+        .code-snippet {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.75rem;
+            color: #374151;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        
         /* Enhanced validation details styles */
         .validation-details {
             margin-top: 0.75rem;
@@ -4620,7 +4674,22 @@
                     }
                 }
                 
-                return { name: tagName, description: tagDescription };
+                // Extract context information if available
+                const context = {};
+                if (typeof tag === 'object') {
+                    // Include context fields from the new RA tag structure
+                    if (tag.file_path) context.file_path = tag.file_path;
+                    if (tag.line_number) context.line_number = tag.line_number;
+                    if (tag.git_branch) context.git_branch = tag.git_branch;
+                    if (tag.git_commit) context.git_commit = tag.git_commit;
+                    if (tag.language) context.language = tag.language;
+                    if (tag.symbol_context) context.symbol_context = tag.symbol_context;
+                    if (tag.code_snippet) context.code_snippet = tag.code_snippet;
+                    if (tag.created_at) context.created_at = tag.created_at;
+                    if (tag.created_by) context.created_by = tag.created_by;
+                }
+                
+                return { name: tagName, description: tagDescription, context: context };
             }
             
             findValidationForTag(tagId) {
@@ -4648,6 +4717,38 @@
                             </span>
                         </div>
                         <div class="ra-tag-description">${this.escapeHtml(tagData.description)}</div>
+                        
+                        ${tagData.context && Object.keys(tagData.context).length > 0 ? `
+                            <div class="ra-tag-context">
+                                ${tagData.context.file_path ? `
+                                    <div class="context-item">
+                                        <span class="context-label">File:</span>
+                                        <span class="context-value file-path">${this.escapeHtml(tagData.context.file_path)}${tagData.context.line_number ? ':' + tagData.context.line_number : ''}</span>
+                                    </div>
+                                ` : ''}
+                                ${tagData.context.git_branch ? `
+                                    <div class="context-item">
+                                        <span class="context-label">Branch:</span>
+                                        <span class="context-value git-info">${this.escapeHtml(tagData.context.git_branch)}${tagData.context.git_commit ? '@' + tagData.context.git_commit.substring(0, 7) : ''}</span>
+                                    </div>
+                                ` : ''}
+                                ${tagData.context.language ? `
+                                    <div class="context-item">
+                                        <span class="context-label">Lang:</span>
+                                        <span class="context-value">${this.escapeHtml(tagData.context.language)}</span>
+                                    </div>
+                                ` : ''}
+                                ${tagData.context.symbol_context ? `
+                                    <div class="context-item">
+                                        <span class="context-label">Symbol:</span>
+                                        <span class="context-value">${this.escapeHtml(tagData.context.symbol_context)}</span>
+                                    </div>
+                                ` : ''}
+                                ${tagData.context.code_snippet ? `
+                                    <div class="code-snippet">${this.escapeHtml(tagData.context.code_snippet)}</div>
+                                ` : ''}
+                            </div>
+                        ` : ''}
                         
                         ${validation ? `
                             <div class="validation-details">
