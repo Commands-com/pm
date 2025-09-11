@@ -848,10 +848,18 @@ class CreateTaskTool(BaseTool):
                 )
             
             # Validate RA parameters
-            if ra_score is not None and (ra_score < 1 or ra_score > 10):
-                return self._format_error_response(
-                    "ra_score must be between 1 and 10 if provided"
-                )
+            # Convert ra_score from string to int if provided (MCP compatibility)
+            if ra_score is not None:
+                try:
+                    ra_score = int(ra_score)
+                    if ra_score < 1 or ra_score > 10:
+                        return self._format_error_response(
+                            "ra_score must be between 1 and 10 if provided"
+                        )
+                except (ValueError, TypeError):
+                    return self._format_error_response(
+                        "ra_score must be a valid integer between 1 and 10"
+                    )
             
             if ra_mode and ra_mode not in ['simple', 'standard', 'ra-light', 'ra-full']:
                 return self._format_error_response(
@@ -1218,8 +1226,16 @@ class UpdateTaskTool(BaseTool):
             # Validate RA parameters
             # RA parameter validation uses same constraints
             # as CreateTaskTool for consistency across task management operations
-            if ra_score is not None and (ra_score < 1 or ra_score > 10):
-                return self._format_error_response("ra_score must be between 1 and 10")
+            # Convert ra_score from string to int if provided (MCP compatibility)
+            if ra_score is not None:
+                try:
+                    ra_score = int(ra_score)
+                    if ra_score < 1 or ra_score > 10:
+                        return self._format_error_response("ra_score must be between 1 and 10")
+                except (ValueError, TypeError):
+                    return self._format_error_response(
+                        "ra_score must be a valid integer between 1 and 10"
+                    )
             
             if ra_mode is not None and ra_mode not in ['simple', 'standard', 'ra-light', 'ra-full']:
                 return self._format_error_response(
@@ -2589,6 +2605,16 @@ class CaptureAssumptionValidationTool(BaseTool):
                 }
                 confidence = confidence_defaults[outcome]
             else:
+                # Convert confidence from string to int if needed (MCP compatibility)
+                if isinstance(confidence, str):
+                    try:
+                        confidence = int(confidence)
+                    except ValueError:
+                        return json.dumps({
+                            "success": False,
+                            "error": "confidence must be a valid integer between 0 and 100"
+                        })
+                
                 # Validate confidence range
                 if not (0 <= confidence <= 100):
                     return json.dumps({
