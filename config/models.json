@@ -1,0 +1,110 @@
+{
+  "consensus_config": {
+    "contentious_threshold": 0.75,
+    "high_confidence_threshold": 0.90,
+    "minimum_models": 2,
+    "cache_ttl_minutes": 5
+  },
+  "models": [
+    {
+      "id": "claude-3-5-sonnet",
+      "provider": "anthropic",
+      "name": "claude-3-5-sonnet",
+      "display_name": "Claude 3.5 Sonnet",
+      "weight": 1.0,
+      "enabled": true,
+      "description": "Anthropic's most capable model with strong reasoning and analysis capabilities",
+      "api_endpoint": "https://api.anthropic.com/v1/messages"
+    },
+    {
+      "id": "claude-3-opus",
+      "provider": "anthropic",
+      "name": "claude-3-opus",
+      "display_name": "Claude 3 Opus",
+      "weight": 1.0,
+      "enabled": true,
+      "description": "Anthropic's most powerful model for complex reasoning tasks",
+      "api_endpoint": "https://api.anthropic.com/v1/messages"
+    },
+    {
+      "id": "claude-3-haiku",
+      "provider": "anthropic",
+      "name": "claude-3-haiku",
+      "display_name": "Claude 3 Haiku",
+      "weight": 0.8,
+      "enabled": true,
+      "description": "Fast and efficient model for simpler validation tasks",
+      "api_endpoint": "https://api.anthropic.com/v1/messages"
+    },
+    {
+      "id": "gpt-4-turbo",
+      "provider": "openai",
+      "name": "gpt-4-turbo",
+      "display_name": "GPT-4 Turbo",
+      "weight": 1.0,
+      "enabled": true,
+      "description": "OpenAI's most capable model with strong performance across domains",
+      "api_endpoint": "https://api.openai.com/v1/chat/completions"
+    },
+    {
+      "id": "gpt-4",
+      "provider": "openai",
+      "name": "gpt-4",
+      "display_name": "GPT-4",
+      "weight": 1.0,
+      "enabled": true,
+      "description": "OpenAI's flagship model with excellent reasoning capabilities",
+      "api_endpoint": "https://api.openai.com/v1/chat/completions"
+    },
+    {
+      "id": "gpt-3.5-turbo",
+      "provider": "openai",
+      "name": "gpt-3.5-turbo",
+      "display_name": "GPT-3.5 Turbo",
+      "weight": 0.8,
+      "enabled": true,
+      "description": "Fast and cost-effective model for routine validation tasks",
+      "api_endpoint": "https://api.openai.com/v1/chat/completions"
+    },
+    {
+      "id": "gemini-1.5-pro",
+      "provider": "google",
+      "name": "gemini-1.5-pro",
+      "display_name": "Gemini 1.5 Pro",
+      "weight": 1.0,
+      "enabled": true,
+      "description": "Google's advanced model with strong analytical capabilities",
+      "api_endpoint": "https://generativelanguage.googleapis.com/v1/models"
+    },
+    {
+      "id": "gemini-pro",
+      "provider": "google",
+      "name": "gemini-pro",
+      "display_name": "Gemini Pro",
+      "weight": 0.9,
+      "enabled": true,
+      "description": "Google's capable model for general validation tasks",
+      "api_endpoint": "https://generativelanguage.googleapis.com/v1/models"
+    },
+    {
+      "id": "llama-3-70b",
+      "provider": "meta",
+      "name": "llama-3-70b",
+      "display_name": "Llama 3 70B",
+      "weight": 0.8,
+      "enabled": false,
+      "description": "Meta's large language model (disabled by default - requires local deployment)",
+      "api_endpoint": null
+    },
+    {
+      "id": "llama-3-8b",
+      "provider": "meta",
+      "name": "llama-3-8b",
+      "display_name": "Llama 3 8B",
+      "weight": 0.7,
+      "enabled": false,
+      "description": "Meta's efficient model (disabled by default - requires local deployment)",
+      "api_endpoint": null
+    }
+  ]
+}

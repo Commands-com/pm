@@ -8,6 +8,7 @@ task operations, and error response formatting.
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
+from enum import Enum
 import json
 
 
@@ -201,3 +202,196 @@ class TagTypesResponse(BaseModel):
     tag_types: List[TagTypeInfo]
     total_types: int
     cache_timestamp: Optional[str] = None
+
+
+# Multi-Model Consensus Models
+
+
+class AgreementLevel(str, Enum):
+    """Enum for consensus agreement classification levels."""
+
+    NO_DATA = "no_data"     # No validations available
+    WEAK = "weak"           # <50% consensus
+    MODERATE = "moderate"   # 50-74% consensus
+    STRONG = "strong"       # 75-89% consensus
+    UNANIMOUS = "unanimous" # 90%+ consensus
+
+
+class ModelProvider(str, Enum):
+    """Enum for AI model providers."""
+
+    ANTHROPIC = "anthropic"
+    OPENAI = "openai"
+    META = "meta"
+    GOOGLE = "google"
+    UNKNOWN = "unknown"
+
+
+class ModelInfo(BaseModel):
+    """Model information extracted from validator_id."""
+
+    provider: ModelProvider = Field(description="AI model provider")
+    name: str = Field(description="Model name (e.g., 'claude-3-opus')")
+    version: Optional[str] = Field(default=None, description="Model version if available")
+    display_name: str = Field(description="Human-readable display name")
+    weight: float = Field(ge=0.0, le=2.0, description="Model weight for consensus calculation")
+
+
+class ConsensusResult(BaseModel):
+    """Result model for consensus calculation across multiple model validations."""
+
+    consensus: float = Field(
+        ge=0.0, le=1.0,
+        description="Weighted consensus score from 0.0 to 1.0"
+    )
+    overall_score: int = Field(
+        ge=0, le=100,
+        description="Normalized overall score (0-100) for human-friendly comparisons"
+    )
+    outcome: str = Field(
+        description="Dominant outcome: 'validated', 'rejected', or 'partial'"
+    )
+    agreement_level: AgreementLevel = Field(
+        description="Classification of agreement strength"
+    )
+    model_disagreement: bool = Field(
+        description="True when consensus < 75% indicating significant disagreement"
+    )
+    total_validations: int = Field(
+        ge=0,
+        description="Total number of model validations included"
+    )
+    model_breakdown: Dict[str, int] = Field(
+        description="Count of validations by outcome for transparency"
+    )
+    weighted_confidence: float = Field(
+        ge=0.0, le=1.0,
+        description="Average confidence weighted by model weights"
+    )
+
+
+class ContentiousTag(BaseModel):
+    """Model for RA tags with low consensus (contentious)."""
+
+    ra_tag_id: str = Field(description="Unique RA tag identifier")
+    ra_tag_text: str = Field(description="Original RA tag text")
+    consensus: float = Field(ge=0.0, le=1.0, description="Consensus score for this tag")
+    total_validations: int = Field(ge=0, description="Number of validations for this tag")
+    disagreement_reason: str = Field(description="Why this tag is contentious")
+
+
+class HighConfidenceTag(BaseModel):
+    """Model for RA tags with high consensus (high confidence)."""
+
+    ra_tag_id: str = Field(description="Unique RA tag identifier")
+    ra_tag_text: str = Field(description="Original RA tag text")
+    consensus: float = Field(ge=0.0, le=1.0, description="Consensus score for this tag")
+    total_validations: int = Field(ge=0, description="Number of validations for this tag")
+    outcome: str = Field(description="Dominant validation outcome")
+
+
+class ConsensusSummaryResponse(BaseModel):
+    """Response model for task consensus summary endpoint."""
+
+    success: bool = True
+    task_id: int = Field(description="Task ID for the summary")
+    overall_consensus: float = Field(
+        ge=0.0, le=1.0,
+        description="Average consensus across all RA tags in task"
+    )
+    total_ra_tags: int = Field(ge=0, description="Total number of RA tags in task")
+    validated_tags: int = Field(ge=0, description="Number of tags with at least one validation")
+    validation_coverage: float = Field(
+        ge=0.0, le=1.0,
+        description="Percentage of tags with validations"
+    )
+    contentious_tags: List[ContentiousTag] = Field(
+        description="Tags with consensus < 75% indicating disagreement"
+    )
+    high_confidence_tags: List[HighConfidenceTag] = Field(
+        description="Tags with consensus > 90% indicating strong agreement"
+    )
+    cache_timestamp: Optional[str] = Field(
+        default=None,
+        description="Timestamp when consensus calculations were cached"
+    )
+
+
+class ModelConfig(BaseModel):
+    """Configuration for an individual AI model."""
+
+    id: str = Field(description="Unique model identifier")
+    provider: str = Field(description="Model provider (anthropic, openai, etc.)")
+    name: str = Field(description="Technical model name")
+    display_name: str = Field(description="Human-readable display name")
+    weight: float = Field(ge=0.0, le=2.0, description="Weight for consensus calculations")
+    enabled: bool = Field(default=True, description="Whether model is enabled for validation")
+    description: Optional[str] = Field(default=None, description="Model description")
+    api_endpoint: Optional[str] = Field(default=None, description="API endpoint URL")
+
+
+class ConsensusConfig(BaseModel):
+    """Configuration for consensus calculation thresholds."""
+
+    contentious_threshold: float = Field(
+        default=0.75,
+        ge=0.0, le=1.0,
+        description="Threshold below which tags are considered contentious"
+    )
+    high_confidence_threshold: float = Field(
+        default=0.90,
+        ge=0.0, le=1.0,
+        description="Threshold above which tags are considered high confidence"
+    )
+    minimum_models: int = Field(
+        default=2,
+        ge=1,
+        description="Minimum number of models required for consensus calculation"
+    )
+    cache_ttl_minutes: int = Field(
+        default=5,
+        ge=1,
+        description="Cache TTL in minutes for consensus results"
+    )
+
+
+class AvailableModelsResponse(BaseModel):
+    """Response model for available models API endpoint."""
+
+    success: bool = True
+    models: List[ModelConfig] = Field(description="List of available AI models")
+    consensus_config: ConsensusConfig = Field(description="Consensus calculation configuration")
+    total_models: int = Field(ge=0, description="Total number of configured models")
+    enabled_models: int = Field(ge=0, description="Number of enabled models")
+    last_updated: Optional[str] = Field(
+        default=None,
+        description="Timestamp when configuration was last loaded"
+    )
+
+
+class ValidationWithModel(BaseModel):
+    """Validation result with associated model information."""
+
+    validation_id: int = Field(description="Unique validation identifier")
+    outcome: str = Field(description="Validation outcome: validated, rejected, or partial")
+    reason: str = Field(description="Validation reason or explanation")
+    confidence: int = Field(ge=0, le=100, description="Validation confidence percentage")
+    created_at: str = Field(description="ISO timestamp of validation creation")
+    reviewer_agent_id: str = Field(description="Agent that performed the validation")
+    model_info: ModelInfo = Field(description="Information about the model that performed validation")
+
+
+class MultiModelResponse(BaseModel):
+    """Response model for multi-model view API endpoint."""
+
+    success: bool = True
+    task_id: int = Field(description="Task ID for the RA tag")
+    ra_tag_id: str = Field(description="RA tag identifier")
+    ra_tag_text: str = Field(description="Original RA tag text")
+    consensus: ConsensusResult = Field(description="Consensus calculation results")
+    validations: List[ValidationWithModel] = Field(
+        description="All validations for this RA tag with model information"
+    )
+    model_count: int = Field(ge=0, description="Number of unique models that validated this tag")
+    cached: bool = Field(description="Whether result was served from cache")
+    generated_at: str = Field(description="ISO timestamp when response was generated")

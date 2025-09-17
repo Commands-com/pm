@@ -3068,6 +3068,920 @@
             font-weight: 500;
         }
 
+        /* Consensus Indicator Component Styles */
+        .consensus-indicator {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .consensus-indicator:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+            border-radius: 50%;
+        }
+
+        .consensus-svg {
+            transform: rotate(-90deg); /* Start from top */
+        }
+
+        .consensus-bg-circle {
+            opacity: 0.2;
+        }
+
+        .consensus-progress-circle {
+            transition: stroke-dashoffset 300ms ease-out, stroke 300ms ease-out;
+        }
+
+        .consensus-text {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            pointer-events: none;
+        }
+
+        .consensus-percentage {
+            font-size: 0.75rem;
+            line-height: 1;
+        }
+
+        /* Size variants */
+        .consensus-indicator--small {
+            width: 24px;
+            height: 24px;
+        }
+
+        .consensus-indicator--small .consensus-percentage {
+            font-size: 0.625rem;
+        }
+
+        .consensus-indicator--medium {
+            width: 48px;
+            height: 48px;
+        }
+
+        .consensus-indicator--medium .consensus-percentage {
+            font-size: 0.75rem;
+        }
+
+        .consensus-indicator--large {
+            width: 72px;
+            height: 72px;
+        }
+
+        .consensus-indicator--large .consensus-percentage {
+            font-size: 1rem;
+        }
+
+        .consensus-tooltip {
+            position: fixed;
+            background-color: #1f2937;
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 200ms ease-out;
+            white-space: nowrap;
+        }
+
+        .consensus-tooltip::before {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 4px solid transparent;
+            border-bottom-color: #1f2937;
+        }
+
+        .consensus-indicator:hover .consensus-tooltip,
+        .consensus-indicator:focus .consensus-tooltip {
+            opacity: 1;
+        }
+
+        /* CSS custom property defaults for theming */
+        :root {
+            --consensus-color: #3b82f6;
+            --consensus-bg-color: #e2e8f0;
+        }
+
+        /* Multi-Model Grid Component Styles */
+        .multi-model-grid {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .multi-model-header {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .consensus-section {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .consensus-details h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .consensus-stats {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+
+        .multi-model-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .grid-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .sort-controls,
+        .filter-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .sort-controls label,
+        .filter-controls label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            white-space: nowrap;
+        }
+
+        .sort-select,
+        .outcome-filter {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            font-size: 0.875rem;
+            min-width: 140px;
+        }
+
+        .sort-select:focus,
+        .outcome-filter:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+
+        .refresh-btn {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .refresh-btn:hover {
+            background: #f9fafb;
+            border-color: #9ca3af;
+        }
+
+        /* Loading and Error States */
+        .multi-model-loading,
+        .multi-model-error,
+        .multi-model-empty {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #64748b;
+        }
+
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .multi-model-error {
+            color: #dc2626;
+        }
+
+        .error-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .error-retry-btn {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .error-retry-btn:hover {
+            background: #b91c1c;
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .multi-model-empty h3 {
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Validations Grid */
+        .multi-model-validations {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Responsive grid columns */
+        @media (max-width: 767px) {
+            .multi-model-validations {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .multi-model-validations {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .multi-model-validations {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        /* Validation Card Styles */
+        .validation-card {
+            background: white;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            padding: 1.5rem;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .validation-card:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .validation-card.outcome-validated {
+            border-left: 4px solid #10b981;
+        }
+
+        .validation-card.outcome-rejected {
+            border-left: 4px solid #ef4444;
+        }
+
+        .validation-card.outcome-partial {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .validation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .model-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .model-provider-icon {
+            font-size: 1.5rem;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            border-radius: 8px;
+        }
+
+        .model-details h4 {
+            margin: 0 0 0.25rem 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .model-provider {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: capitalize;
+        }
+
+        .validation-outcome {
+            flex-shrink: 0;
+        }
+
+        .outcome-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .outcome-badge.outcome-validated {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .outcome-badge.outcome-rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .outcome-badge.outcome-partial {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .validation-body {
+            margin-bottom: 1rem;
+        }
+
+        .confidence-section {
+            margin-bottom: 1rem;
+        }
+
+        .confidence-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .confidence-bar {
+            position: relative;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .confidence-value {
+            position: absolute;
+            right: 0;
+            top: -1.5rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .validation-reason {
+            margin-top: 1rem;
+        }
+
+        .reason-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .reason-text {
+            font-size: 0.875rem;
+            color: #64748b;
+            line-height: 1.5;
+            background: #f8fafc;
+            padding: 0.75rem;
+            border-radius: 6px;
+            border-left: 3px solid #e2e8f0;
+        }
+
+        .validation-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: #64748b;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 1rem;
+        }
+
+        .validation-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .model-weight {
+            font-weight: 500;
+            color: #475569;
+        }
+
+        /* Mobile-specific adjustments */
+        @media (max-width: 767px) {
+            .multi-model-grid {
+                padding: 0.5rem;
+            }
+
+            .multi-model-header {
+                padding: 1rem;
+            }
+
+            .consensus-section {
+                flex-direction: column;
+                text-align: center;
+                gap: 1rem;
+            }
+
+            .multi-model-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .grid-controls {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+
+            .sort-controls,
+            .filter-controls {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.25rem;
+            }
+
+            .sort-select,
+            .outcome-filter {
+                min-width: auto;
+            }
+
+            .validation-card {
+                padding: 1rem;
+            }
+
+            .validation-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .model-info {
+                align-self: flex-start;
+            }
+
+            .validation-outcome {
+                align-self: flex-end;
+            }
+        }
+
+        /* Model Selector Component Styles */
+        .model-selector {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            padding: 1.5rem;
+            max-width: 400px;
+            font-size: 0.875rem;
+        }
+
+        .selector-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .selector-header h3 {
+            margin: 0;
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .model-counts {
+            display: flex;
+            gap: 0.25rem;
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .enabled-count {
+            font-weight: 600;
+            color: #3b82f6;
+        }
+
+        .selector-loading {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            color: #64748b;
+            justify-content: center;
+        }
+
+        .loading-spinner-small {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e2e8f0;
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .filter-section-title {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Preset Filters */
+        .preset-filters {
+            margin-bottom: 1.5rem;
+        }
+
+        .preset-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .preset-btn {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+        }
+
+        .preset-btn:hover {
+            border-color: #9ca3af;
+            background: #f9fafb;
+        }
+
+        .preset-btn.active {
+            border-color: #3b82f6;
+            background: #eff6ff;
+            color: #1e40af;
+        }
+
+        .preset-count {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: normal;
+        }
+
+        /* Provider Filters */
+        .provider-filters {
+            margin-bottom: 1.5rem;
+        }
+
+        .provider-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .provider-btn {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+        }
+
+        .provider-btn:hover {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+        }
+
+        .provider-btn.active {
+            border-color: #3b82f6;
+            background: #eff6ff;
+            color: #1e40af;
+        }
+
+        .provider-count {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: normal;
+        }
+
+        /* Confidence Filter */
+        .confidence-filter {
+            margin-bottom: 1.5rem;
+        }
+
+        .confidence-value {
+            font-weight: 600;
+            color: #3b82f6;
+        }
+
+        .confidence-slider-container {
+            margin-top: 0.5rem;
+        }
+
+        .confidence-slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e2e8f0;
+            outline: none;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .confidence-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .confidence-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .confidence-markers {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.25rem;
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        /* Model List */
+        .model-list {
+            margin-bottom: 1.5rem;
+        }
+
+        .models-container {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+
+        .models-empty {
+            padding: 2rem;
+            text-align: center;
+            color: #9ca3af;
+            font-style: italic;
+        }
+
+        .model-item {
+            border-bottom: 1px solid #f1f5f9;
+            transition: background-color 0.2s ease;
+        }
+
+        .model-item:last-child {
+            border-bottom: none;
+        }
+
+        .model-item.hidden {
+            display: none;
+        }
+
+        .model-item:hover {
+            background: #f8fafc;
+        }
+
+        .model-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .model-checkbox {
+            display: none;
+        }
+
+        .checkbox-custom {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #d1d5db;
+            border-radius: 3px;
+            background: white;
+            position: relative;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .model-checkbox:checked + .checkbox-custom {
+            background: #3b82f6;
+            border-color: #3b82f6;
+        }
+
+        .model-checkbox:checked + .checkbox-custom::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .model-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .model-name {
+            font-weight: 500;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .model-details {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .model-provider {
+            font-weight: 500;
+        }
+
+        .model-weight {
+            color: #475569;
+        }
+
+        .model-status {
+            font-weight: 500;
+        }
+
+        .model-status.enabled {
+            color: #059669;
+        }
+
+        .model-status.disabled {
+            color: #dc2626;
+        }
+
+        /* Actions */
+        .selector-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s ease;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .action-btn:hover {
+            border-color: #9ca3af;
+            background: #f9fafb;
+        }
+
+        .select-all-btn:hover {
+            border-color: #10b981;
+            background: #ecfdf5;
+            color: #065f46;
+        }
+
+        .select-none-btn:hover {
+            border-color: #ef4444;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .reset-btn:hover {
+            border-color: #f59e0b;
+            background: #fffbeb;
+            color: #92400e;
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 767px) {
+            .model-selector {
+                padding: 1rem;
+                max-width: none;
+            }
+
+            .selector-header {
+                flex-direction: column;
+                gap: 0.5rem;
+                text-align: center;
+            }
+
+            .preset-buttons {
+                gap: 0.25rem;
+            }
+
+            .preset-btn {
+                padding: 0.5rem;
+            }
+
+            .model-details {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+
+            .selector-actions {
+                flex-direction: column;
+            }
+
+            .action-btn {
+                flex: none;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -3434,6 +4348,15 @@
                 case 'knowledge_log':
                     handleKnowledgeLog(data);
                     break;
+                case 'multi_model.validation_added':
+                    handleMultiModelValidationAdded(data);
+                    break;
+                case 'multi_model.consensus_updated':
+                    handleMultiModelConsensusUpdated(data);
+                    break;
+                case 'multi_model.model_status_changed':
+                    handleMultiModelStatusChanged(data);
+                    break;
                 default:
                     console.log('Unknown event type:', data.type);
             }
@@ -3798,7 +4721,94 @@
                 showNotification(`New ${action} logged for knowledge item`, 'info', 2000);
             }
         }
-        
+
+        function handleMultiModelValidationAdded(data) {
+            console.log('Multi-model validation added event received:', data);
+
+            // #COMPLETION_DRIVE_IMPL: Multi-model validation_added event handling
+            // Event structure: { type, timestamp, context: { task_id, ra_tag_id }, data: { validation, model, action } }
+
+            const taskId = data.context?.task_id;
+            const raTagId = data.context?.ra_tag_id;
+            const validation = data.data?.validation;
+            const model = data.data?.model;
+
+            if (taskId && raTagId && validation && model) {
+                // Show notification for new validation
+                showNotification(
+                    `New validation from ${model.name}: ${validation.outcome} (${validation.confidence}% confidence)`,
+                    'info',
+                    3000
+                );
+
+                // If task detail modal is open for this task, refresh it
+                if (AppState.currentModal === 'task' && AppState.selectedTaskId == taskId) {
+                    // Refresh task detail view to show updated validation
+                    const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
+                    if (taskCard) {
+                        showTaskDetail(taskId);
+                    }
+                }
+            }
+        }
+
+        function handleMultiModelConsensusUpdated(data) {
+            console.log('Multi-model consensus updated event received:', data);
+
+            // #COMPLETION_DRIVE_IMPL: Multi-model consensus_updated event handling
+            // Event structure: { type, timestamp, context: { task_id, ra_tag_id }, data: { consensus, trigger } }
+
+            const taskId = data.context?.task_id;
+            const raTagId = data.context?.ra_tag_id;
+            const consensus = data.data?.consensus;
+            const trigger = data.data?.trigger;
+
+            if (taskId && raTagId && consensus) {
+                // Show notification for consensus update
+                const agreementLevel = consensus.agreement_level || 'UNKNOWN';
+                const score = consensus.overall_score || 0;
+
+                showNotification(
+                    `Consensus updated: ${agreementLevel} agreement (${score.toFixed(1)}% confidence)`,
+                    'success',
+                    3000
+                );
+
+                // If task detail modal is open for this task, refresh it
+                if (AppState.currentModal === 'task' && AppState.selectedTaskId == taskId) {
+                    const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
+                    if (taskCard) {
+                        showTaskDetail(taskId);
+                    }
+                }
+
+                // Update any visible MultiModelGrid components
+                if (window.currentMultiModelGrid &&
+                    window.currentMultiModelGrid.options.taskId == taskId &&
+                    window.currentMultiModelGrid.options.raTagId === raTagId) {
+                    window.currentMultiModelGrid.handleMultiModelUpdate(data);
+                }
+            }
+        }
+
+        function handleMultiModelStatusChanged(data) {
+            console.log('Multi-model status changed event received:', data);
+
+            // #COMPLETION_DRIVE_IMPL: Multi-model model_status_changed event handling
+            // This could handle model availability changes, performance updates, etc.
+
+            const context = data.context;
+            const statusData = data.data;
+
+            if (statusData && statusData.model_name) {
+                showNotification(
+                    `Model ${statusData.model_name} status: ${statusData.status || 'updated'}`,
+                    'info',
+                    2000
+                );
+            }
+        }
+
         // #COMPLETION_DRIVE_INIT: Load initial board state from API
         // Pattern: Fetch complete state on page load, then maintain via WebSocket
         async function loadBoardState() {
@@ -7971,5 +8981,12 @@
             </div>
         </div>
     </div>
+
+    <!-- Include ConsensusIndicator Component -->
+    <script src="/static/components/ConsensusIndicator.js"></script>
+    <!-- Include MultiModelGrid Component -->
+    <script src="/static/components/MultiModelGrid.js"></script>
+    <!-- Include ModelSelector Component -->
+    <script src="/static/components/ModelSelector.js"></script>
 </body>
 </html>

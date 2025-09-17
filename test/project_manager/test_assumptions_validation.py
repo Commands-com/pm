@@ -329,6 +329,28 @@ class TestValidationErrors(TestAssumptionValidationSystem):
             assert "confidence must be between 0 and 100" in result_data["error"]
 
     @pytest.mark.asyncio
+    async def test_confidence_string_parameter(self, validation_tool, test_task_with_ra_tags):
+        """Test validation accepts confidence as string parameter and converts to integer."""
+        task_id = test_task_with_ra_tags["task_id"]
+        ra_tag_id = test_task_with_ra_tags["ra_tags"][0]["id"]
+
+        result = await validation_tool.apply(
+            task_id=str(task_id),
+            ra_tag_id=ra_tag_id,
+            outcome="validated",
+            reason="Test string confidence parameter",
+            confidence="95",  # String instead of integer
+        )
+
+        import json
+
+        result_data = json.loads(result)
+
+        assert result_data["success"] is True
+        assert result_data["confidence"] == 95  # Should be converted to integer
+        assert result_data["outcome"] == "validated"
+
+    @pytest.mark.asyncio
     async def test_task_without_ra_tags(self, validation_tool, temp_db):
         """Test validation fails for task without RA tags."""
         # Create task without RA tags

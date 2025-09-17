@@ -459,8 +459,31 @@ class TaskDatabase:
         """)
         
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_assumption_validations_outcome 
+            CREATE INDEX IF NOT EXISTS idx_assumption_validations_outcome
             ON assumption_validations (outcome)
+        """)
+
+        # Multi-model validation specific performance indexes
+        # #COMPLETION_DRIVE_IMPL: Database-first optimization for multi-model query patterns
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_assumption_validations_multi_model
+            ON assumption_validations (task_id, ra_tag_id, validated_at DESC)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_assumption_validations_consensus_calc
+            ON assumption_validations (task_id, ra_tag_id, outcome, confidence)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_assumption_validations_model_stats
+            ON assumption_validations (validator_id, outcome, validated_at DESC)
+        """)
+
+        # Task RA tags search optimization for multi-model filtering
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_tasks_ra_tags_json
+            ON tasks (id) WHERE ra_tags IS NOT NULL
         """)
 
     def create_project(self, name: str, description: Optional[str] = None) -> int:
@@ -1480,6 +1503,25 @@ class TaskDatabase:
             """, (current_time_str, current_time_str))
             
             return cursor.rowcount
+
+    def execute_query(self, query: str, params: tuple = ()) -> List[tuple]:
+        """
+        Execute a SQL query and return results.
+
+        This method is provided for backward compatibility and testing purposes.
+        For new code, prefer using specific database methods.
+
+        Args:
+            query: SQL query string
+            params: Query parameters tuple
+
+        Returns:
+            List of tuples representing query results
+        """
+        with self._connection_lock:
+            cursor = self._connection.cursor()
+            cursor.execute(query, params)
+            return cursor.fetchall()
 
     def cleanup_expired_locks_with_ids(self) -> list[int]:
         """

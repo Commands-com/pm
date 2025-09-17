@@ -35,6 +35,7 @@ sys.path.insert(0, str(project_root))
 
 from task_manager.database import TaskDatabase
 from task_manager.api import app as fastapi_app, connection_manager, get_database
+from task_manager.assumptions import _provide_db
 from task_manager.mcp_server import create_mcp_server
 from task_manager.cli import main as cli_main
 from task_manager.importer import import_project_from_file
@@ -425,17 +426,338 @@ def test_project_yaml(tmp_path):
     return str(project_file)
 
 
-@pytest.fixture  
+@pytest.fixture
 def api_client(integration_db):
     """Provide FastAPI test client with database override."""
     # Override database dependency to use test database
     def get_test_database():
         return integration_db.database
-        
+
     fastapi_app.dependency_overrides[get_database] = get_test_database
-    
+    fastapi_app.dependency_overrides[_provide_db] = get_test_database
+
     with TestClient(fastapi_app) as client:
         yield client
-        
+
     # Cleanup dependency override
     fastapi_app.dependency_overrides.clear()
+
+
+@pytest.fixture
+async def integrated_multi_model_setup(integration_db):
+    """
+    Integrated multi-model setup that shares database with API client.
+
+    This fixture creates a complete multi-model test environment where the validation
+    tool writes to the same database that the API client reads from, solving the
+    database isolation issue in integration tests.
+    """
+    from src.task_manager.api import ConnectionManager
+    from src.task_manager.tools import CaptureAssumptionValidationTool
+
+    # Use the shared integration database
+    db = integration_db.database
+    connection_manager = ConnectionManager()
+
+    # Create validation tool with the shared database
+    validation_tool = CaptureAssumptionValidationTool(
+        database=db,
+        websocket_manager=connection_manager
+    )
+
+    # Create test project structure
+    project_id = db.create_project(
+        name="Integrated Multi-Model Test Project",
+        description="Project for integrated multi-model validation testing with shared database"
+    )
+
+    epic_id = db.create_epic(
+        name="Integrated Multi-Model Test Epic",
+        description="Epic for integrated multi-model validation testing",
+        project_id=project_id
+    )
+
+    # Create RA tags for testing
+    ra_tags = [
+        {
+            "id": "ra_tag_integrated_001",
+            "text": "#COMPLETION_DRIVE_IMPL: Integrated multi-model validation test assumption",
+            "type": "COMPLETION_DRIVE_IMPL"
+        },
+        {
+            "id": "ra_tag_integrated_002",
+            "text": "#SUGGEST_ERROR_HANDLING: Error handling for integrated validation scenarios",
+            "type": "SUGGEST_ERROR_HANDLING"
+        }
+    ]
+
+    task_id = db.create_task(
+        name="Integrated Multi-Model Test Task",
+        description="Task for integrated multi-model validation testing with shared database",
+        epic_id=epic_id,
+        ra_tags=ra_tags
+    )
+
+    # Test model configurations
+    test_models = [
+        {
+            "validator_id": "claude-sonnet-3.5",
+            "model_info": {
+                "name": "Claude Sonnet 3.5",
+                "version": "3.5",
+                "provider": "anthropic",
+                "category": "reasoning_model"
+            }
+        },
+        {
+            "validator_id": "gpt-4-turbo",
+            "model_info": {
+                "name": "GPT-4 Turbo",
+                "version": "turbo",
+                "provider": "openai",
+                "category": "reasoning_model"
+            }
+        },
+        {
+            "validator_id": "code-reviewer-v2",
+            "model_info": {
+                "name": "Code Reviewer",
+                "version": "v2",
+                "provider": "unknown",
+                "category": "specialized_model"
+            }
+        }
+    ]
+
+    # Validation scenarios for testing
+    validation_scenarios = [
+        # Strong consensus - all validated
+        {
+            "name": "strong_consensus_validated",
+            "validations": [
+                {"outcome": "validated", "confidence": 90},
+                {"outcome": "validated", "confidence": 85},
+                {"outcome": "validated", "confidence": 95}
+            ],
+            "expected_agreement": "UNANIMOUS",
+            "expected_score_range": (85, 95)
+        },
+        # Strong consensus - all rejected
+        {
+            "name": "strong_consensus_rejected",
+            "validations": [
+                {"outcome": "rejected", "confidence": 85},
+                {"outcome": "rejected", "confidence": 90},
+                {"outcome": "rejected", "confidence": 80}
+            ],
+            "expected_agreement": "UNANIMOUS",
+            "expected_score_range": (10, 20)
+        },
+        # Moderate consensus - majority validated
+        {
+            "name": "moderate_consensus_validated",
+            "validations": [
+                {"outcome": "validated", "confidence": 85},
+                {"outcome": "validated", "confidence": 80},
+                {"outcome": "rejected", "confidence": 75}
+            ],
+            "expected_agreement": "MODERATE",
+            "expected_score_range": (60, 80)
+        },
+        # Weak consensus - mixed outcomes
+        {
+            "name": "weak_consensus_mixed",
+            "validations": [
+                {"outcome": "validated", "confidence": 70},
+                {"outcome": "rejected", "confidence": 65},
+                {"outcome": "partial", "confidence": 60}
+            ],
+            "expected_agreement": "WEAK",
+            "expected_score_range": (50, 70)
+        },
+        # Edge case - single validation
+        {
+            "name": "single_validation",
+            "validations": [
+                {"outcome": "validated", "confidence": 88}
+            ],
+            "expected_agreement": "UNANIMOUS",
+            "expected_score_range": (85, 90)
+        }
+    ]
+
+    return {
+        "db": db,
+        "connection_manager": connection_manager,
+        "validation_tool": validation_tool,
+        "project_id": project_id,
+        "epic_id": epic_id,
+        "task_id": task_id,
+        "ra_tags": ra_tags,
+        "test_models": test_models,
+        "validation_scenarios": validation_scenarios
+    }
+
+
+@pytest.fixture
+def multi_model_test_data():
+    """
+    Provide test data for multi-model validation scenarios.
+
+    #COMPLETION_DRIVE_IMPL: Generated test data approach for multi-model testing
+    Returns comprehensive test configurations for various validation scenarios,
+    model configurations, and consensus calculation edge cases.
+    """
+    return {
+        "models": [
+            {
+                "validator_id": "claude-sonnet-3.5",
+                "expected_model": {
+                    "name": "Claude Sonnet 3.5",
+                    "version": "3.5",
+                    "provider": "anthropic",
+                    "category": "large_language_model"
+                }
+            },
+            {
+                "validator_id": "gpt-4-turbo",
+                "expected_model": {
+                    "name": "GPT-4 Turbo",
+                    "version": "turbo",
+                    "provider": "openai",
+                    "category": "large_language_model"
+                }
+            },
+            {
+                "validator_id": "gemini-pro-1.0",
+                "expected_model": {
+                    "name": "Gemini Pro",
+                    "version": "1.0",
+                    "provider": "google",
+                    "category": "large_language_model"
+                }
+            },
+            {
+                "validator_id": "code-reviewer-v2",
+                "expected_model": {
+                    "name": "Code Reviewer",
+                    "version": "v2",
+                    "provider": "unknown",
+                    "category": "specialized_model"
+                }
+            }
+        ],
+        "consensus_scenarios": [
+            {
+                "name": "strong_consensus_validated",
+                "validations": [
+                    {"outcome": "validated", "confidence": 90},
+                    {"outcome": "validated", "confidence": 85},
+                    {"outcome": "validated", "confidence": 95}
+                ],
+                "expected_agreement": "STRONG",
+                "expected_score_range": (85, 95)
+            },
+            {
+                "name": "strong_consensus_rejected",
+                "validations": [
+                    {"outcome": "rejected", "confidence": 85},
+                    {"outcome": "rejected", "confidence": 90},
+                    {"outcome": "rejected", "confidence": 80}
+                ],
+                "expected_agreement": "STRONG",
+                "expected_score_range": (10, 20)
+            },
+            {
+                "name": "moderate_consensus_validated",
+                "validations": [
+                    {"outcome": "validated", "confidence": 85},
+                    {"outcome": "validated", "confidence": 80},
+                    {"outcome": "rejected", "confidence": 75}
+                ],
+                "expected_agreement": "MODERATE",
+                "expected_score_range": (60, 85)
+            },
+            {
+                "name": "weak_consensus_mixed",
+                "validations": [
+                    {"outcome": "validated", "confidence": 70},
+                    {"outcome": "rejected", "confidence": 65},
+                    {"outcome": "partial", "confidence": 60}
+                ],
+                "expected_agreement": "WEAK",
+                "expected_score_range": (50, 70)
+            }
+        ],
+        "ra_tags": [
+            {
+                "id": "ra_tag_multi_test_001",
+                "type": "implementation:assumption",
+                "text": "#COMPLETION_DRIVE_IMPL: Multi-model test assumption for consensus validation",
+                "created_by": "test-system"
+            },
+            {
+                "id": "ra_tag_multi_test_002",
+                "type": "error-handling:suggestion",
+                "text": "#SUGGEST_ERROR_HANDLING: Multi-model test error handling for validation",
+                "created_by": "test-system"
+            },
+            {
+                "id": "ra_tag_multi_test_003",
+                "type": "pattern:momentum",
+                "text": "#PATTERN_MOMENTUM: Multi-model test pattern selection rationale",
+                "created_by": "test-system"
+            }
+        ]
+    }
+
+
+@pytest.fixture
+async def multi_model_websocket_client():
+    """
+    Provide WebSocket client specifically configured for multi-model event testing.
+
+    #COMPLETION_DRIVE_IMPL: Real WebSocket infrastructure testing approach
+    Creates WebSocket client that can capture and validate multi-model specific
+    events like validation_added and consensus_updated.
+    """
+    client = WebSocketTestClient()
+
+    # Add multi-model event filtering
+    client.multi_model_events = []
+
+    original_capture = client._capture_events
+
+    async def enhanced_capture():
+        """Enhanced event capture with multi-model event filtering."""
+        await original_capture()
+
+        # Filter for multi-model events
+        for event in client.captured_events:
+            if event.get("parsed", {}).get("type", "").startswith("multi_model."):
+                client.multi_model_events.append(event)
+
+    client._capture_events = enhanced_capture
+
+    yield client
+    await client.disconnect()
+
+
+@pytest.fixture
+def performance_test_config():
+    """
+    Configuration for performance testing scenarios.
+
+    #SUGGEST_PERFORMANCE: Performance benchmarks for production readiness assessment
+    Provides configurable thresholds and test parameters for multi-model
+    performance validation under various load conditions.
+    """
+    return {
+        "concurrent_requests": 100,
+        "max_response_time": 2.0,  # seconds
+        "cache_response_improvement": 0.5,  # cached should be 50% faster
+        "websocket_event_delay": 0.1,  # max seconds for event delivery
+        "consensus_calculation_time": 0.05,  # max seconds for consensus calc
+        "model_parsing_time": 0.01,  # max seconds for model ID parsing
+        "database_query_time": 0.1  # max seconds for multi-model queries
+    }

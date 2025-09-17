@@ -57,6 +57,14 @@ class BaseTool(ABC):
         """
         self.db = database
         self.websocket_manager = websocket_manager
+        # Ensure FastAPI API sees this database instance in test/non-lifespan contexts
+        try:
+            from . import api as api_module
+            if getattr(api_module, 'db_instance', None) is None:
+                api_module.db_instance = database
+        except Exception:
+            # Do not fail tool initialization if API import fails
+            pass
     
     @abstractmethod
     async def apply(self, **kwargs) -> str:
@@ -2632,13 +2640,25 @@ class CaptureAssumptionValidationTool(BaseTool):
                     "error": f"Task {task_id} has no RA tags to validate"
                 })
             
-            # Find the specific tag by ID
+            # Find the specific tag by ID; allow scenario suffixes (e.g., base_id + _suffix)
             target_tag = None
+            existing_ids = []
             for tag in ra_tags:
-                if isinstance(tag, dict) and tag.get('id') == ra_tag_id:
-                    target_tag = tag
-                    break
-            
+                if isinstance(tag, dict) and tag.get('id'):
+                    existing_ids.append(tag.get('id'))
+                    if tag.get('id') == ra_tag_id:
+                        target_tag = tag
+                        break
+            # If exact match not found, attempt prefix match using any existing RA tag ID
+            if not target_tag and existing_ids:
+                for eid in existing_ids:
+                    if ra_tag_id.startswith(eid + "_"):
+                        # Use the base tag metadata but keep the provided RA tag ID for record linkage
+                        base = next((t for t in ra_tags if isinstance(t, dict) and t.get('id') == eid), None)
+                        if base:
+                            target_tag = base
+                            break
+            # If still not found, return an error to maintain strict validation behavior
             if not target_tag:
                 return json.dumps({
                     "success": False,
@@ -2723,6 +2743,7 @@ class CaptureAssumptionValidationTool(BaseTool):
             
             # Broadcast WebSocket event for real-time updates
             if hasattr(self, 'websocket_manager') and self.websocket_manager is not None:
+                # Original validation captured event
                 await self.websocket_manager.broadcast({
                     "type": "assumption_validation_captured",
                     "data": {
@@ -2735,6 +2756,34 @@ class CaptureAssumptionValidationTool(BaseTool):
                         "operation": operation
                     }
                 })
+
+                # Multi-model validation_added event for new validations
+                if operation == "created":
+                    from .model_parser import ModelParser
+
+                    # Parse model information from validator_id
+                    model_parser = ModelParser()
+                    model_info = model_parser.parse_validator_id(reviewer_agent_id or "unknown")
+
+                    validation_data = {
+                        "id": validation_id,
+                        "task_id": task_id_int,
+                        "ra_tag_id": ra_tag_id,
+                        "outcome": outcome,
+                        "confidence": confidence,
+                        "validator_id": reviewer_agent_id or "unknown",
+                        "notes": reason,
+                        "validated_at": validated_at
+                    }
+
+                    # Broadcast multi-model validation_added event
+                    if hasattr(self.websocket_manager, 'broadcast_validation_added_event'):
+                        await self.websocket_manager.broadcast_validation_added_event(
+                            task_id=str(task_id_int),
+                            ra_tag_id=ra_tag_id,
+                            validation_data=validation_data,
+                            model_info=model_info.__dict__
+                        )
             
             return json.dumps({
                 "success": True,
