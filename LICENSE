@@ -1,0 +1,102 @@
+PM Dashboard - Restricted Source License
+
+Copyright (c) 2024 PM Dashboard Project
+
+TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+1. DEFINITIONS
+
+"License" refers to the terms and conditions for use, reproduction, and distribution
+as defined by this document.
+
+"Licensor" refers to the copyright owner or entity granting the License.
+
+"You" (or "Your") refers to an individual or Legal Entity exercising permissions
+granted by this License.
+
+"Software" refers to the PM Dashboard project and all associated source code,
+documentation, and related materials.
+
+"Modification" refers to any change, addition, deletion, or other alteration to
+the Software.
+
+2. GRANT OF LICENSE
+
+Subject to the terms and conditions of this License, Licensor hereby grants You
+a personal, non-transferable, non-exclusive license to:
+
+a) Use the Software for personal, educational, and internal business purposes only
+b) Modify the Software for Your own use
+c) Create derivative works based upon the Software for Your own use
+
+3. RESTRICTIONS
+
+You may NOT:
+
+a) Distribute, redistribute, sublicense, sell, lease, or transfer the Software
+   or any portion thereof to any third party
+b) Share the Software with others, including but not limited to uploading to
+   public repositories, sending via email, or providing access through any means
+c) Use the Software for commercial purposes, including but not limited to
+   selling services based on the Software
+d) Remove or alter any copyright notices, license terms, or other proprietary
+   notices contained in the Software
+e) Use the Software in any way that violates applicable laws or regulations
+f) Reverse engineer, decompile, or disassemble the Software (except to the
+   extent such activity is expressly permitted by applicable law)
+
+4. CONTRIBUTION REQUIREMENTS
+
+If You create any Modifications to the Software, You must:
+
+a) Provide the complete source code of all Modifications to the Licensor
+b) Grant the Licensor a perpetual, irrevocable, royalty-free license to use,
+   modify, and distribute Your Modifications
+c) Clearly document all changes made to the original Software
+d) Provide Modifications in a format that allows the Licensor to easily
+   integrate them into the main Software
+
+5. OWNERSHIP
+
+The Software and all intellectual property rights therein remain the exclusive
+property of the Licensor. This License does not grant You any ownership rights
+in the Software.
+
+6. NO WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+7. LIMITATION OF LIABILITY
+
+IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY SPECIAL, INCIDENTAL, INDIRECT,
+OR CONSEQUENTIAL DAMAGES WHATSOEVER (INCLUDING, WITHOUT LIMITATION, DAMAGES FOR
+LOSS OF BUSINESS PROFITS, BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION,
+OR ANY OTHER PECUNIARY LOSS) ARISING OUT OF THE USE OF OR INABILITY TO USE THE
+SOFTWARE, EVEN IF THE LICENSOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+8. TERMINATION
+
+This License is effective until terminated. Your rights under this License will
+terminate automatically without notice from the Licensor if You fail to comply
+with any term(s) of this License. Upon termination, You must cease all use of
+the Software and destroy all copies of the Software in Your possession or control.
+
+9. GOVERNING LAW
+
+This License shall be governed by and construed in accordance with the laws of
+the jurisdiction in which the Licensor is located, without regard to its conflict
+of law provisions.
+
+10. ENTIRE AGREEMENT
+
+This License constitutes the entire agreement between You and the Licensor
+regarding the Software and supersedes all prior or contemporaneous understandings
+regarding such subject matter.
+
+By using the Software, You acknowledge that You have read this License, understand
+it, and agree to be bound by its terms and conditions.

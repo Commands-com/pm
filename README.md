@@ -23,6 +23,9 @@ pip install -e .
 
 # Or install development dependencies
 pip install -e .[dev]
+
+# Run directly with uvx (no installation needed)
+uvx --from . project-manager-mcp
 ```
 
 ### Basic Usage
@@ -57,6 +60,10 @@ Connect MCP clients to interact programmatically:
 # SSE transport (optional)
 project-manager-mcp --mcp-transport sse
 # Connect to http://localhost:8081/sse
+
+# Using uvx for MCP integration
+uvx --from . project-manager-mcp --mcp-transport stdio
+uvx --from . project-manager-mcp --mcp-transport sse --port 9000
 ```
 
 ## Architecture Overview
@@ -269,7 +276,15 @@ project-manager-mcp --mcp-transport stdio --verbose
 
 ## License
 
-MIT License - see LICENSE file for details.
+**Restricted Source License** - This software is provided under a custom restrictive license that:
+- Allows personal and internal business use
+- **Prohibits redistribution to third parties**
+- Requires all modifications to be contributed back to the original author
+- Prohibits commercial use or resale
+
+See the [LICENSE](LICENSE) file for complete terms and conditions.
+
+⚠️ **Important**: This is NOT an open source license. You cannot share this software with others.
 
 ## Contributing
 
