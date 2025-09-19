@@ -45,6 +45,9 @@ project-manager-mcp --mcp-transport stdio
 
 # Add RA tags with automatic context detection
 python -m task_manager.cli add-ra-tag "#COMPLETION_DRIVE_IMPL: Assuming user validation upstream" --task-id 123
+
+# Install Claude agents and commands to your project
+project-manager-mcp install-claude-assets --target-dir ~/my-project
 ```
 
 After startup, access the dashboard at `http://localhost:8080` (or your chosen port).
@@ -192,6 +195,34 @@ projects:
 - `--host HOST`: Server bind address (default: 127.0.0.1)
 - `--db-path PATH`: Database file location (default: project_manager.db)
 - `--verbose`: Enable debug logging
+
+### Claude Assets Installation
+
+Install Claude Code agents and commands to your projects:
+
+```bash
+# Install both agents and commands to a project
+project-manager-mcp install-claude-assets --target-dir ~/my-project
+
+# Install with overwrite protection
+project-manager-mcp install-claude-assets --target-dir ~/my-project --force
+
+# Install only agents
+project-manager-mcp install-claude-assets --target-dir ~/my-project --agents-only
+
+# Install only commands
+project-manager-mcp install-claude-assets --target-dir ~/my-project --commands-only
+
+# Verbose output showing all installed files
+project-manager-mcp install-claude-assets --target-dir ~/my-project --verbose
+
+# Alternative standalone command
+pm-install-claude-assets --target-dir ~/my-project
+```
+
+This creates a `.claude/` directory in your target location with:
+- **Agents** (`.claude/agents/`): Specialized agents for adaptive assessment, planning review, task execution, and verification
+- **Commands** (`.claude/commands/pm/`): Project management commands for task workflow, epic management, and status tracking
 
 ### Environment Variables
 

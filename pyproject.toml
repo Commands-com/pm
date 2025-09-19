@@ -8,8 +8,7 @@ build-backend = "hatchling.build"
 name = "project-manager-mcp"
 version = "0.1.1"
 description = "Project Manager MCP with SQLite database layer and atomic locking"
-# ASSUMPTION: README.md will be created later - for now omit to avoid build errors
-# readme = "README.md"
+readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "Project Manager MCP Contributors"}
@@ -92,10 +91,11 @@ lint = [
     "types-PyYAML",                # Type stubs for PyYAML
 ]
 
-# Console script entry point
+# Console script entry points
 # ASSUMPTION: CLI module structure at task_manager.cli:main is correct and stable
 [project.scripts]
 project-manager-mcp = "task_manager.cli:main"
+pm-install-claude-assets = "task_manager.install:main"
 
 [project.urls]
 Homepage = "https://github.com/example/project-manager-mcp"
@@ -114,10 +114,12 @@ dev-mode-dirs = ["src"]
 [tool.hatch.build.targets.sdist]
 include = [
     "/src",
-    "/examples", 
+    "/examples",
     "/test",
+    "/.claude/agents",
+    "/.claude/commands",
     "pyproject.toml",
-    # "README.md",  # ASSUMPTION: Will be added when documentation is created
+    "README.md",
 ]
 exclude = [
     "*.pyc",
@@ -125,6 +127,7 @@ exclude = [
     ".pytest_cache",
     "*.db",
     ".env*",
+    "/.claude/settings.local.json",
 ]
 
 # Development tool configuration

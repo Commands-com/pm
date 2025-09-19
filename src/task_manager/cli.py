@@ -31,6 +31,7 @@ from .database import TaskDatabase
 from .mcp_server import create_mcp_server
 from .context_utils import create_enriched_context
 from .tools import AddRATagTool
+from .install import install_claude_assets
 
 # Configure logging for CLI operations
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -708,6 +709,43 @@ def cleanup_resources():
             logger.error(f"Error closing database: {e}")
         finally:
             _database_instance = None
+
+
+@main.command('install-claude-assets')
+@click.option('--target-dir', '-d', required=True, type=str,
+              help='Target directory to install Claude assets')
+@click.option('--force', '-f', is_flag=True,
+              help='Overwrite existing files')
+@click.option('--agents-only', is_flag=True,
+              help='Install only agents directory')
+@click.option('--commands-only', is_flag=True,
+              help='Install only commands directory')
+@click.option('--verbose', '-v', is_flag=True,
+              help='Show detailed installation output')
+def install_claude_assets_cmd(target_dir: str, force: bool, agents_only: bool,
+                             commands_only: bool, verbose: bool):
+    """
+    Install Claude agents and commands to a target directory.
+
+    This command copies the .claude/agents and .claude/commands directories
+    from this package to your specified location, allowing you to use the
+    Claude Code agents and commands in your projects.
+
+    Examples:
+      pm install-claude-assets --target-dir ~/my-project
+      pm install-claude-assets -d ./frontend --agents-only --force
+      pm install-claude-assets -d /workspace --commands-only -v
+    """
+    success = install_claude_assets(
+        target_dir=target_dir,
+        force=force,
+        agents_only=agents_only,
+        commands_only=commands_only,
+        verbose=verbose
+    )
+
+    if not success:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
