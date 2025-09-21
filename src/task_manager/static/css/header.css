@@ -1,0 +1,132 @@
+.header {
+    background: #1e293b;
+    color: white;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.header-filters {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #e2e8f0;
+    white-space: nowrap;
+}
+
+.filter-select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    background-color: #334155;
+    color: white;
+    font-size: 0.875rem;
+    min-width: 150px;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #51a2ff;
+    box-shadow: 0 0 0 2px rgba(81, 162, 255, 0.2);
+}
+
+.filter-select option {
+    background-color: #334155;
+    color: white;
+}
+
+.delete-filter-btn {
+    background: none;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    padding: 0.5rem;
+    color: #e2e8f0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    min-width: 36px;
+    height: 36px;
+}
+
+.delete-filter-btn:hover {
+    background-color: #dc2626;
+    border-color: #dc2626;
+    color: white;
+    transform: scale(1.05);
+}
+
+.delete-filter-btn:active {
+    transform: scale(0.95);
+}
+
+.knowledge-btn {
+    background: none;
+    border: 1px solid #475569;
+    color: #e2e8f0;
+    padding: 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 1rem;
+}
+
+.knowledge-btn:hover {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.knowledge-btn:active {
+    transform: scale(0.95);
+}
+
+/* #SUGGEST_RESPONSIVE: Mobile responsiveness for modal interface
+   Complex tabbed interface may need different layout on mobile */
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem 0.75rem;
+    }
+
+    .header-filters {
+        gap: 1rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .filter-select {
+        min-width: 120px;
+    }
+}
