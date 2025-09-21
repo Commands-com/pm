@@ -793,7 +793,7 @@ class ProjectManagerMCPServer:
                 ra_tag_id: str,
                 outcome: str,
                 reason: str,
-                confidence: Optional[int] = None,
+                confidence: Optional[Union[int, str]] = None,
                 reviewer_agent_id: Optional[str] = None
             ) -> str:
                 """
@@ -804,7 +804,7 @@ class ProjectManagerMCPServer:
                     ra_tag_id: Unique ID of the specific RA tag being validated
                     outcome: Validation outcome ('validated', 'rejected', 'partial')
                     reason: Explanation of the validation decision
-                    confidence: Optional confidence level (0-100), auto-set based on outcome if not provided
+                    confidence: Optional confidence level (0-100 as int or string), auto-set based on outcome if not provided
                     reviewer_agent_id: Optional reviewer identifier, auto-populated from context if available
                     
                 Returns:
