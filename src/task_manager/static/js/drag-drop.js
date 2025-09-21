@@ -1,5 +1,5 @@
 // Drag and Drop functionality for kanban task movement
-import { AppState } from './app.js';
+import { AppState } from './state.js';
 import { showNotification } from './utils.js';
 
 export class DragDropManager {

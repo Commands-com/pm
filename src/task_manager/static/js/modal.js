@@ -1,5 +1,5 @@
 // Basic modal management for task details and other modals
-import { AppState } from './app.js';
+import { AppState } from './state.js';
 import { KnowledgeManagementModal } from './knowledge-modal.js';
 import { AssumptionInsightsModal } from './assumption-insights-modal.js';
 import { escapeHtml } from './utils.js';

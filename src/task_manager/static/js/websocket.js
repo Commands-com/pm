@@ -1,5 +1,5 @@
 // WebSocket connection management with auto-reconnection and fallback
-import { AppState } from './app.js';
+import { AppState } from './state.js';
 // loadBoardState will be imported dynamically to avoid circular dependencies
 import {
     handleTaskStatusUpdate,

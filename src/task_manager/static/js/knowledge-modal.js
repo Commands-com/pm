@@ -1,6 +1,7 @@
 // Enhanced Interactive Knowledge Management Modal
 // Full-featured modal with Add/Edit/Delete functionality, form validation, and API integration
 import { showNotification } from './utils.js';
+import { AppState } from './state.js';
 
 export class KnowledgeManagementModal {
     constructor() {
@@ -369,8 +370,26 @@ export class KnowledgeManagementModal {
         const epicSelector = document.getElementById('epicSelect');
 
         // Ensure project_id is always provided (required by database schema)
-        const projectId = projectSelector?.value || this.sessionProject || 1;
-        const epicId = epicSelector?.value || this.sessionEpic || null;
+        // Priority: selector value → AppState selection → session project → fallback to 1
+        let projectId = projectSelector?.value || AppState.selectedProjectId || this.sessionProject;
+
+        // Validate that the project exists before using it
+        if (projectId && !AppState.projects.has(String(projectId))) {
+            projectId = null;
+        }
+
+        // Only fall back to 1 as last resort, and validate it exists
+        if (!projectId) {
+            if (AppState.projects.has('1')) {
+                projectId = 1;
+            } else {
+                // Use the first available project if project 1 doesn't exist
+                const firstProject = Array.from(AppState.projects.values())[0];
+                projectId = firstProject ? firstProject.id : 1;
+            }
+        }
+
+        const epicId = epicSelector?.value || AppState.selectedEpicId || this.sessionEpic || null;
 
         return {
             knowledge_id: this.currentEditingItem?.id || null,
@@ -421,8 +440,24 @@ export class KnowledgeManagementModal {
             const projectSelector = document.getElementById('projectSelect');
             const epicSelector = document.getElementById('epicSelect');
 
-            const currentProject = forceProjectId || projectSelector?.value || this.sessionProject || 1;
-            const currentEpic = forceEpicId || epicSelector?.value || this.sessionEpic || null;
+            // Priority: forced values → selector values → AppState → session → fallback
+            let currentProject = forceProjectId || projectSelector?.value || AppState.selectedProjectId || this.sessionProject;
+            let currentEpic = forceEpicId || epicSelector?.value || AppState.selectedEpicId || this.sessionEpic;
+
+            // Validate project exists
+            if (currentProject && !AppState.projects.has(String(currentProject))) {
+                currentProject = null;
+            }
+
+            // Only fall back to 1 as last resort if it exists
+            if (!currentProject) {
+                if (AppState.projects.has('1')) {
+                    currentProject = 1;
+                } else {
+                    const firstProject = Array.from(AppState.projects.values())[0];
+                    currentProject = firstProject ? firstProject.id : 1;
+                }
+            }
 
             // Persist session context for subsequent actions
             this.sessionProject = currentProject;

@@ -1,6 +1,6 @@
 // Board rendering and task management functions
-import { AppState } from './app.js';
-import { showNotification, escapeHtml } from './utils.js';
+import { AppState } from './state.js';
+import { showNotification, escapeHtml, getFilteredTasks, openDeleteModal } from './utils.js';
 import { initializeDragAndDrop, getDragDropManager } from './drag-drop.js';
 
 // Load board data from API
@@ -364,29 +364,6 @@ export function applyFilters() {
     updateTaskCounts();
 }
 
-// Get filtered tasks based on current selections
-function getFilteredTasks() {
-    const allTasks = Array.from(AppState.tasks.values());
-
-    return allTasks.filter(task => {
-        // Project filter
-        if (AppState.selectedProjectId && task.project_id != AppState.selectedProjectId) {
-            return false;
-        }
-
-        // Epic filter
-        if (AppState.selectedEpicId && task.epic_id != AppState.selectedEpicId) {
-            return false;
-        }
-
-        // Todo view mode filter
-        if (AppState.todoViewMode === 'TODO') {
-            return task.status !== 'BACKLOG';
-        }
-
-        return true;
-    });
-}
 
 function openTaskModal(task) {
     // Implementation for opening task modal
@@ -415,7 +392,7 @@ function handleMoveTask(task) {
     }
 }
 
-async function deleteTask(taskId) {
+export async function deleteTask(taskId) {
     // Implementation for deleting tasks
     console.log('Delete task:', taskId);
     // TODO: Implement actual deletion via API
@@ -429,12 +406,10 @@ async function deleteTask(taskId) {
 }
 
 function handleDeleteTask(task) {
-    if (!task || !confirm(`Are you sure you want to delete "${task.name}"?`)) {
+    if (!task) {
         return;
     }
 
-    deleteTask(task.id);
+    openDeleteModal('task', task.id, task.name);
 }
 
-// Export for use in other modules
-export { getFilteredTasks };

@@ -1,5 +1,5 @@
 // Filter management for projects and epics
-import { AppState } from './app.js';
+import { AppState } from './state.js';
 import { saveSelectionState, loadSelectionState, updateDeleteButtonVisibility, showNotification } from './utils.js';
 
 // Populate project selector dropdown

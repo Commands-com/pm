@@ -1,24 +1,10 @@
-// Main application state and initialization
-// #COMPLETION_DRIVE_ARCHITECTURE: Global state management for WebSocket and UI
-// Assumption: Single global state object simplifies state management in single-page context
+// Main application initialization
+// #COMPLETION_DRIVE_ARCHITECTURE: Import centralized state to avoid circular dependencies
 
-export const AppState = {
-    socket: null,
-    reconnectDelay: 1000,
-    maxReconnectDelay: 30000,
-    connectionAttempts: 0,
-    maxConnectionAttempts: 10,
-    tasks: new Map(),
-    projects: new Map(),
-    epics: new Map(),
-    selectedProjectId: null,
-    selectedEpicId: null,
-    pendingUpdates: new Map(),
-    isOnline: navigator.onLine,
-    pollingInterval: null,
-    pollingDelay: 5000,
-    todoViewMode: 'TODO' // 'TODO' or 'BACKLOG'
-};
+import { AppState } from './state.js';
+
+// Re-export for backward compatibility
+export { AppState };
 
 // Import modules
 import { initializeWebSocket, updateConnectionStatus } from './websocket.js';

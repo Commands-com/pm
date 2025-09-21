@@ -1,5 +1,5 @@
 // Real-time event handlers for WebSocket updates
-import { AppState } from './app.js';
+import { AppState } from './state.js';
 import { renderTask, updateTaskCounts, renderAllTasks } from './board.js';
 import { populateProjectSelector, populateEpicSelector } from './filters.js';
 import { showNotification } from './utils.js';

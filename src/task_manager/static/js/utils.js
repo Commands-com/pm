@@ -1,5 +1,5 @@
 // Utility functions and common helpers
-import { AppState } from './app.js';
+import { AppState } from './state.js';
 
 // Escape HTML to prevent XSS
 export function escapeHtml(text) {
@@ -260,12 +260,27 @@ async function deleteEpic(epicId) {
     }
 }
 
-function openDeleteModal(type, id, name) {
+export function openDeleteModal(type, id, name) {
     const deleteModal = document.getElementById('deleteConfirmModal');
     const message = document.getElementById('deleteModalMessage');
     if (deleteModal && message) {
         deleteModal.dataset.deleteType = type;
         deleteModal.dataset.deleteId = id;
+
+        // Derive name if not provided
+        if (!name) {
+            if (type === 'project') {
+                const project = AppState.projects.get(String(id));
+                name = project ? project.name : 'Unknown Project';
+            } else if (type === 'epic') {
+                const epic = AppState.epics.get(String(id));
+                name = epic ? epic.name : 'Unknown Epic';
+            } else if (type === 'task') {
+                const task = AppState.tasks.get(String(id));
+                name = task ? task.name : 'Unknown Task';
+            }
+        }
+
         message.textContent = `Are you sure you want to delete this ${type}: "${name}"?`;
         deleteModal.style.display = 'flex';
     }
