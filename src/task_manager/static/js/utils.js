@@ -217,6 +217,14 @@ export function setupEventListeners() {
         });
     }
 
+    // Planning Mode button
+    const planningBtn = document.getElementById('planningBtn');
+    if (planningBtn) {
+        planningBtn.addEventListener('click', () => {
+            window.location.href = '/planning';
+        });
+    }
+
     initializeDeleteModal();
 }
 
