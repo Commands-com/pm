@@ -286,6 +286,9 @@ export function openDeleteModal(type, id, name) {
             } else if (type === 'task') {
                 const task = AppState.tasks.get(String(id));
                 name = task ? task.name : 'Unknown Task';
+            } else if (type === 'knowledge') {
+                // For knowledge items, name should be provided by caller
+                name = name || 'Unknown Knowledge Item';
             }
         }
 
@@ -319,6 +322,9 @@ async function confirmDelete() {
         } else if (deleteType === 'task') {
             const { deleteTask } = await import('./board.js');
             await deleteTask(deleteId);
+        } else if (deleteType === 'knowledge') {
+            const { deleteKnowledgeItemConfirmed } = await import('./knowledge-modal.js');
+            await deleteKnowledgeItemConfirmed(deleteId);
         }
 
         closeDeleteModal();

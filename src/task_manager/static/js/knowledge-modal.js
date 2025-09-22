@@ -591,9 +591,13 @@ export class KnowledgeManagementModal {
         const item = this.findKnowledgeItemById(itemId);
         if (!item) return;
 
-        const confirmDelete = confirm(`Are you sure you want to delete "${item.title}"? This action cannot be undone.`);
-        if (!confirmDelete) return;
+        // Use the reusable delete confirmation modal
+        const { openDeleteModal } = await import('./utils.js');
+        openDeleteModal('knowledge', itemId, item.title);
+    }
 
+    // This function is called by the confirmation modal after user confirms
+    async deleteKnowledgeItemConfirmed(itemId) {
         try {
             const response = await fetch(`/api/knowledge/${itemId}`, {
                 method: 'DELETE'
@@ -827,5 +831,16 @@ export class KnowledgeManagementModal {
 
         knowledgeItem.insertAdjacentHTML('beforeend', logsHtml);
         toggleBtn.textContent = 'Hide Logs';
+    }
+}
+
+// Export the delete function for use by the confirmation modal
+export async function deleteKnowledgeItemConfirmed(itemId) {
+    // Get the knowledge modal instance
+    const modal = window.knowledgeModal;
+    if (modal && modal.deleteKnowledgeItemConfirmed) {
+        await modal.deleteKnowledgeItemConfirmed(itemId);
+    } else {
+        console.error('Knowledge modal not available for deletion');
     }
 }

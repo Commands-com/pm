@@ -11,6 +11,7 @@ import psutil
 import time
 import logging
 import os
+import signal
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
@@ -19,6 +20,9 @@ from collections import defaultdict, deque
 # Performance monitoring configuration
 METRICS_HISTORY_SIZE = 1000  # Keep last 1000 data points for trending
 LOCK_CLEANUP_INTERVAL = int(os.getenv("LOCK_CLEANUP_INTERVAL", "300"))  # seconds
+# Auto-exit when no WebSocket connections for this many seconds (0 disables)
+IDLE_EXIT_SECONDS = int(os.getenv("AUTO_EXIT_ON_IDLE_SECONDS", "20"))
+IDLE_CHECK_INTERVAL = 1  # seconds
 MEMORY_MONITORING_INTERVAL = 60  # 1 minute for memory tracking
 
 logger = logging.getLogger(__name__)
@@ -266,6 +270,13 @@ class BackgroundTasks:
             self._memory_monitoring_worker()
         )
         self.tasks.append(memory_task)
+
+        # Start idle exit watcher if enabled
+        if IDLE_EXIT_SECONDS > 0:
+            idle_task = asyncio.create_task(
+                self._idle_exit_worker(connection_manager)
+            )
+            self.tasks.append(idle_task)
         
         logger.info(f"Started {len(self.tasks)} background tasks")
     
@@ -395,6 +406,67 @@ class BackgroundTasks:
                 break  # Shutdown requested
             except asyncio.TimeoutError:
                 continue  # Continue with next monitoring cycle
+
+    async def _idle_exit_worker(self, connection_manager):
+        """
+        Background worker that terminates the process if there are no
+        WebSocket connections (dashboard or planning) for IDLE_EXIT_SECONDS.
+        """
+        logger.info(
+            f"Idle exit worker started (timeout={IDLE_EXIT_SECONDS}s, interval={IDLE_CHECK_INTERVAL}s)"
+        )
+
+        empty_since: Optional[float] = None
+
+        def total_connections() -> int:
+            try:
+                total = 0
+                # Prefer explicit sets if available
+                if hasattr(connection_manager, 'active_connections'):
+                    total += len(getattr(connection_manager, 'active_connections', []))
+                if hasattr(connection_manager, 'planning_connections'):
+                    total += len(getattr(connection_manager, 'planning_connections', []))
+                # Fallback to method if sets not present
+                if total == 0 and hasattr(connection_manager, 'get_connection_count'):
+                    total = int(connection_manager.get_connection_count())
+                return total
+            except Exception:
+                return 0
+
+        while not self.shutdown_event.is_set():
+            try:
+                total = total_connections()
+                if total > 0:
+                    empty_since = None
+                else:
+                    now = time.time()
+                    if empty_since is None:
+                        empty_since = now
+                    elif now - empty_since >= IDLE_EXIT_SECONDS:
+                        logger.info(
+                            f"No WebSocket connections for {IDLE_EXIT_SECONDS}s — exiting process"
+                        )
+                        try:
+                            os.kill(os.getpid(), signal.SIGTERM)
+                        except Exception as e:
+                            logger.error(f"Failed to send SIGTERM: {e}")
+                            # Hard exit as last resort
+                            os._exit(0)
+                        break
+
+                # Sleep or until shutdown
+                try:
+                    await asyncio.wait_for(
+                        self.shutdown_event.wait(),
+                        timeout=IDLE_CHECK_INTERVAL
+                    )
+                    break
+                except asyncio.TimeoutError:
+                    continue
+            except Exception as e:
+                logger.error(f"Idle exit worker error: {e}")
+                # Avoid tight error loop
+                await asyncio.sleep(IDLE_CHECK_INTERVAL)
 
 
 # Global background task manager

@@ -1453,7 +1453,7 @@ class TaskDatabase:
 
     def _get_current_time_str(self) -> str:
         """Get current UTC time as ISO string for database operations."""
-        return datetime.now(timezone.utc).isoformat() + 'Z'
+        return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
     
     def cleanup_expired_locks(self) -> int:
         """
@@ -3283,11 +3283,19 @@ class TaskDatabase:
                 query += " AND k.category = ?"
                 params.append(category)
                 
-            if project_id is not None:
+            # Handle project and epic filtering with proper hierarchy logic
+            if project_id is not None and epic_id is not None:
+                # When in epic context, include both epic-specific AND project-level knowledge
+                # but exclude knowledge from other epics
+                query += " AND k.project_id = ? AND (k.epic_id = ? OR k.epic_id IS NULL)"
+                params.append(project_id)
+                params.append(epic_id)
+            elif project_id is not None:
+                # Project-only context: include all project-level knowledge
                 query += " AND k.project_id = ?"
                 params.append(project_id)
-                
-            if epic_id is not None:
+            elif epic_id is not None:
+                # Epic-only context (less common): filter by epic_id only
                 query += " AND k.epic_id = ?"
                 params.append(epic_id)
                 
