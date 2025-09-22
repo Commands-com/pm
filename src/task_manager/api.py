@@ -29,6 +29,7 @@ from .models import (
     TagTypesResponse
 )
 from .assumptions import router as assumptions_router
+from .file_watcher import start_file_watcher, stop_file_watcher
 
 # Configure logging for debugging WebSocket connections and API operations
 logging.basicConfig(level=logging.INFO)
@@ -47,15 +48,16 @@ db_instance: Optional[TaskDatabase] = None
 class ConnectionManager:
     """
     WebSocket connection manager with parallel broadcasting capabilities.
-    
+
     Handles connection lifecycle, parallel message broadcasting to all clients,
     and automatic cleanup on disconnection. Uses asyncio.gather for efficient
     parallel broadcasting to minimize latency.
     """
-    
+
     def __init__(self):
         # Active WebSocket connections registry
         self.active_connections: Set[WebSocket] = set()
+        self.planning_connections: Set[WebSocket] = set()
         self._connection_lock = asyncio.Lock()
     
     async def connect(self, websocket: WebSocket):
@@ -69,7 +71,21 @@ class ConnectionManager:
         """Remove WebSocket from active connections registry."""
         async with self._connection_lock:
             self.active_connections.discard(websocket)
+            self.planning_connections.discard(websocket)
         logger.info(f"WebSocket disconnected. Total connections: {len(self.active_connections)}")
+
+    async def connect_planning(self, websocket: WebSocket):
+        """Accept new planning WebSocket connection."""
+        await websocket.accept()
+        async with self._connection_lock:
+            self.planning_connections.add(websocket)
+        logger.info(f"Planning WebSocket connected. Total planning connections: {len(self.planning_connections)}")
+
+    async def disconnect_planning(self, websocket: WebSocket):
+        """Remove WebSocket from planning connections registry."""
+        async with self._connection_lock:
+            self.planning_connections.discard(websocket)
+        logger.info(f"Planning WebSocket disconnected. Total planning connections: {len(self.planning_connections)}")
     
     async def broadcast(self, event_data: Dict[str, Any]):
         """
@@ -130,14 +146,39 @@ class ConnectionManager:
             await self.disconnect(websocket)
             return False
     
+    async def broadcast_planning(self, event_data: Dict[str, Any]):
+        """
+        Broadcast event to planning mode WebSocket clients only.
+
+        Args:
+            event_data: Event data to broadcast (will be JSON serialized)
+        """
+        if not self.planning_connections:
+            logger.debug("No active planning connections for broadcast")
+            return
+
+        message = json.dumps(event_data)
+
+        # Create coroutines for parallel broadcasting
+        send_tasks = []
+
+        async with self._connection_lock:
+            for websocket in self.planning_connections.copy():
+                send_tasks.append(self._send_safe(websocket, message))
+
+        if send_tasks:
+            results = await asyncio.gather(*send_tasks, return_exceptions=True)
+            successful_broadcasts = sum(1 for result in results if result is True)
+            logger.info(f"Planning broadcast completed: {successful_broadcasts}/{len(send_tasks)} successful")
+
     async def broadcast_enriched_event(self, event_type: str, event_data: Dict[str, Any]):
         """
         Broadcast enriched event with comprehensive payload structure.
-        
+
         #COMPLETION_DRIVE_INTEGRATION: Enhanced broadcasting for enriched payloads
         Provides structured event data with project/epic context, session tracking,
         and auto-switch flags as required by task specification.
-        
+
         Args:
             event_type: Type of event (task.created, task.updated, task.logs.appended)
             event_data: Event-specific payload data
@@ -148,7 +189,7 @@ class ConnectionManager:
             "timestamp": datetime.now(timezone.utc).isoformat() + 'Z',
             "data": event_data
         }
-        
+
         # #SUGGEST_PERFORMANCE: Consider adding event size validation to prevent oversized payloads
         await self.broadcast(enriched_payload)
     
@@ -374,7 +415,10 @@ async def lifespan(app: FastAPI):
         
         # Start background tasks for monitoring and maintenance
         await background_tasks.start_background_tasks(db_instance, connection_manager)
-        
+
+        # Start file watcher for planning mode
+        await start_file_watcher(connection_manager)
+
         # Log startup information
         logger.info("Project Manager API starting up...")
         logger.info("Available endpoints:")
@@ -387,7 +431,11 @@ async def lifespan(app: FastAPI):
         logger.info("  GET /api/knowledge/{scope}/{project_id}/{epic_id?} - Get knowledge items")
         logger.info("  PUT /api/knowledge - Create/update knowledge items")
         logger.info("  POST /api/knowledge/{knowledge_id}/logs - Append knowledge logs")
+        logger.info("  GET /api/planning/files - List planning documents")
+        logger.info("  GET /api/planning/file/{type}/{filename} - Get planning document")
+        logger.info("  GET /planning - Planning mode page")
         logger.info("  WebSocket /ws/updates - Real-time event stream")
+        logger.info("  WebSocket /ws/planning - Planning mode file updates")
         
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
@@ -400,7 +448,13 @@ async def lifespan(app: FastAPI):
         await background_tasks.stop_background_tasks()
     except Exception as e:
         logger.error(f"Error stopping background tasks: {e}")
-    
+
+    # Stop file watcher
+    try:
+        await stop_file_watcher()
+    except Exception as e:
+        logger.error(f"Error stopping file watcher: {e}")
+
     if db_instance:
         db_instance.close()
         logger.info("Database connection closed")
@@ -800,6 +854,38 @@ async def websocket_updates(websocket: WebSocket):
                 
     finally:
         await connection_manager.disconnect(websocket)
+
+
+# Planning WebSocket endpoint for file updates
+@app.websocket("/ws/planning")
+async def websocket_planning(websocket: WebSocket):
+    """
+    WebSocket endpoint for planning mode file updates.
+
+    Accepts WebSocket connections for planning mode and maintains them
+    for broadcasting file system events (create, update, delete).
+
+    Args:
+        websocket: WebSocket connection from planning mode client
+    """
+    await connection_manager.connect_planning(websocket)
+
+    try:
+        # Keep connection alive and handle client messages
+        while True:
+            try:
+                data = await websocket.receive_text()
+                logger.debug(f"Planning WebSocket received: {data}")
+
+            except WebSocketDisconnect:
+                logger.info("Planning WebSocket client disconnected")
+                break
+            except Exception as e:
+                logger.error(f"Planning WebSocket error: {e}")
+                break
+
+    finally:
+        await connection_manager.disconnect_planning(websocket)
 
 
 # Additional endpoints for lock management (bonus functionality)
@@ -1845,6 +1931,144 @@ async def delete_knowledge_item(
             status_code=500,
             content=create_error_response("Failed to delete knowledge item")
         )
+
+
+# Planning Mode Endpoints
+
+@app.get("/api/planning/files")
+async def list_planning_files():
+    """
+    List all PRD and Epic markdown files from the .pm directory.
+
+    Returns:
+        JSON response with PRDs and Epics file lists
+    """
+    try:
+        import os
+        from pathlib import Path
+
+        pm_dir = Path(".pm")
+        if not pm_dir.exists():
+            return JSONResponse(
+                status_code=404,
+                content=create_error_response(".pm directory not found")
+            )
+
+        # Get PRD files
+        prds_dir = pm_dir / "prds"
+        prd_files = []
+        if prds_dir.exists():
+            for file_path in prds_dir.glob("*.md"):
+                stat = file_path.stat()
+                prd_files.append({
+                    "name": file_path.stem,
+                    "filename": file_path.name,
+                    "path": str(file_path),
+                    "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                    "size": stat.st_size
+                })
+
+        # Get Epic files
+        epics_dir = pm_dir / "epics"
+        epic_files = []
+        if epics_dir.exists():
+            for file_path in epics_dir.glob("*.md"):
+                stat = file_path.stat()
+                epic_files.append({
+                    "name": file_path.stem,
+                    "filename": file_path.name,
+                    "path": str(file_path),
+                    "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                    "size": stat.st_size
+                })
+
+        # Sort by name
+        prd_files.sort(key=lambda x: x["name"])
+        epic_files.sort(key=lambda x: x["name"])
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "prds": prd_files,
+                "epics": epic_files,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to list planning files: {e}")
+        return JSONResponse(
+            status_code=500,
+            content=create_error_response("Failed to list planning files")
+        )
+
+
+@app.get("/api/planning/file/{file_type}/{filename}")
+async def get_planning_file(file_type: str, filename: str):
+    """
+    Get the content of a specific PRD or Epic markdown file.
+
+    Args:
+        file_type: Either 'prds' or 'epics'
+        filename: Name of the markdown file (with or without .md extension)
+
+    Returns:
+        JSON response with file content and metadata
+    """
+    try:
+        from pathlib import Path
+
+        # Validate file type
+        if file_type not in ["prds", "epics"]:
+            return JSONResponse(
+                status_code=400,
+                content=create_error_response("File type must be 'prds' or 'epics'")
+            )
+
+        # Ensure filename has .md extension
+        if not filename.endswith('.md'):
+            filename += '.md'
+
+        # Construct file path
+        file_path = Path(".pm") / file_type / filename
+
+        if not file_path.exists():
+            return JSONResponse(
+                status_code=404,
+                content=create_error_response(f"File {filename} not found in {file_type}")
+            )
+
+        # Read file content
+        content = file_path.read_text(encoding='utf-8')
+        stat = file_path.stat()
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "filename": filename,
+                "type": file_type.rstrip('s'),  # 'prds' -> 'prd', 'epics' -> 'epic'
+                "content": content,
+                "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                "size": stat.st_size,
+                "path": str(file_path)
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to read planning file {file_type}/{filename}: {e}")
+        return JSONResponse(
+            status_code=500,
+            content=create_error_response("Failed to read planning file")
+        )
+
+
+@app.get("/planning")
+async def planning_page():
+    """Serve the planning mode page."""
+    from fastapi.responses import FileResponse
+    return FileResponse("src/task_manager/static/planning.html")
 
 
 # Error handlers for better API responses

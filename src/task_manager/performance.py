@@ -78,6 +78,8 @@ class OptimizedConnectionManager:
     
     def __init__(self, max_connections: int = 100):
         self.active_connections: Set = set()
+        # Dedicated planning-mode connections (do not receive general updates)
+        self.planning_connections: Set = set()
         self.connection_health: Dict = {}
         self.max_connections = max_connections
         self._connection_lock = asyncio.Lock()
@@ -117,6 +119,8 @@ class OptimizedConnectionManager:
         """Remove WebSocket connection and cleanup health tracking."""
         async with self._connection_lock:
             self.active_connections.discard(websocket)
+            # Ensure planning-only sockets are also cleaned up
+            self.planning_connections.discard(websocket)
             self.connection_health.pop(websocket, None)
             
             logger.info(f"WebSocket disconnected. Total: {len(self.active_connections)}")
@@ -190,6 +194,74 @@ class OptimizedConnectionManager:
         Tools expect a `broadcast` coroutine; delegate to optimized version.
         """
         return await self.optimized_broadcast(event_data)
+
+    # --- Planning-mode specific API (parity with ConnectionManager) ---
+    async def connect_planning(self, websocket) -> bool:
+        """
+        Accept a planning-mode WebSocket connection without registering it
+        for general updates. Maintains separate planning connection set.
+        """
+        async with self._connection_lock:
+            # Use same capacity guard across all connections
+            total_connections = len(self.active_connections) + len(self.planning_connections)
+            if total_connections >= self.max_connections:
+                logger.warning(
+                    f"Planning WebSocket connection rejected: at capacity ({self.max_connections})"
+                )
+                return False
+
+            await websocket.accept()
+            self.planning_connections.add(websocket)
+            # Track health for planning sockets as well
+            self.connection_health[websocket] = {
+                'connected_at': time.time(),
+                'last_successful_send': time.time(),
+                'failed_sends': 0
+            }
+            logger.info(
+                f"Planning WebSocket connected. Planning: {len(self.planning_connections)} "
+                f"(Total: {len(self.active_connections)+len(self.planning_connections)}/{self.max_connections})"
+            )
+            return True
+
+    async def disconnect_planning(self, websocket):
+        """Remove planning-mode WebSocket from tracking sets."""
+        await self.disconnect(websocket)
+
+    async def broadcast_planning(self, event_data: Dict[str, Any]) -> Dict[str, int]:
+        """
+        Broadcast event to planning-mode clients only using the same
+        optimized parallel send and health tracking.
+        """
+        if not self.planning_connections:
+            return {'sent': 0, 'failed': 0, 'duration_ms': 0.0}
+
+        start_time = time.time()
+
+        # Create broadcast tasks for planning connections
+        broadcast_tasks = []
+        connections_to_broadcast = list(self.planning_connections)
+
+        for websocket in connections_to_broadcast:
+            task = self._safe_send_with_health_tracking(websocket, event_data)
+            broadcast_tasks.append(task)
+
+        results = await asyncio.gather(*broadcast_tasks, return_exceptions=True)
+
+        successful_sends = sum(1 for result in results if result is True)
+        failed_sends = len(results) - successful_sends
+        duration_ms = (time.time() - start_time) * 1000
+
+        logger.info(
+            f"Planning broadcast completed: {successful_sends}/{len(connections_to_broadcast)} "
+            f"successful in {duration_ms:.1f}ms"
+        )
+
+        return {
+            'sent': successful_sends,
+            'failed': failed_sends,
+            'duration_ms': duration_ms
+        }
     
     async def _safe_send_with_health_tracking(self, websocket, event_data: Dict[str, Any]) -> bool:
         """
