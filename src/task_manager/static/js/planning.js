@@ -36,7 +36,7 @@ class PlanningApp {
         const refreshBtn = document.getElementById('refreshFiles');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
-                this.loadFileList();
+                this.refreshFiles();
             });
         }
 
@@ -46,8 +46,12 @@ class PlanningApp {
             openEditorBtn.addEventListener('click', () => {
                 if (this.currentFile) {
                     this.openInExternalEditor(this.currentFile.path);
+                } else {
+                    this.showToast('error', 'No File Selected', 'Please select a file first');
                 }
             });
+        } else {
+            console.error('Open in editor button not found');
         }
     }
 
@@ -354,23 +358,62 @@ class PlanningApp {
         }
     }
 
+    refreshFiles() {
+        const refreshBtn = document.getElementById('refreshFiles');
+        const svg = refreshBtn?.querySelector('svg');
+
+        // Add spinning animation
+        if (svg) {
+            svg.style.animation = 'spin 0.5s linear';
+        }
+
+        // Show toast notification
+        this.showToast('info', 'Refreshing Files', 'Loading latest file list...');
+
+        // Load file list and handle completion
+        this.loadFileList().then(() => {
+            this.showToast('success', 'Files Refreshed', 'File list updated successfully');
+        }).catch((error) => {
+            console.error('Error refreshing files:', error);
+            this.showToast('error', 'Refresh Failed', 'Unable to refresh file list');
+        }).finally(() => {
+            // Remove animation after completion
+            if (svg) {
+                setTimeout(() => {
+                    svg.style.animation = '';
+                }, 100);
+            }
+        });
+    }
+
     openInExternalEditor(filePath) {
+        // Validate file path
+        if (!filePath) {
+            this.showToast('error', 'Copy Failed', 'No file path available');
+            return;
+        }
+
         // Copy the path to clipboard with modern toast notification
         if (navigator.clipboard) {
             navigator.clipboard.writeText(filePath).then(() => {
                 this.showToast('success', 'Copied to Clipboard', filePath);
-            }).catch(() => {
+            }).catch((err) => {
+                console.error('Clipboard copy failed:', err);
                 this.showToast('error', 'Copy Failed', 'Unable to copy to clipboard');
             });
         } else {
             // Fallback for browsers without clipboard API
+            console.log('Clipboard API not available, showing file path');
             this.showToast('info', 'File Path', filePath);
         }
     }
 
     showToast(type, title, message, duration = 4000) {
         const container = document.getElementById('toast-container');
-        if (!container) return;
+        if (!container) {
+            console.error('Toast container not found');
+            return;
+        }
 
         const toastId = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
