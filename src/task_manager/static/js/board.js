@@ -378,14 +378,34 @@ function handleMoveTask(task) {
     // Toggle between TODO and BACKLOG status
     const newStatus = (task.status === 'TODO' || task.status === 'todo') ? 'BACKLOG' : 'TODO';
 
-    // Use drag-drop manager for status updates
+    // Optimistic update: immediately update local state and UI
+    const previousStatus = task.status;
+    task.status = newStatus;
+    AppState.tasks.set(String(task.id), task);
+
+    // Add task to pending updates to avoid conflicts with WebSocket updates
+    AppState.pendingUpdates.set(String(task.id), true);
+
+    // Re-render the board immediately to show the change
+    renderAllTasks();
+    updateTaskCounts();
+
+    // Use drag-drop manager for backend status updates
     const dragDropManager = getDragDropManager();
     if (dragDropManager) {
         dragDropManager.updateTaskStatus(task.id, newStatus)
             .then(() => {
+                // Remove from pending updates on success
+                AppState.pendingUpdates.delete(String(task.id));
                 showNotification(`Task moved to ${newStatus}`, 'success');
             })
             .catch(error => {
+                // Revert optimistic update on failure
+                task.status = previousStatus;
+                AppState.tasks.set(String(task.id), task);
+                AppState.pendingUpdates.delete(String(task.id));
+                renderAllTasks();
+                updateTaskCounts();
                 console.error('Failed to move task:', error);
                 showNotification('Failed to move task', 'error');
             });

@@ -92,7 +92,11 @@ export function getFilteredTasks() {
 
         // Todo view mode filter
         if (AppState.todoViewMode === 'TODO') {
+            // Show everything except BACKLOG in TODO view
             return task.status !== 'BACKLOG';
+        } else if (AppState.todoViewMode === 'BACKLOG') {
+            // Show everything except TODO in BACKLOG view
+            return task.status !== 'TODO';
         }
 
         return true;

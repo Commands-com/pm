@@ -18,7 +18,15 @@ export function handleTaskStatusUpdate(data) {
         task.status = data.status;
         task.agent_id = data.agent_id;
         AppState.tasks.set(String(data.task_id), task);
-        renderTask(task);
+        // Respect current filters: render or remove accordingly
+        const wasVisible = document.getElementById(`task-${task.id}`) !== null;
+        const shouldBeVisible = getFilteredTasks().some(t => t.id === task.id);
+        if (shouldBeVisible) {
+            renderTask(task);
+        } else if (wasVisible) {
+            const el = document.getElementById(`task-${task.id}`);
+            if (el) el.remove();
+        }
         updateTaskCounts();
     } else {
         // If task not found locally (stale state), resync board
@@ -32,7 +40,15 @@ export function handleTaskLocked(data) {
     if (task) {
         task.lock_holder = data.agent_id;
         AppState.tasks.set(String(data.task_id), task);
-        renderTask(task);
+        // Respect filters when reflecting lock status
+        const wasVisible = document.getElementById(`task-${task.id}`) !== null;
+        const shouldBeVisible = getFilteredTasks().some(t => t.id === task.id);
+        if (shouldBeVisible) {
+            renderTask(task);
+        } else if (wasVisible) {
+            const el = document.getElementById(`task-${task.id}`);
+            if (el) el.remove();
+        }
     } else {
         console.log('Task not found in state for lock; reloading board state');
         import('./board.js').then(({ loadBoardState }) => loadBoardState());
@@ -44,7 +60,15 @@ export function handleTaskUnlocked(data) {
     if (task) {
         task.lock_holder = null;
         AppState.tasks.set(String(data.task_id), task);
-        renderTask(task);
+        // Respect filters when reflecting unlock status
+        const wasVisible = document.getElementById(`task-${task.id}`) !== null;
+        const shouldBeVisible = getFilteredTasks().some(t => t.id === task.id);
+        if (shouldBeVisible) {
+            renderTask(task);
+        } else if (wasVisible) {
+            const el = document.getElementById(`task-${task.id}`);
+            if (el) el.remove();
+        }
     } else {
         console.log('Task not found in state for unlock; reloading board state');
         import('./board.js').then(({ loadBoardState }) => loadBoardState());

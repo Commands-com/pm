@@ -72,8 +72,8 @@ export function initializeFilters() {
 
     // Update initial state
     updateDeleteButtonVisibility();
-    // Ensure TODO/BACKLOG column title reflects current view mode
-    updateTodoColumnTitle();
+    // Ensure TODO/BACKLOG column title reflects current view mode (no animation on init)
+    updateTodoColumnTitle(false);
 }
 
 // Setup additional filter event listeners (main ones are in utils.js)
@@ -110,7 +110,7 @@ function setupFilterEventListeners() {
             AppState.todoViewMode = (AppState.todoViewMode === 'TODO') ? 'BACKLOG' : 'TODO';
             saveSelectionState();
             updateViewModeButtons();
-            updateTodoColumnTitle();
+            updateTodoColumnTitle(true); // Animate on user interaction
             // Apply filters dynamically to avoid circular import
             import('./board.js').then(({ applyFilters }) => applyFilters());
         });
@@ -129,13 +129,19 @@ function updateViewModeButtons() {
 }
 
 // Update the TODO/BACKLOG column header title to reflect current view mode
-function updateTodoColumnTitle() {
+function updateTodoColumnTitle(animate = true) {
     const titleEl = document.getElementById('todo-column-title');
     if (titleEl) {
         const newText = AppState.todoViewMode || 'TODO';
 
         // Don't animate if text hasn't changed
         if (titleEl.textContent === newText) {
+            return;
+        }
+
+        // If animation is disabled (e.g., during initialization), just update text
+        if (!animate) {
+            titleEl.textContent = newText;
             return;
         }
 
