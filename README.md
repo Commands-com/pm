@@ -8,7 +8,12 @@ git clone <repository-url>
 cd pm
 ```
 
-2. **Add to your AI assistant:**
+2. **Install Claude assets (for Claude users)**
+```bash
+uvx --from /path/to/pm project-manager-mcp install-claude-assets --target-dir ~/my-project
+```
+
+3. **Add to your AI assistant:**
 
 ### Claude
 ```bash
