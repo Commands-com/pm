@@ -132,7 +132,25 @@ function updateViewModeButtons() {
 function updateTodoColumnTitle() {
     const titleEl = document.getElementById('todo-column-title');
     if (titleEl) {
-        titleEl.textContent = AppState.todoViewMode || 'TODO';
+        const newText = AppState.todoViewMode || 'TODO';
+
+        // Don't animate if text hasn't changed
+        if (titleEl.textContent === newText) {
+            return;
+        }
+
+        // Add flip animation class
+        titleEl.classList.add('flipping');
+
+        // Change text at the midpoint of animation (when card is edge-on)
+        setTimeout(() => {
+            titleEl.textContent = newText;
+        }, 300); // Half of 600ms animation duration
+
+        // Remove animation class after animation completes
+        setTimeout(() => {
+            titleEl.classList.remove('flipping');
+        }, 600); // Full animation duration
     }
 }
 
