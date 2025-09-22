@@ -2,9 +2,9 @@
 
 ## Quick Start
 
-1. **Clone this directory**
+1. **Clone this repo**
 ```bash
-git clone <repository-url>
+git clone https://github.com/Commands-com/pm.git
 cd pm
 ```
 
