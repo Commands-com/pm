@@ -1,8 +1,46 @@
 # Project Manager MCP
 
-A comprehensive project management system with Model Context Protocol (MCP) support, enabling AI agents to manage projects, epics, and tasks through both programmatic interfaces and a web dashboard.
+## Quick Start
+
+1. **Clone this directory**
+```bash
+git clone <repository-url>
+cd pm
+```
+
+2. **Add to your AI assistant:**
+
+### Claude
+```bash
+claude mcp add project-manager -- uvx --from /path/to/pm project-manager-mcp
+```
+
+### Codex
+```toml
+[mcp_servers.project-manager-mcp]
+command = "uvx"
+args = ["--from", "/path/to/pm", "project-manager-mcp"]
+```
+
+### Gemini
+```json
+"mcpServers": {
+  "project-manager": {
+    "type": "stdio",
+    "command": "uvx",
+    "args": [
+      "--from",
+      "/path/to/pm",
+      "project-manager-mcp"
+    ],
+    "env": {}
+  }
+}
+```
 
 ## Features
+
+A comprehensive project management system with Model Context Protocol (MCP) support, enabling AI agents to manage projects, epics, and tasks through both programmatic interfaces and a web dashboard.
 
 - **AI Agent Integration**: MCP tools for autonomous project management
 - **Web Dashboard**: Real-time web interface for project visualization
@@ -13,9 +51,9 @@ A comprehensive project management system with Model Context Protocol (MCP) supp
 - **Project Import**: YAML-based project definition and import system
 - **RA Tag Context Detection**: Zero-effort context capture for Response Awareness tags
 
-## Quick Start
+## Installation & Usage
 
-### Installation
+### Installation Options
 
 ```bash
 # Install from source (development)

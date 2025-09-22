@@ -25,7 +25,7 @@ the Software.
 Subject to the terms and conditions of this License, Licensor hereby grants You
 a personal, non-transferable, non-exclusive license to:
 
-a) Use the Software for personal, educational, and internal business purposes only
+a) Use the Software for personal, educational, internal business, and commercial purposes
 b) Modify the Software for Your own use
 c) Create derivative works based upon the Software for Your own use
 
@@ -37,12 +37,10 @@ a) Distribute, redistribute, sublicense, sell, lease, or transfer the Software
    or any portion thereof to any third party
 b) Share the Software with others, including but not limited to uploading to
    public repositories, sending via email, or providing access through any means
-c) Use the Software for commercial purposes, including but not limited to
-   selling services based on the Software
-d) Remove or alter any copyright notices, license terms, or other proprietary
+c) Remove or alter any copyright notices, license terms, or other proprietary
    notices contained in the Software
-e) Use the Software in any way that violates applicable laws or regulations
-f) Reverse engineer, decompile, or disassemble the Software (except to the
+d) Use the Software in any way that violates applicable laws or regulations
+e) Reverse engineer, decompile, or disassemble the Software (except to the
    extent such activity is expressly permitted by applicable law)
 
 4. CONTRIBUTION REQUIREMENTS
