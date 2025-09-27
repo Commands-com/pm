@@ -136,9 +136,9 @@ class PlanningApp {
             const byNameAndType = (
                 data.filename === this.currentFile.filename &&
                 (data.file_type === this.currentFile.type ||
-                 // Some servers may emit plural/singular inconsistently; tolerate both
-                 (data.file_type === 'prds' && this.currentFile.type === 'prd') ||
-                 (data.file_type === 'epics' && this.currentFile.type === 'epic'))
+                 // File watcher sends singular, frontend stores plural; handle both
+                 (data.file_type === 'prd' && this.currentFile.type === 'prds') ||
+                 (data.file_type === 'epic' && this.currentFile.type === 'epics'))
             );
 
             if (byNameAndType) return true;
