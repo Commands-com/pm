@@ -66,7 +66,7 @@ class PlanningFileHandler(FileSystemEventHandler):
         """
         Determine if an event should be processed.
 
-        Filters for markdown files in prds/ and epics/ directories only.
+        Filters for markdown files in prds/, epics/, tasks/, and archive subdirectories.
         Implements basic debouncing to avoid spam from rapid file changes.
         """
         # Skip directory events
@@ -77,9 +77,9 @@ class PlanningFileHandler(FileSystemEventHandler):
         if not event.src_path.endswith('.md'):
             return False
 
-        # Only process files in prds/ or epics/ subdirectories
+        # Only process files in prds/, epics/, tasks/, or archive subdirectories
         path = Path(event.src_path)
-        if not any(parent.name in ['prds', 'epics'] for parent in path.parents):
+        if not any(parent.name in ['prds', 'epics', 'tasks', 'archive'] for parent in path.parents):
             return False
 
         # Basic debouncing - avoid duplicate events for same file
@@ -110,10 +110,15 @@ class PlanningFileHandler(FileSystemEventHandler):
         try:
             path = Path(event.src_path)
 
-            # Determine file type from parent directory
+            # Determine file type and archived status from parent directory
             file_type = None
+            is_archived = False
+
+            # Walk up the path to find prds/epics/tasks and check if in archive
             for parent in path.parents:
-                if parent.name in ['prds', 'epics']:
+                if parent.name == 'archive':
+                    is_archived = True
+                if parent.name in ['prds', 'epics', 'tasks']:
                     file_type = parent.name
                     break
 
@@ -140,6 +145,7 @@ class PlanningFileHandler(FileSystemEventHandler):
                 'file_type': file_type.rstrip('s'),  # 'prds' -> 'prd', 'epics' -> 'epic'
                 'filename': path.name,
                 'name': path.stem,
+                'is_archived': is_archived,
                 'timestamp': datetime.now(timezone.utc).isoformat(),
                 **file_info
             }
@@ -147,7 +153,7 @@ class PlanningFileHandler(FileSystemEventHandler):
             # Use the planning-specific broadcast method
             await self.connection_manager.broadcast_planning(event_data)
 
-            logger.info(f"Broadcasted {event_type} for {path.name}")
+            logger.info(f"Broadcasted {event_type} for {path.name} (archived={is_archived})")
 
         except Exception as e:
             logger.error(f"Failed to broadcast file event: {e}")

@@ -1986,12 +1986,30 @@ async def list_planning_files():
         prd_files.sort(key=lambda x: x["name"])
         epic_files.sort(key=lambda x: x["name"])
 
+        # Get task files
+        tasks_dir = Path(".pm/tasks")
+        task_files = []
+        if tasks_dir.exists():
+            for file_path in tasks_dir.glob("*.md"):
+                stat = file_path.stat()
+                task_files.append({
+                    "name": file_path.stem,
+                    "filename": file_path.name,
+                    "path": str(file_path),
+                    "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                    "size": stat.st_size
+                })
+
+        # Sort by name
+        task_files.sort(key=lambda x: x["name"])
+
         return JSONResponse(
             status_code=200,
             content={
                 "success": True,
                 "prds": prd_files,
                 "epics": epic_files,
+                "tasks": task_files,
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
         )
@@ -2007,10 +2025,10 @@ async def list_planning_files():
 @app.get("/api/planning/file/{file_type}/{filename}")
 async def get_planning_file(file_type: str, filename: str):
     """
-    Get the content of a specific PRD or Epic markdown file.
+    Get the content of a specific PRD, Epic, or Task markdown file.
 
     Args:
-        file_type: Either 'prds' or 'epics'
+        file_type: Either 'prds', 'epics', or 'tasks'
         filename: Name of the markdown file (with or without .md extension)
 
     Returns:
@@ -2020,10 +2038,10 @@ async def get_planning_file(file_type: str, filename: str):
         from pathlib import Path
 
         # Validate file type
-        if file_type not in ["prds", "epics"]:
+        if file_type not in ["prds", "epics", "tasks"]:
             return JSONResponse(
                 status_code=400,
-                content=create_error_response("File type must be 'prds' or 'epics'")
+                content=create_error_response("File type must be 'prds', 'epics', or 'tasks'")
             )
 
         # Ensure filename has .md extension
@@ -2061,6 +2079,253 @@ async def get_planning_file(file_type: str, filename: str):
         return JSONResponse(
             status_code=500,
             content=create_error_response("Failed to read planning file")
+        )
+
+
+@app.get("/api/planning/archive/files")
+async def list_archived_planning_files():
+    """
+    List all archived PRD and Epic markdown files from the .pm/archive directory.
+
+    Returns:
+        JSON response with archived PRDs and Epics file lists
+    """
+    try:
+        from pathlib import Path
+
+        archive_dir = Path(".pm/archive")
+        if not archive_dir.exists():
+            # Return empty lists if archive directory doesn't exist yet
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "success": True,
+                    "prds": [],
+                    "epics": [],
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+            )
+
+        # Get archived PRD files
+        prds_dir = archive_dir / "prds"
+        prd_files = []
+        if prds_dir.exists():
+            for file_path in prds_dir.glob("*.md"):
+                stat = file_path.stat()
+                prd_files.append({
+                    "name": file_path.stem,
+                    "filename": file_path.name,
+                    "path": str(file_path),
+                    "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                    "size": stat.st_size
+                })
+
+        # Get archived Epic files
+        epics_dir = archive_dir / "epics"
+        epic_files = []
+        if epics_dir.exists():
+            for file_path in epics_dir.glob("*.md"):
+                stat = file_path.stat()
+                epic_files.append({
+                    "name": file_path.stem,
+                    "filename": file_path.name,
+                    "path": str(file_path),
+                    "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                    "size": stat.st_size
+                })
+
+        # Get archived Task files
+        tasks_dir = archive_dir / "tasks"
+        task_files = []
+        if tasks_dir.exists():
+            for file_path in tasks_dir.glob("*.md"):
+                stat = file_path.stat()
+                task_files.append({
+                    "name": file_path.stem,
+                    "filename": file_path.name,
+                    "path": str(file_path),
+                    "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                    "size": stat.st_size
+                })
+
+        # Sort by name
+        prd_files.sort(key=lambda x: x["name"])
+        epic_files.sort(key=lambda x: x["name"])
+        task_files.sort(key=lambda x: x["name"])
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "prds": prd_files,
+                "epics": epic_files,
+                "tasks": task_files,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to list archived planning files: {e}")
+        return JSONResponse(
+            status_code=500,
+            content=create_error_response("Failed to list archived planning files")
+        )
+
+
+@app.post("/api/planning/archive")
+async def archive_planning_file(request_data: dict):
+    """
+    Archive a PRD, Epic, or Task file by moving it to the archive directory.
+
+    Args:
+        request_data: Dict with 'file_type' ('prd', 'epic', or 'task') and 'filename'
+
+    Returns:
+        JSON response with success status
+    """
+    try:
+        from pathlib import Path
+        import shutil
+
+        file_type = request_data.get("file_type")
+        filename = request_data.get("filename")
+
+        if not file_type or not filename:
+            return JSONResponse(
+                status_code=400,
+                content=create_error_response("file_type and filename are required")
+            )
+
+        # Validate file type
+        if file_type not in ["prd", "epic", "task"]:
+            return JSONResponse(
+                status_code=400,
+                content=create_error_response("file_type must be 'prd', 'epic', or 'task'")
+            )
+
+        # Ensure filename has .md extension
+        if not filename.endswith('.md'):
+            filename += '.md'
+
+        # Construct source and destination paths
+        file_type_plural = file_type + 's'
+        source_path = Path(".pm") / file_type_plural / filename
+        dest_dir = Path(".pm/archive") / file_type_plural
+        dest_path = dest_dir / filename
+
+        # Check if source file exists
+        if not source_path.exists():
+            return JSONResponse(
+                status_code=404,
+                content=create_error_response(f"File {filename} not found in {file_type_plural}")
+            )
+
+        # Create archive directory if it doesn't exist
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        # Move file to archive
+        shutil.move(str(source_path), str(dest_path))
+
+        logger.info(f"Archived {file_type} file: {filename}")
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": f"File {filename} archived successfully",
+                "file_type": file_type,
+                "filename": filename,
+                "archived_path": str(dest_path)
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to archive planning file: {e}")
+        return JSONResponse(
+            status_code=500,
+            content=create_error_response("Failed to archive planning file")
+        )
+
+
+@app.post("/api/planning/unarchive")
+async def unarchive_planning_file(request_data: dict):
+    """
+    Unarchive a PRD, Epic, or Task file by moving it back to the active directory.
+
+    Args:
+        request_data: Dict with 'file_type' ('prd', 'epic', or 'task') and 'filename'
+
+    Returns:
+        JSON response with success status
+    """
+    try:
+        from pathlib import Path
+        import shutil
+
+        file_type = request_data.get("file_type")
+        filename = request_data.get("filename")
+
+        if not file_type or not filename:
+            return JSONResponse(
+                status_code=400,
+                content=create_error_response("file_type and filename are required")
+            )
+
+        # Validate file type
+        if file_type not in ["prd", "epic", "task"]:
+            return JSONResponse(
+                status_code=400,
+                content=create_error_response("file_type must be 'prd', 'epic', or 'task'")
+            )
+
+        # Ensure filename has .md extension
+        if not filename.endswith('.md'):
+            filename += '.md'
+
+        # Construct source and destination paths
+        file_type_plural = file_type + 's'
+        source_path = Path(".pm/archive") / file_type_plural / filename
+        dest_dir = Path(".pm") / file_type_plural
+        dest_path = dest_dir / filename
+
+        # Check if source file exists in archive
+        if not source_path.exists():
+            return JSONResponse(
+                status_code=404,
+                content=create_error_response(f"File {filename} not found in archive/{file_type_plural}")
+            )
+
+        # Check if destination file already exists
+        if dest_path.exists():
+            return JSONResponse(
+                status_code=409,
+                content=create_error_response(f"File {filename} already exists in {file_type_plural}")
+            )
+
+        # Create destination directory if it doesn't exist
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        # Move file from archive back to active directory
+        shutil.move(str(source_path), str(dest_path))
+
+        logger.info(f"Unarchived {file_type} file: {filename}")
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": f"File {filename} unarchived successfully",
+                "file_type": file_type,
+                "filename": filename,
+                "restored_path": str(dest_path)
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to unarchive planning file: {e}")
+        return JSONResponse(
+            status_code=500,
+            content=create_error_response("Failed to unarchive planning file")
         )
 
 

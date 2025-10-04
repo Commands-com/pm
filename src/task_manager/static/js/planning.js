@@ -53,6 +53,22 @@ class PlanningApp {
         } else {
             console.error('Open in editor button not found');
         }
+
+        // Archive section toggle
+        const archiveHeader = document.getElementById('archive-header');
+        if (archiveHeader) {
+            archiveHeader.addEventListener('click', () => {
+                this.toggleArchiveSection();
+            });
+        }
+
+        // Tasks section toggle
+        const tasksHeader = document.getElementById('tasks-header');
+        if (tasksHeader) {
+            tasksHeader.addEventListener('click', () => {
+                this.toggleTasksSection();
+            });
+        }
     }
 
     initializeWebSocket() {
@@ -184,19 +200,35 @@ class PlanningApp {
 
     async loadFileList() {
         try {
-            const response = await fetch('/api/planning/files');
-            const data = await response.json();
+            const [activeResponse, archiveResponse] = await Promise.all([
+                fetch('/api/planning/files'),
+                fetch('/api/planning/archive/files')
+            ]);
 
-            if (data.success) {
+            const activeData = await activeResponse.json();
+            const archiveData = await archiveResponse.json();
+
+            if (activeData.success) {
                 this.files = {
-                    prds: data.prds || [],
-                    epics: data.epics || []
+                    prds: activeData.prds || [],
+                    epics: activeData.epics || [],
+                    tasks: activeData.tasks || []
                 };
 
                 this.renderFileTree();
             } else {
-                console.error('Failed to load file list:', data.error);
+                console.error('Failed to load file list:', activeData.error);
                 this.showError('Failed to load planning files');
+            }
+
+            if (archiveData.success) {
+                this.archivedFiles = {
+                    prds: archiveData.prds || [],
+                    epics: archiveData.epics || [],
+                    tasks: archiveData.tasks || []
+                };
+
+                this.renderArchiveTree();
             }
         } catch (error) {
             console.error('Error loading file list:', error);
@@ -207,9 +239,10 @@ class PlanningApp {
     renderFileTree() {
         this.renderFileSection('prd-files', this.files.prds, 'prds');
         this.renderFileSection('epic-files', this.files.epics, 'epics');
+        this.renderFileSection('task-files', this.files.tasks, 'tasks');
     }
 
-    renderFileSection(containerId, files, fileType) {
+    renderFileSection(containerId, files, fileType, isArchived = false) {
         const container = document.getElementById(containerId);
         if (!container) return;
 
@@ -223,29 +256,55 @@ class PlanningApp {
                             this.currentFile.filename === file.filename &&
                             this.currentFile.type === fileType;
 
+            const archiveAction = isArchived ? 'unarchive' : 'archive';
+            const archiveIcon = isArchived
+                ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>`
+                : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>`;
+
             return `
                 <div class="file-item ${isActive ? 'active' : ''}"
                      data-type="${fileType}"
                      data-filename="${file.filename}"
+                     data-archived="${isArchived}"
                      title="${file.name}">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14,2 14,8 20,8"></polyline>
                     </svg>
                     <span class="file-name">${file.name}</span>
+                    <button class="archive-btn" data-action="${archiveAction}" title="${archiveAction === 'archive' ? 'Archive' : 'Unarchive'}" onclick="event.stopPropagation()">
+                        ${archiveIcon}
+                    </button>
                 </div>
             `;
         }).join('');
 
         container.innerHTML = fileElements;
 
-        // Add click event listeners
+        // Add click event listeners for files
         container.querySelectorAll('.file-item').forEach(item => {
             item.addEventListener('click', () => {
                 const fileType = item.dataset.type;
                 const filename = item.dataset.filename;
                 this.loadFile(fileType, filename);
             });
+
+            // Add archive/unarchive button listener
+            const archiveBtn = item.querySelector('.archive-btn');
+            if (archiveBtn) {
+                archiveBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const action = archiveBtn.dataset.action;
+                    const fileType = item.dataset.type;
+                    const filename = item.dataset.filename;
+
+                    if (action === 'archive') {
+                        await this.archiveFile(fileType, filename);
+                    } else {
+                        await this.unarchiveFile(fileType, filename);
+                    }
+                });
+            }
         });
     }
 
@@ -355,6 +414,102 @@ class PlanningApp {
                     </button>
                 </div>
             `;
+        }
+    }
+
+    renderArchiveTree() {
+        if (!this.archivedFiles) {
+            this.archivedFiles = { prds: [], epics: [], tasks: [] };
+        }
+        this.renderFileSection('archived-prd-files', this.archivedFiles.prds, 'prds', true);
+        this.renderFileSection('archived-epic-files', this.archivedFiles.epics, 'epics', true);
+        this.renderFileSection('archived-task-files', this.archivedFiles.tasks || [], 'tasks', true);
+    }
+
+    toggleArchiveSection() {
+        const archiveContent = document.getElementById('archive-content');
+        const archiveHeader = document.getElementById('archive-header');
+
+        if (archiveContent && archiveHeader) {
+            const isCollapsed = archiveContent.style.display === 'none';
+            archiveContent.style.display = isCollapsed ? 'block' : 'none';
+            archiveHeader.classList.toggle('collapsed', !isCollapsed);
+        }
+    }
+
+    toggleTasksSection() {
+        const tasksContent = document.getElementById('tasks-content');
+        const tasksHeader = document.getElementById('tasks-header');
+
+        if (tasksContent && tasksHeader) {
+            const isCollapsed = tasksContent.style.display === 'none';
+            tasksContent.style.display = isCollapsed ? 'block' : 'none';
+            tasksHeader.classList.toggle('collapsed', !isCollapsed);
+        }
+    }
+
+    async archiveFile(fileType, filename) {
+        try {
+            // Remove 's' from fileType to get singular form (prds -> prd, epics -> epic)
+            const singularFileType = fileType.endsWith('s') ? fileType.slice(0, -1) : fileType;
+
+            const response = await fetch('/api/planning/archive', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    file_type: singularFileType,
+                    filename: filename
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.showToast('success', 'File Archived', `${filename} has been archived`);
+
+                // If currently viewing this file, show welcome view
+                if (this.currentFile && this.currentFile.filename === filename) {
+                    this.showWelcomeView();
+                }
+
+                // Refresh file lists
+                await this.loadFileList();
+            } else {
+                this.showToast('error', 'Archive Failed', data.error || 'Failed to archive file');
+            }
+        } catch (error) {
+            console.error('Error archiving file:', error);
+            this.showToast('error', 'Archive Failed', 'An error occurred');
+        }
+    }
+
+    async unarchiveFile(fileType, filename) {
+        try {
+            // Remove 's' from fileType to get singular form
+            const singularFileType = fileType.endsWith('s') ? fileType.slice(0, -1) : fileType;
+
+            const response = await fetch('/api/planning/unarchive', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    file_type: singularFileType,
+                    filename: filename
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.showToast('success', 'File Unarchived', `${filename} has been restored`);
+
+                // Refresh file lists
+                await this.loadFileList();
+            } else {
+                this.showToast('error', 'Unarchive Failed', data.error || 'Failed to unarchive file');
+            }
+        } catch (error) {
+            console.error('Error unarchiving file:', error);
+            this.showToast('error', 'Unarchive Failed', 'An error occurred');
         }
     }
 

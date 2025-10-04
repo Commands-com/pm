@@ -74,8 +74,62 @@
     letter-spacing: 0.05em;
 }
 
+.section-header.collapsible {
+    cursor: pointer;
+    padding: 0.5rem;
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.section-header.collapsible:hover {
+    background-color: #f1f5f9;
+}
+
+.section-header .collapse-icon {
+    margin-left: auto;
+    transition: transform 0.2s ease;
+}
+
+.section-header.collapsed .collapse-icon {
+    transform: rotate(-90deg);
+}
+
+.archive-section {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.archive-content {
+    margin-left: 1rem;
+}
+
+.archive-subsection {
+    margin-bottom: 1rem;
+}
+
+.subsection-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+    padding-left: 0.5rem;
+}
+
 .file-list {
     margin-left: 1rem;
+}
+
+.no-files {
+    padding: 1rem 0.75rem;
+    margin-left: 1rem;
+    font-size: 0.8125rem;
+    color: #94a3b8;
+    font-style: italic;
 }
 
 .file-item {
@@ -106,6 +160,39 @@
     width: 14px;
     height: 14px;
     flex-shrink: 0;
+}
+
+.file-item .file-name {
+    flex: 1;
+}
+
+.archive-btn {
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    color: #94a3b8;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.file-item:hover .archive-btn {
+    opacity: 1;
+}
+
+.archive-btn:hover {
+    background-color: #e2e8f0;
+    color: #64748b;
+}
+
+.archive-btn svg {
+    width: 14px;
+    height: 14px;
 }
 
 .planning-content {
