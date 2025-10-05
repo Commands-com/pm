@@ -465,10 +465,18 @@ class PlanningApp {
             const data = await response.json();
 
             if (data.success) {
-                this.showToast('success', 'File Archived', `${filename} has been archived`);
+                const archivedCount = data.archived_files?.length || 1;
+                const fileList = data.archived_files?.map(f => f.filename).join(', ') || filename;
 
-                // If currently viewing this file, show welcome view
-                if (this.currentFile && this.currentFile.filename === filename) {
+                if (archivedCount > 1) {
+                    this.showToast('success', 'Files Archived',
+                        `Archived ${archivedCount} file(s): ${fileList}`);
+                } else {
+                    this.showToast('success', 'File Archived', `${filename} has been archived`);
+                }
+
+                // If currently viewing any of the archived files, show welcome view
+                if (this.currentFile && data.archived_files?.some(f => f.filename === this.currentFile.filename)) {
                     this.showWelcomeView();
                 }
 
@@ -500,7 +508,21 @@ class PlanningApp {
             const data = await response.json();
 
             if (data.success) {
-                this.showToast('success', 'File Unarchived', `${filename} has been restored`);
+                const unarchivedCount = data.unarchived_files?.length || 1;
+                const fileList = data.unarchived_files?.map(f => f.filename).join(', ') || filename;
+                const conflicts = data.conflicts?.length || 0;
+
+                let message = '';
+                if (unarchivedCount > 1) {
+                    message = `Unarchived ${unarchivedCount} file(s): ${fileList}`;
+                    if (conflicts > 0) {
+                        message += ` (${conflicts} skipped - already exists)`;
+                    }
+                } else {
+                    message = `${filename} has been restored`;
+                }
+
+                this.showToast('success', 'Files Unarchived', message);
 
                 // Refresh file lists
                 await this.loadFileList();

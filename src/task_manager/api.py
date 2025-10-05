@@ -2177,15 +2177,19 @@ async def archive_planning_file(request_data: dict):
     """
     Archive a PRD, Epic, or Task file by moving it to the archive directory.
 
+    When archiving a PRD, also archives related Epic and Task files.
+    When archiving an Epic, also archives related Task files.
+
     Args:
         request_data: Dict with 'file_type' ('prd', 'epic', or 'task') and 'filename'
 
     Returns:
-        JSON response with success status
+        JSON response with success status and list of archived files
     """
     try:
         from pathlib import Path
         import shutil
+        import re
 
         file_type = request_data.get("file_type")
         filename = request_data.get("filename")
@@ -2207,35 +2211,65 @@ async def archive_planning_file(request_data: dict):
         if not filename.endswith('.md'):
             filename += '.md'
 
-        # Construct source and destination paths
-        file_type_plural = file_type + 's'
-        source_path = Path(".pm") / file_type_plural / filename
-        dest_dir = Path(".pm/archive") / file_type_plural
-        dest_path = dest_dir / filename
+        archived_files = []
 
-        # Check if source file exists
-        if not source_path.exists():
+        def archive_file(ftype: str, fname: str) -> bool:
+            """Helper function to archive a single file."""
+            file_type_plural = ftype + 's'
+            source_path = Path(".pm") / file_type_plural / fname
+            dest_dir = Path(".pm/archive") / file_type_plural
+            dest_path = dest_dir / fname
+
+            if not source_path.exists():
+                return False
+
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(source_path), str(dest_path))
+            archived_files.append({"type": ftype, "filename": fname})
+            logger.info(f"Archived {ftype} file: {fname}")
+            return True
+
+        # Archive the requested file
+        if not archive_file(file_type, filename):
             return JSONResponse(
                 status_code=404,
-                content=create_error_response(f"File {filename} not found in {file_type_plural}")
+                content=create_error_response(f"File {filename} not found in {file_type}s")
             )
 
-        # Create archive directory if it doesn't exist
-        dest_dir.mkdir(parents=True, exist_ok=True)
+        # Get base name (remove .md extension and any numeric prefix)
+        base_name = filename[:-3]  # Remove .md
 
-        # Move file to archive
-        shutil.move(str(source_path), str(dest_path))
+        # If archiving a PRD, also archive related Epic and Tasks
+        if file_type == "prd":
+            # Archive the matching Epic file (same base name)
+            epic_path = Path(".pm/epics") / filename
+            if epic_path.exists():
+                archive_file("epic", filename)
 
-        logger.info(f"Archived {file_type} file: {filename}")
+            # Archive all related Task files (pattern: NNN-base_name.md)
+            tasks_dir = Path(".pm/tasks")
+            if tasks_dir.exists():
+                # Match tasks like 001-base_name.md, 002-base_name.md, etc.
+                task_pattern = re.compile(rf'^\d+-{re.escape(base_name)}\.md$')
+                for task_file in tasks_dir.glob("*.md"):
+                    if task_pattern.match(task_file.name):
+                        archive_file("task", task_file.name)
+
+        # If archiving an Epic, also archive related Tasks
+        elif file_type == "epic":
+            tasks_dir = Path(".pm/tasks")
+            if tasks_dir.exists():
+                task_pattern = re.compile(rf'^\d+-{re.escape(base_name)}\.md$')
+                for task_file in tasks_dir.glob("*.md"):
+                    if task_pattern.match(task_file.name):
+                        archive_file("task", task_file.name)
 
         return JSONResponse(
             status_code=200,
             content={
                 "success": True,
-                "message": f"File {filename} archived successfully",
-                "file_type": file_type,
-                "filename": filename,
-                "archived_path": str(dest_path)
+                "message": f"Archived {len(archived_files)} file(s)",
+                "archived_files": archived_files
             }
         )
 
@@ -2252,15 +2286,19 @@ async def unarchive_planning_file(request_data: dict):
     """
     Unarchive a PRD, Epic, or Task file by moving it back to the active directory.
 
+    When unarchiving a PRD, also unarchives related Epic and Task files.
+    When unarchiving an Epic, also unarchives related Task files.
+
     Args:
         request_data: Dict with 'file_type' ('prd', 'epic', or 'task') and 'filename'
 
     Returns:
-        JSON response with success status
+        JSON response with success status and list of unarchived files
     """
     try:
         from pathlib import Path
         import shutil
+        import re
 
         file_type = request_data.get("file_type")
         filename = request_data.get("filename")
@@ -2282,43 +2320,83 @@ async def unarchive_planning_file(request_data: dict):
         if not filename.endswith('.md'):
             filename += '.md'
 
-        # Construct source and destination paths
-        file_type_plural = file_type + 's'
-        source_path = Path(".pm/archive") / file_type_plural / filename
-        dest_dir = Path(".pm") / file_type_plural
-        dest_path = dest_dir / filename
+        unarchived_files = []
+        conflicts = []
 
-        # Check if source file exists in archive
-        if not source_path.exists():
+        def unarchive_file(ftype: str, fname: str) -> bool:
+            """Helper function to unarchive a single file."""
+            file_type_plural = ftype + 's'
+            source_path = Path(".pm/archive") / file_type_plural / fname
+            dest_dir = Path(".pm") / file_type_plural
+            dest_path = dest_dir / fname
+
+            if not source_path.exists():
+                return False
+
+            # Check if destination file already exists
+            if dest_path.exists():
+                conflicts.append({"type": ftype, "filename": fname})
+                return False
+
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(source_path), str(dest_path))
+            unarchived_files.append({"type": ftype, "filename": fname})
+            logger.info(f"Unarchived {ftype} file: {fname}")
+            return True
+
+        # Unarchive the requested file
+        if not unarchive_file(file_type, filename):
+            # Check if it was a conflict or not found
+            if conflicts:
+                return JSONResponse(
+                    status_code=409,
+                    content=create_error_response(f"File {filename} already exists in {file_type}s")
+                )
             return JSONResponse(
                 status_code=404,
-                content=create_error_response(f"File {filename} not found in archive/{file_type_plural}")
+                content=create_error_response(f"File {filename} not found in archive/{file_type}s")
             )
 
-        # Check if destination file already exists
-        if dest_path.exists():
-            return JSONResponse(
-                status_code=409,
-                content=create_error_response(f"File {filename} already exists in {file_type_plural}")
-            )
+        # Get base name (remove .md extension)
+        base_name = filename[:-3]  # Remove .md
 
-        # Create destination directory if it doesn't exist
-        dest_dir.mkdir(parents=True, exist_ok=True)
+        # If unarchiving a PRD, also unarchive related Epic and Tasks
+        if file_type == "prd":
+            # Unarchive the matching Epic file (same base name)
+            epic_path = Path(".pm/archive/epics") / filename
+            if epic_path.exists():
+                unarchive_file("epic", filename)
 
-        # Move file from archive back to active directory
-        shutil.move(str(source_path), str(dest_path))
+            # Unarchive all related Task files (pattern: NNN-base_name.md)
+            tasks_archive_dir = Path(".pm/archive/tasks")
+            if tasks_archive_dir.exists():
+                task_pattern = re.compile(rf'^\d+-{re.escape(base_name)}\.md$')
+                for task_file in tasks_archive_dir.glob("*.md"):
+                    if task_pattern.match(task_file.name):
+                        unarchive_file("task", task_file.name)
 
-        logger.info(f"Unarchived {file_type} file: {filename}")
+        # If unarchiving an Epic, also unarchive related Tasks
+        elif file_type == "epic":
+            tasks_archive_dir = Path(".pm/archive/tasks")
+            if tasks_archive_dir.exists():
+                task_pattern = re.compile(rf'^\d+-{re.escape(base_name)}\.md$')
+                for task_file in tasks_archive_dir.glob("*.md"):
+                    if task_pattern.match(task_file.name):
+                        unarchive_file("task", task_file.name)
+
+        response_content = {
+            "success": True,
+            "message": f"Unarchived {len(unarchived_files)} file(s)",
+            "unarchived_files": unarchived_files
+        }
+
+        if conflicts:
+            response_content["conflicts"] = conflicts
+            response_content["message"] += f" ({len(conflicts)} file(s) skipped due to conflicts)"
 
         return JSONResponse(
             status_code=200,
-            content={
-                "success": True,
-                "message": f"File {filename} unarchived successfully",
-                "file_type": file_type,
-                "filename": filename,
-                "restored_path": str(dest_path)
-            }
+            content=response_content
         )
 
     except Exception as e:
