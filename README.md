@@ -9,45 +9,63 @@
 
 ## Quick Start
 
-1. **Clone this repo**
+### Option 1: Claude Code Plugin (Recommended)
+
+The easiest way to get started with Claude Code:
+
 ```bash
-git clone https://github.com/Commands-com/pm.git
-cd pm
+# Add the plugin marketplace
+/plugin marketplace add Commands-com/pm
+
+# Install the plugin
+/plugin install project-manager
+
+# Restart Claude Code - you're ready to go!
 ```
 
-2. **Install Claude assets (for Claude users)**
+This automatically installs:
+- ✅ MCP server (via `uvx`)
+- ✅ All `/pm:*` slash commands
+- ✅ Specialized agents (adaptive-assessor, task-runner, etc.)
+
+### Option 2: Manual Installation
+
+1. **Install from PyPI**
 ```bash
-uvx --from /path/to/pm project-manager-mcp install-claude-assets --target-dir ~/my-project
+pip install project-manager-mcp
+# or
+uvx project-manager-mcp
 ```
 
-3. **Add to your AI assistant:**
+2. **Add MCP server to your AI assistant:**
 
-### Claude
+**Claude Code:**
 ```bash
-claude mcp add project-manager -- uvx --from /path/to/pm project-manager-mcp
+claude mcp add project-manager -- uvx project-manager-mcp
 ```
 
-### Codex
+**Codex:**
 ```toml
 [mcp_servers.project-manager-mcp]
 command = "uvx"
-args = ["--from", "/path/to/pm", "project-manager-mcp"]
+args = ["project-manager-mcp"]
 ```
 
-### Gemini
+**Gemini:**
 ```json
 "mcpServers": {
   "project-manager": {
     "type": "stdio",
     "command": "uvx",
-    "args": [
-      "--from",
-      "/path/to/pm",
-      "project-manager-mcp"
-    ],
+    "args": ["project-manager-mcp"],
     "env": {}
   }
 }
+```
+
+3. **Install Claude assets (commands & agents) to your project:**
+```bash
+project-manager-mcp install-claude-assets --target-dir ~/my-project
 ```
 
 ## Features
