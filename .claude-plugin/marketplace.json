@@ -9,7 +9,6 @@
   "plugins": [
     {
       "name": "pm",
-      "displayName": "Project Manager MCP",
       "description": "Comprehensive project management with AI agent coordination, task tracking, and Response Awareness methodology",
       "version": "0.2.0",
       "author": {
