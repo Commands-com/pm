@@ -15,10 +15,10 @@ The easiest way to get started with Claude Code:
 
 ```bash
 # Add the plugin marketplace
-/plugin marketplace add Commands-com/pm
+/plugin marketplace add https://github.com/Commands-com/pm.git
 
 # Install the plugin
-/plugin install project-manager
+/plugin install pm
 
 # Restart Claude Code - you're ready to go!
 ```
