@@ -1,5 +1,12 @@
 # Project Manager MCP
 
+[![PyPI version](https://badge.fury.io/py/project-manager-mcp.svg)](https://badge.fury.io/py/project-manager-mcp)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Tests](https://github.com/Commands-com/pm/actions/workflows/tests.yml/badge.svg)](https://github.com/Commands-com/pm/actions/workflows/tests.yml)
+[![Coverage](https://codecov.io/gh/Commands-com/pm/branch/main/graph/badge.svg)](https://codecov.io/gh/Commands-com/pm)
+
 ## Quick Start
 
 1. **Clone this repo**
@@ -350,16 +357,17 @@ project-manager-mcp --mcp-transport stdio --verbose
 
 ## License
 
-**Restricted Source License** - This software is provided under a custom restrictive license that:
-- Allows personal and internal business use
-- **Prohibits redistribution to third parties**
-- Requires all modifications to be contributed back to the original author
-- Prohibits commercial use or resale
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
-See the [LICENSE](LICENSE) file for complete terms and conditions.
-
-⚠️ **Important**: This is NOT an open source license. You cannot share this software with others.
+You are free to use, modify, and distribute this software for any purpose, including commercial use.
 
 ## Contributing
 
-See [Development Guide](docs/development.md) for setup instructions and contribution guidelines.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Development setup instructions
+- Code style guidelines
+- Testing requirements
+- Pull request process
+- Response Awareness (RA) methodology guidelines
+
+For detailed architecture and development information, see [Development Guide](docs/development.md).

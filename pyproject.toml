@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "project-manager-mcp"
-version = "0.1.1"
+version = "0.2.0"
 description = "Project Manager MCP with SQLite database layer and atomic locking"
 readme = "README.md"
 license = {text = "MIT"}
@@ -99,10 +99,10 @@ project-manager-mcp = "task_manager.cli:main"
 pm-install-claude-assets = "task_manager.install:main"
 
 [project.urls]
-Homepage = "https://github.com/example/project-manager-mcp"
-Repository = "https://github.com/example/project-manager-mcp"
-Documentation = "https://github.com/example/project-manager-mcp#readme"
-"Bug Tracker" = "https://github.com/example/project-manager-mcp/issues"
+Homepage = "https://github.com/Commands-com/pm"
+Repository = "https://github.com/Commands-com/pm"
+Documentation = "https://github.com/Commands-com/pm#readme"
+"Bug Tracker" = "https://github.com/Commands-com/pm/issues"
 
 # Hatchling build configuration for src-layout package structure
 # ASSUMPTION: Explicit src mapping needed for proper package discovery in editable installs

@@ -11,6 +11,7 @@ build/
 *.db-wal
 *.db-journal
 test_*.db
+test2.db
 project_manager.db
 
 # Environment files
