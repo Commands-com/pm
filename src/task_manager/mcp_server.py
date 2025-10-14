@@ -29,10 +29,10 @@ from fastapi import FastAPI
 from .database import TaskDatabase
 from .api import ConnectionManager
 from .ra_instructions import get_ra_instructions
-from .tools import (
-    GetAvailableTasks, 
-    AcquireTaskLock, 
-    UpdateTaskStatus, 
+from .tools_lib import (
+    GetAvailableTasks,
+    AcquireTaskLock,
+    UpdateTaskStatus,
     ReleaseTaskLock,
     GetInstructionsTool,
     CreateTaskTool,
@@ -685,7 +685,7 @@ class ProjectManagerMCPServer:
                 Returns:
                     JSON string with knowledge items and metadata
                 """
-                from .tools import GetKnowledgeTool
+                from .tools_lib import GetKnowledgeTool
                 
                 get_knowledge_tool = GetKnowledgeTool(self.database, self.websocket_manager)
                 return await get_knowledge_tool.apply(
@@ -735,7 +735,7 @@ class ProjectManagerMCPServer:
                 Returns:
                     JSON string with operation result
                 """
-                from .tools import UpsertKnowledgeTool
+                from .tools_lib import UpsertKnowledgeTool
                 
                 upsert_knowledge_tool = UpsertKnowledgeTool(self.database, self.websocket_manager)
                 return await upsert_knowledge_tool.apply(
@@ -775,7 +775,7 @@ class ProjectManagerMCPServer:
                 Returns:
                     JSON string with log operation result
                 """
-                from .tools import AppendKnowledgeLogTool
+                from .tools_lib import AppendKnowledgeLogTool
                 
                 append_log_tool = AppendKnowledgeLogTool(self.database, self.websocket_manager)
                 return await append_log_tool.apply(
@@ -810,7 +810,7 @@ class ProjectManagerMCPServer:
                 Returns:
                     JSON string with success confirmation and validation record details
                 """
-                from .tools import CaptureAssumptionValidationTool
+                from .tools_lib import CaptureAssumptionValidationTool
                 
                 capture_tool = CaptureAssumptionValidationTool(self.database, self.websocket_manager)
                 return await capture_tool.apply(
@@ -849,7 +849,7 @@ class ProjectManagerMCPServer:
                 Returns:
                     JSON string with success/error status and created tag information with context
                 """
-                from .tools import AddRATagTool
+                from .tools_lib import AddRATagTool
                 
                 add_ra_tag_tool = AddRATagTool(self.database, self.websocket_manager)
                 return await add_ra_tag_tool.apply(

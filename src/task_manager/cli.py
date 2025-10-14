@@ -30,7 +30,7 @@ from .api import app as fastapi_app, connection_manager
 from .database import TaskDatabase
 from .mcp_server import create_mcp_server
 from .context_utils import create_enriched_context
-from .tools import AddRATagTool
+from .tools_lib import AddRATagTool
 from .install import install_claude_assets
 
 # Configure logging for CLI operations

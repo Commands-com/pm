@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List, Union
 from contextlib import contextmanager
 from pathlib import Path
-from .performance import timed_query
+from ..performance import timed_query
 
 # Configure logger for database operations
 logger = logging.getLogger(__name__)

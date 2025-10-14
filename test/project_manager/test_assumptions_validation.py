@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timezone, timedelta
 
 from task_manager.database import TaskDatabase
-from task_manager.tools import CaptureAssumptionValidationTool, GetTaskDetailsTool, CreateTaskTool
+from task_manager.tools_lib import CaptureAssumptionValidationTool, GetTaskDetailsTool, CreateTaskTool
 
 
 class TestAssumptionValidationSystem:

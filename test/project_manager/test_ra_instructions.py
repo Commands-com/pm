@@ -33,7 +33,7 @@ from task_manager.ra_instructions import (
 from task_manager.mcp_server import ProjectManagerMCPServer, create_mcp_server
 from task_manager.database import TaskDatabase
 from task_manager.api import ConnectionManager
-from task_manager.tools import CreateTaskTool
+from task_manager.tools_lib import CreateTaskTool
 
 
 class TestRAInstructionsManager:
@@ -434,7 +434,7 @@ class TestCreateTaskRAIntegration:
         assert 'ra_mode' in prompt_payload
         assert 'instructions_version' in prompt_payload
 
-    @patch('task_manager.tools.ra_instructions_manager.capture_prompt_snapshot')
+    @patch('task_manager.ra_instructions.ra_instructions_manager.capture_prompt_snapshot')
     async def test_prompt_snapshot_capture_called(
         self, 
         mock_capture,

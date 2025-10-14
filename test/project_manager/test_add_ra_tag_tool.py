@@ -10,7 +10,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
 
-from src.task_manager.tools import AddRATagTool
+from src.task_manager.tools_lib import AddRATagTool
 from src.task_manager.database import TaskDatabase
 
 
@@ -123,8 +123,8 @@ class TestAddRATagTool:
         assert "must be a positive integer" in result_data['message']
     
     @pytest.mark.asyncio
-    @patch('src.task_manager.tools.create_enriched_context')
-    @patch('src.task_manager.tools.normalize_ra_tag')
+    @patch('src.task_manager.context_utils.create_enriched_context')
+    @patch('src.task_manager.ra_tag_utils.normalize_ra_tag')
     async def test_successful_creation(self, mock_normalize, mock_create_context, add_ra_tag_tool, mock_database, mock_websocket_manager):
         """Test successful RA tag creation."""
         # Setup mocks
@@ -162,8 +162,8 @@ class TestAddRATagTool:
         mock_websocket_manager.broadcast.assert_called_once()
     
     @pytest.mark.asyncio
-    @patch('src.task_manager.tools.create_enriched_context')
-    @patch('src.task_manager.tools.normalize_ra_tag')
+    @patch('src.task_manager.context_utils.create_enriched_context')
+    @patch('src.task_manager.ra_tag_utils.normalize_ra_tag')
     async def test_with_existing_tags(self, mock_normalize, mock_create_context, add_ra_tag_tool, mock_database):
         """Test adding tag to task with existing tags."""
         existing_tags = [
@@ -199,7 +199,7 @@ class TestAddRATagTool:
         assert any(tag['text'] == '#COMPLETION_DRIVE_IMPL: New tag' for tag in updated_tags)
     
     @pytest.mark.asyncio
-    @patch('src.task_manager.tools.create_enriched_context')
+    @patch('src.task_manager.context_utils.create_enriched_context')
     async def test_database_save_failure(self, mock_create_context, add_ra_tag_tool, mock_database):
         """Test handling database save failure."""
         mock_database.get_task_by_id.return_value = {'id': 1, 'name': 'Test Task', 'ra_tags': '[]'}
@@ -216,7 +216,7 @@ class TestAddRATagTool:
         assert "Failed to save RA tag to database" in result_data['message']
     
     @pytest.mark.asyncio
-    @patch('src.task_manager.tools.create_enriched_context')
+    @patch('src.task_manager.context_utils.create_enriched_context')
     async def test_with_malformed_existing_tags(self, mock_create_context, add_ra_tag_tool, mock_database):
         """Test handling malformed existing tags JSON."""
         mock_database.get_task_by_id.return_value = {
@@ -255,7 +255,7 @@ class TestAddRATagTool:
         assert "Failed to create RA tag" in result_data['message']
     
     @pytest.mark.asyncio
-    @patch('src.task_manager.tools.create_enriched_context')
+    @patch('src.task_manager.context_utils.create_enriched_context')
     async def test_without_websocket_manager(self, mock_create_context, mock_database):
         """Test creation without WebSocket manager."""
         mock_database.get_task_by_id.return_value = {'id': 1, 'name': 'Test Task', 'ra_tags': '[]'}

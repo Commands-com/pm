@@ -30,6 +30,7 @@ from .models import (
 )
 from .assumptions import router as assumptions_router
 from .file_watcher import start_file_watcher, stop_file_watcher
+from .routers import knowledge, planning
 
 # Configure logging for debugging WebSocket connections and API operations
 logging.basicConfig(level=logging.INFO)
@@ -495,8 +496,10 @@ except Exception as e:
     # #SUGGEST_ERROR_HANDLING: Static file serving is optional for API functionality
     logger.warning(f"Static file serving not available: {e}")
 
-# Include assumption intelligence API router
+# Include routers
 app.include_router(assumptions_router)
+app.include_router(knowledge.router)
+app.include_router(planning.router)
 
 # Health check endpoint for monitoring and load balancers
 @app.get("/healthz", response_model=HealthResponse)
@@ -1255,7 +1258,7 @@ async def get_task_details_endpoint(
     """
     try:
         # Import the MCP tool here to avoid circular imports
-        from .tools import GetTaskDetailsTool
+        from .tools_lib import GetTaskDetailsTool
         
         # Create tool instance with database dependency
         # #COMPLETION_DRIVE_INTEGRATION: Use existing MCP tool infrastructure
@@ -1575,7 +1578,7 @@ async def append_knowledge_log(
             )
         
         # Import and use the AppendKnowledgeLogTool
-        from .tools import AppendKnowledgeLogTool
+        from .tools_lib import AppendKnowledgeLogTool
         
         log_tool = AppendKnowledgeLogTool(db, connection_manager)
         
@@ -1664,7 +1667,7 @@ async def get_knowledge_project_scope(
             )
         
         # Import and use the GetKnowledgeTool
-        from .tools import GetKnowledgeTool
+        from .tools_lib import GetKnowledgeTool
         
         knowledge_tool = GetKnowledgeTool(db, connection_manager)
         
@@ -1747,7 +1750,7 @@ async def get_knowledge_epic_scope(
             )
         
         # Import and use the GetKnowledgeTool
-        from .tools import GetKnowledgeTool
+        from .tools_lib import GetKnowledgeTool
         
         knowledge_tool = GetKnowledgeTool(db, connection_manager)
         
@@ -1812,7 +1815,7 @@ async def upsert_knowledge(
     """
     try:
         # Import and use the UpsertKnowledgeTool
-        from .tools import UpsertKnowledgeTool
+        from .tools_lib import UpsertKnowledgeTool
         
         upsert_tool = UpsertKnowledgeTool(db, connection_manager)
         

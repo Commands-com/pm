@@ -29,7 +29,7 @@ project_root = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(project_root))
 
 from task_manager.database import TaskDatabase
-from task_manager.tools import GetAvailableTasks, AcquireTaskLock, UpdateTaskStatus, ReleaseTaskLock
+from task_manager.tools_lib import GetAvailableTasks, AcquireTaskLock, UpdateTaskStatus, ReleaseTaskLock
 from task_manager.api import ConnectionManager
 from task_manager.importer import import_project_from_file
 

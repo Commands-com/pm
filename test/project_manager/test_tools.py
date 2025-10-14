@@ -28,8 +28,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from task_manager.database import TaskDatabase
 from task_manager.api import ConnectionManager
-from task_manager.tools import (
-    BaseTool, GetAvailableTasks, AcquireTaskLock, 
+from task_manager.tools_lib import (
+    BaseTool, GetAvailableTasks, AcquireTaskLock,
     UpdateTaskStatus, ReleaseTaskLock, CreateTaskTool,
     ListProjectsTool, ListEpicsTool, ListTasksTool, DeleteTaskTool,
     create_tool_instance, AVAILABLE_TOOLS
@@ -809,7 +809,7 @@ class TestListProjectsTool:
     @pytest.fixture
     def list_projects_tool(self, mock_database, mock_websocket_manager):
         """Create ListProjectsTool instance for testing."""
-        from task_manager.tools import ListProjectsTool
+        from task_manager.tools_lib import ListProjectsTool
         return ListProjectsTool(mock_database, mock_websocket_manager)
     
     @pytest.mark.asyncio
@@ -882,7 +882,7 @@ class TestListEpicsTool:
     @pytest.fixture
     def list_epics_tool(self, mock_database, mock_websocket_manager):
         """Create ListEpicsTool instance for testing."""
-        from task_manager.tools import ListEpicsTool
+        from task_manager.tools_lib import ListEpicsTool
         return ListEpicsTool(mock_database, mock_websocket_manager)
     
     @pytest.mark.asyncio
@@ -958,7 +958,7 @@ class TestListTasksTool:
     @pytest.fixture
     def list_tasks_tool(self, mock_database, mock_websocket_manager):
         """Create ListTasksTool instance for testing."""
-        from task_manager.tools import ListTasksTool
+        from task_manager.tools_lib import ListTasksTool
         return ListTasksTool(mock_database, mock_websocket_manager)
     
     @pytest.mark.asyncio
@@ -1071,7 +1071,7 @@ class TestListToolsIntegration:
         list_epics = create_tool_instance("list_epics", mock_database, mock_websocket_manager)
         list_tasks = create_tool_instance("list_tasks", mock_database, mock_websocket_manager)
         
-        from task_manager.tools import ListProjectsTool, ListEpicsTool, ListTasksTool
+        from task_manager.tools_lib import ListProjectsTool, ListEpicsTool, ListTasksTool
         assert isinstance(list_projects, ListProjectsTool)
         assert isinstance(list_epics, ListEpicsTool)
         assert isinstance(list_tasks, ListTasksTool)
