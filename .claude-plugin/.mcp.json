@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "project-manager-mcp": {
+      "command": "uvx",
+      "args": ["project-manager-mcp"],
+      "env": {}
+    }
+  }
+}

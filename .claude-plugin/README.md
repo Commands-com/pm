@@ -41,13 +41,26 @@ This plugin provides:
 
 ```bash
 # Add the marketplace
-/plugin marketplace add Commands-com/pm
+/plugin marketplace add https://github.com/Commands-com/pm.git
 
 # Install the plugin
 /plugin install project-manager
 
 # Restart Claude Code to activate
 ```
+
+### ⚠️ Important: MCP Server Setup Required
+
+After installing the plugin, you must also configure the MCP server:
+
+```bash
+# Add MCP server to Claude Code
+claude mcp add project-manager-mcp -- uvx project-manager-mcp
+
+# Restart Claude Code
+```
+
+See [INSTALL.md](INSTALL.md) for detailed setup instructions.
 
 ### Manual Install
 
