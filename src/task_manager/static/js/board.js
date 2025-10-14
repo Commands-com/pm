@@ -12,7 +12,6 @@ export async function loadBoardData() {
         }
 
         const data = await response.json();
-        console.log('Board data loaded:', data);
 
         // Update AppState with loaded data
         AppState.tasks.clear();

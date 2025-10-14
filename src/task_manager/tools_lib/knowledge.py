@@ -7,6 +7,7 @@ managing knowledge logs for project documentation and context.
 
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
 from .base import BaseTool

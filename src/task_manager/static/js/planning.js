@@ -218,7 +218,8 @@ class PlanningApp {
                 this.renderFileTree();
             } else {
                 console.error('Failed to load file list:', activeData.error);
-                this.showError('Failed to load planning files');
+                // Show error message in file tree sections
+                this.renderErrorState(activeData.error || 'Failed to load planning files');
             }
 
             if (archiveData.success) {
@@ -232,8 +233,39 @@ class PlanningApp {
             }
         } catch (error) {
             console.error('Error loading file list:', error);
-            this.showError('Failed to connect to server');
+            this.renderErrorState('Failed to connect to server');
         }
+    }
+
+    renderErrorState(errorMessage) {
+        // Render error message in all file sections
+        const sections = [
+            { id: 'prd-files', type: 'PRDs' },
+            { id: 'epic-files', type: 'Epics' },
+            { id: 'task-files', type: 'Tasks' }
+        ];
+
+        sections.forEach(section => {
+            const container = document.getElementById(section.id);
+            if (container) {
+                container.innerHTML = `
+                    <div class="error-state" style="padding: 1rem; text-align: center; color: #dc2626;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 0.5rem;">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                        <div style="font-size: 0.875rem; margin-bottom: 0.5rem;">${errorMessage}</div>
+                        <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">
+                            Make sure the <code style="background: #1f2937; padding: 0.125rem 0.25rem; border-radius: 2px; font-family: monospace;">.pm</code> directory exists with <code style="background: #1f2937; padding: 0.125rem 0.25rem; border-radius: 2px; font-family: monospace;">prds/</code>, <code style="background: #1f2937; padding: 0.125rem 0.25rem; border-radius: 2px; font-family: monospace;">epics/</code>, and <code style="background: #1f2937; padding: 0.125rem 0.25rem; border-radius: 2px; font-family: monospace;">tasks/</code> subdirectories.
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        // Also show a toast notification
+        this.showToast('error', 'Setup Required', 'Planning mode requires a .pm directory structure. See sidebar for details.');
     }
 
     renderFileTree() {

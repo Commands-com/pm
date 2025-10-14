@@ -22,13 +22,10 @@ export function initializeWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/updates`;
 
-    console.log(`Attempting WebSocket connection to: ${wsUrl}`);
-
     try {
         AppState.socket = new WebSocket(wsUrl);
 
         AppState.socket.onopen = function(event) {
-            console.log('WebSocket connected successfully');
             AppState.reconnectDelay = 1000; // Reset backoff
             AppState.connectionAttempts = 0;
             updateConnectionStatus('connected');
@@ -43,7 +40,6 @@ export function initializeWebSocket() {
         AppState.socket.onmessage = function(event) {
             try {
                 const data = JSON.parse(event.data);
-                console.log('WebSocket message received:', data);
                 handleRealtimeUpdate(data);
             } catch (error) {
                 console.error('Failed to parse WebSocket message:', error);
@@ -51,7 +47,6 @@ export function initializeWebSocket() {
         };
 
         AppState.socket.onclose = function(event) {
-            console.log('WebSocket connection closed:', event.code, event.reason);
             AppState.socket = null;
             updateConnectionStatus('disconnected');
 
@@ -92,7 +87,6 @@ export function initializeWebSocket() {
 function startPollingFallback() {
     if (AppState.pollingInterval) return; // Already polling
 
-    console.log('Starting polling fallback');
     AppState.pollingInterval = setInterval(async () => {
         try {
             const { loadBoardState } = await import('./board.js');
@@ -125,8 +119,6 @@ export function updateConnectionStatus(status) {
 // #COMPLETION_DRIVE_REALTIME: Handle real-time updates from WebSocket with enriched payloads
 // Pattern: Event-driven updates maintain UI consistency across clients with enhanced payload support
 function handleRealtimeUpdate(data) {
-    console.log('Processing real-time update:', data);
-
     switch (data.type) {
         case 'task.status_changed':
             handleTaskStatusUpdate(data);
@@ -165,6 +157,7 @@ function handleRealtimeUpdate(data) {
             handleKnowledgeLog(data);
             break;
         default:
-            console.log('Unknown event type:', data.type);
+            // Unknown event type - silently ignore
+            break;
     }
 }

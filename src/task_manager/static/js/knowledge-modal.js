@@ -186,7 +186,6 @@ export class KnowledgeManagementModal {
 
                 document.body.style.overflow = 'hidden';
                 await this.loadKnowledgeData();
-                console.log('Knowledge Management modal opened');
             }
         } catch (error) {
             console.error('Error opening knowledge modal:', error);
@@ -208,7 +207,6 @@ export class KnowledgeManagementModal {
             this.hasUnsavedChanges = false;
             this.cancelEditing();
             document.body.style.overflow = '';
-            console.log('Knowledge Management modal closed');
         }
     }
 
@@ -327,18 +325,13 @@ export class KnowledgeManagementModal {
     }
 
     async saveKnowledgeItem() {
-        console.log('saveKnowledgeItem called');
-
         if (!this.validateForm()) {
-            console.log('Form validation failed');
             return;
         }
 
         const formData = this.getFormData();
-        console.log('Form data:', formData);
 
         try {
-            console.log('Sending PUT request to /api/knowledge');
             const response = await fetch('/api/knowledge', {
                 method: 'PUT',
                 headers: {
@@ -347,9 +340,7 @@ export class KnowledgeManagementModal {
                 body: JSON.stringify(formData)
             });
 
-            console.log('Response status:', response.status);
             const result = await response.json();
-            console.log('Response result:', result);
 
             if (result.success) {
                 showNotification('Knowledge item saved successfully!', 'success');
@@ -466,7 +457,7 @@ export class KnowledgeManagementModal {
             // Build backend endpoint compatible with API
             let apiUrl;
             if (currentEpic && currentProject) {
-                apiUrl = `/api/knowledge/epic/${currentProject}/${currentEpic}`;
+                apiUrl = `/api/knowledge/project/${currentProject}/epic/${currentEpic}`;
             } else if (currentProject) {
                 apiUrl = `/api/knowledge/project/${currentProject}`;
             } else {

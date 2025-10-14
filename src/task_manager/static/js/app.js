@@ -15,8 +15,6 @@ import { initializeFilters, populateProjectSelector, populateEpicSelector } from
 
 // Initialize application
 export function initializeApp() {
-    console.log('Initializing PM Dashboard Application');
-
     // Initialize filters and modals first
     initializeFilters();
     initializeModals();
@@ -38,7 +36,6 @@ export function initializeApp() {
 
     // Setup network status monitoring
     window.addEventListener('online', () => {
-        console.log('Network connection restored');
         AppState.isOnline = true;
         if (!AppState.socket || AppState.socket.readyState !== WebSocket.OPEN) {
             initializeWebSocket();
@@ -46,7 +43,6 @@ export function initializeApp() {
     });
 
     window.addEventListener('offline', () => {
-        console.log('Network connection lost');
         AppState.isOnline = false;
         updateConnectionStatus('disconnected');
     });

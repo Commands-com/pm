@@ -131,37 +131,26 @@ export class TaskDetailModal {
         // Load basic task info in overview tab
         this.loadOverviewTab(task);
 
-        // Fetch detailed task data and RA validations in parallel
+        // Fetch detailed task data
         try {
             this.showLoading();
 
-            const [taskResponse, validationsResponse] = await Promise.all([
-                fetch('/api/task/details', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        task_id: task.id.toString(),
-                        log_limit: 100
-                    })
-                }),
-                // Try to load RA validations (may not exist)
-                fetch('/api/assumptions/validations').catch(() => null)
-            ]);
+            const taskResponse = await fetch('/api/task/details', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    task_id: task.id.toString(),
+                    log_limit: 100
+                })
+            });
 
             if (taskResponse.ok) {
                 const apiResponse = await taskResponse.json();
                 this.currentTaskData = JSON.parse(apiResponse.result);
 
-                // Load RA validations if available and filter for this task
-                this.raValidations = [];
-                if (validationsResponse && validationsResponse.ok) {
-                    const validationsResult = await validationsResponse.json();
-                    const allValidations = validationsResult.validations || [];
-                    this.raValidations = allValidations.filter(v => v.task_id === parseInt(task.id));
-                }
-
+                // Note: RA validations are loaded separately in loadRATags() method
                 this.populateTaskDetails(this.currentTaskData);
                 this.hideLoading();
             } else {
