@@ -1,25 +1,17 @@
 {
-  "name": "Project Manager MCP Marketplace",
+  "name": "project-manager-mcp",
+  "owner": "Commands-com",
   "description": "Official marketplace for Project Manager MCP plugins and extensions",
   "version": "1.0.0",
-  "url": "https://github.com/Commands-com/pm",
   "plugins": [
     {
-      "id": "project-manager",
       "name": "project-manager",
       "displayName": "Project Manager MCP",
       "description": "Comprehensive project management with AI agent coordination, task tracking, and Response Awareness methodology",
       "version": "0.2.0",
-      "author": {
-        "name": "Project Manager MCP Contributors",
-        "url": "https://github.com/Commands-com/pm"
-      },
-      "repository": {
-        "type": "git",
-        "url": "https://github.com/Commands-com/pm.git"
-      },
-      "source": "https://github.com/Commands-com/pm.git",
-      "path": ".claude-plugin",
+      "author": "Project Manager MCP Contributors",
+      "repository": "https://github.com/Commands-com/pm",
+      "source": "./.claude-plugin",
       "tags": [
         "project-management",
         "task-tracking",
@@ -27,8 +19,7 @@
         "mcp",
         "productivity"
       ],
-      "license": "MIT",
-      "featured": true
+      "license": "MIT"
     }
   ]
 }
