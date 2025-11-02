@@ -126,7 +126,8 @@ exclude = [
     ".pytest_cache",
     "*.db",
     ".env*",
-    "/.claude/settings.local.json",
+    "/.claude",
+    "/.claude-plugin",
 ]
 
 # Development tool configuration
