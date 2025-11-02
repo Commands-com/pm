@@ -1,23 +1,21 @@
 """
 Context Detection Utilities for RA Tag Creation
 
-Provides automatic detection of file, git, and development context for RA tag creation
+Provides automatic detection of file and development context for RA tag creation
 with zero additional effort from developers. Handles errors gracefully and provides
 fallback mechanisms when detection fails.
 
 Key Features:
 - File path and line number detection from development environment
-- Git branch and commit extraction with error handling
 - Programming language detection from file extensions
 - Symbol context extraction using regex patterns
-- Performance optimized with <200ms execution times
+- Performance optimized with fast execution times
 """
 
 import os
-import subprocess
 import re
 import logging
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -142,59 +140,6 @@ def detect_file_context(file_path: Optional[str] = None, line_number: Optional[i
     return context
 
 
-def get_git_context() -> Dict[str, Optional[str]]:
-    """
-    Extract git branch and commit from current working directory.
-    
-    Returns:
-        Dict with git_branch and git_commit, None values on errors
-    """
-    context = {'git_branch': None, 'git_commit': None}
-    
-    try:
-        # Check if we're in a git repository
-        result = subprocess.run(
-            ['git', 'rev-parse', '--is-inside-work-tree'],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        
-        if result.returncode != 0:
-            return context
-        
-        # Get current branch
-        try:
-            branch_result = subprocess.run(
-                ['git', 'branch', '--show-current'],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if branch_result.returncode == 0 and branch_result.stdout.strip():
-                context['git_branch'] = branch_result.stdout.strip()
-        except Exception as e:
-            logger.debug(f"Git branch detection failed: {e}")
-        
-        # Get current commit hash (short form)
-        try:
-            commit_result = subprocess.run(
-                ['git', 'rev-parse', '--short=8', 'HEAD'],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if commit_result.returncode == 0 and commit_result.stdout.strip():
-                context['git_commit'] = commit_result.stdout.strip()
-        except Exception as e:
-            logger.debug(f"Git commit detection failed: {e}")
-    
-    except Exception as e:
-        logger.warning(f"Git context detection failed: {e}")
-    
-    return context
-
-
 def detect_language(file_path: str) -> Optional[str]:
     """
     Detect programming language from file extension.
@@ -293,14 +238,7 @@ def validate_context(context_dict: Dict[str, Any]) -> Dict[str, Any]:
         line_num = context_dict['line_number']
         if isinstance(line_num, int) and line_num > 0:
             validated['line_number'] = line_num
-    
-    # Validate git context
-    for git_field in ['git_branch', 'git_commit']:
-        if git_field in context_dict:
-            value = context_dict[git_field]
-            if isinstance(value, str) and value.strip():
-                validated[git_field] = value.strip()
-    
+
     # Validate language
     if 'language' in context_dict:
         language = context_dict['language']
@@ -342,45 +280,28 @@ def _detect_current_file() -> Optional[str]:
 
 def _get_relative_path(file_path: str) -> str:
     """
-    Convert absolute path to relative path from git root or current directory.
-    
+    Convert absolute path to relative path from current directory.
+
     Args:
         file_path: Absolute or relative file path
-        
+
     Returns:
         Relative path string
     """
     try:
         path = Path(file_path)
-        
+
         # If it's already relative, return as-is
         if not path.is_absolute():
             return str(path)
-        
-        # Try to get relative path from git root
-        try:
-            result = subprocess.run(
-                ['git', 'rev-parse', '--show-toplevel'],
-                capture_output=True,
-                text=True,
-                timeout=3
-            )
-            if result.returncode == 0:
-                git_root = Path(result.stdout.strip())
-                try:
-                    return str(path.relative_to(git_root))
-                except ValueError:
-                    pass  # Path is not under git root
-        except Exception:
-            pass  # Git command failed
-        
-        # Fall back to relative path from current directory
+
+        # Try to get relative path from current directory
         try:
             return str(path.relative_to(Path.cwd()))
         except ValueError:
             # If not under current directory, return just the filename
             return path.name
-    
+
     except Exception:
         return str(file_path)
 
@@ -392,29 +313,25 @@ def create_enriched_context(
 ) -> Dict[str, Any]:
     """
     Create a complete context dictionary with all available information.
-    
+
     Args:
         file_path: Optional file path
         line_number: Optional line number
         code_snippet: Optional code snippet
-        
+
     Returns:
         Complete context dictionary with all detected information
     """
     # Detect file context
     file_context = detect_file_context(file_path, line_number)
-    
-    # Detect git context
-    git_context = get_git_context()
-    
-    # Combine all context
+
+    # Start with file context
     complete_context = {}
     complete_context.update(file_context)
-    complete_context.update(git_context)
-    
+
     # Add code snippet if provided
     if code_snippet:
         complete_context['code_snippet'] = code_snippet
-    
+
     # Validate and return
     return validate_context(complete_context)

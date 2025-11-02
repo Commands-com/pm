@@ -665,10 +665,6 @@ def add_ra_tag(ra_tag_text: str, task_id: str, file: Optional[str],
                     click.echo(f"    File: {context_data['file_path']}")
                 if context_data.get('line_number'):
                     click.echo(f"    Line: {context_data['line_number']}")
-                if context_data.get('git_branch'):
-                    click.echo(f"    Branch: {context_data['git_branch']}")
-                if context_data.get('git_commit'):
-                    click.echo(f"    Commit: {context_data['git_commit']}")
                 if context_data.get('language'):
                     click.echo(f"    Language: {context_data['language']}")
                 if context_data.get('symbol_context'):
