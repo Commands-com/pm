@@ -39,4 +39,4 @@ logs/
 .claude/settings.local.json
 
 # Hooks runtime state
-hooks/.edit-log.json
+.claude-plugin/hooks/.edit-log.json
