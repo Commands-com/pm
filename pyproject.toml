@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "project-manager-mcp"
-version = "0.2.6"
+version = "0.2.7"
 description = "Project Manager MCP with SQLite database layer and atomic locking"
 readme = "README.md"
 license = {text = "MIT"}
@@ -108,9 +108,6 @@ Documentation = "https://github.com/Commands-com/pm#readme"
 # ASSUMPTION: Explicit src mapping needed for proper package discovery in editable installs
 [tool.hatch.build.targets.wheel]
 packages = ["src/task_manager"]
-include = [
-    "/.claude-plugin",
-]
 
 [tool.hatch.build.targets.editable]
 dev-mode-dirs = ["src"]
@@ -120,9 +117,6 @@ include = [
     "/src",
     "/examples",
     "/test",
-    "/.claude/agents",
-    "/.claude/commands",
-    "/.claude-plugin",
     "pyproject.toml",
     "README.md",
 ]
