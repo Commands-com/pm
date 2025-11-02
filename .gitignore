@@ -37,3 +37,6 @@ logs/
 
 # Claude settings - exclude local settings but track agents and commands
 .claude/settings.local.json
+
+# Hooks runtime state
+hooks/.edit-log.json

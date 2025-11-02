@@ -78,6 +78,85 @@ A comprehensive project management system with Model Context Protocol (MCP) supp
 - **Zero-Config Setup**: Single command deployment with automatic port allocation
 - **Project Import**: YAML-based project definition and import system
 - **RA Tag Context Detection**: Zero-effort context capture for Response Awareness tags
+- **Auto-Activating Skills**: Claude Code skills that automatically load based on context
+- **Quality Gate Hooks**: Automatic build checks and RA awareness reminders
+
+## Skills + Hooks System
+
+PM Dashboard includes an auto-activation system that ensures Claude actually uses skills and enforces quality standards:
+
+### Skills (Knowledge Layer)
+
+Four skills automatically activate based on what you're working on:
+
+1. **ra-methodology** - Response Awareness methodology enforcement
+   - Activates when: Creating tasks, discussing complexity, managing projects
+   - Contains: Complexity scoring, RA modes, tagging guide, workflow examples
+
+2. **pm-dashboard-dev** - Development patterns and architecture
+   - Activates when: Working in `src/task_manager/`, adding MCP tools, writing tests
+   - Contains: Project structure, adding tools guide, testing requirements, code patterns
+
+3. **knowledge-management** - Capture hard-won insights
+   - Activates when: Encountering gotchas, multi-attempt solutions, user corrections
+   - Contains: What to capture vs skip, knowledge hierarchy, category guidelines
+
+4. **task-locking** - Atomic locking patterns
+   - Activates when: Working with task locks, concurrent operations, multi-agent workflows
+   - Contains: Atomic patterns, lock lifecycle, multi-agent coordination
+
+### Hooks (Enforcement Layer)
+
+Three hooks ensure quality and consistency:
+
+1. **UserPromptSubmit** - Analyzes prompts BEFORE Claude sees them
+   - Matches keywords and intent patterns against skill rules
+   - Injects skill activation reminders into the conversation
+   - Ensures relevant skills load automatically
+
+2. **Post-Tool-Use** - Tracks file edits during work
+   - Logs all Edit/Write operations
+   - Builds list for Stop hook to process
+   - Enables "#NoMessLeftBehind" quality gates
+
+3. **Stop Event** - Runs after Claude finishes responding
+   - **Build Checker**: Runs `mypy`, `black`, `pytest` on modified files
+   - **RA Tag Reminder**: Prompts to add tags for task implementations
+   - **Knowledge Capture Reminder**: Suggests capturing trial-and-error solutions
+
+### How It Works
+
+```
+User asks: "Create a task with complexity 7"
+              ↓
+UserPromptSubmit Hook matches: ra-methodology skill
+              ↓
+Injects: "🎯 Use ra-methodology skill"
+              ↓
+Claude sees prompt with skill reminder
+              ↓
+ra-methodology skill automatically loads
+              ↓
+Claude follows RA methodology patterns
+              ↓
+Stop Hook checks: RA tags added? Tests passing?
+```
+
+### Benefits
+
+**Before Skills + Hooks:**
+- ❌ RA methodology documented but not enforced
+- ❌ Skills sit unused
+- ❌ Errors slip through
+- ❌ Inconsistent code
+
+**After Skills + Hooks:**
+- ✅ RA methodology automatically enforced
+- ✅ Skills activate when needed
+- ✅ Zero errors left behind
+- ✅ Consistent quality
+
+See `skills/` and `hooks/` directories for implementation details.
 
 ## Installation & Usage
 

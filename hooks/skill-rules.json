@@ -1,0 +1,153 @@
+{
+  "ra-methodology": {
+    "type": "domain",
+    "enforcement": "suggest",
+    "priority": "high",
+    "promptTriggers": {
+      "keywords": [
+        "task",
+        "epic",
+        "project",
+        "complexity",
+        "RA tag",
+        "assumption",
+        "create task",
+        "update task",
+        "complexity score",
+        "RA mode"
+      ],
+      "intentPatterns": [
+        "(create|add|update).*?(task|epic|project)",
+        "(complexity|RA|assumption).*?(score|tag|track|assess)",
+        "how.*?(complexity|RA methodology)",
+        "what.*?(mode|complexity)",
+        "(plan|planning).*?(task|feature)"
+      ]
+    },
+    "fileTriggers": {
+      "pathPatterns": [
+        "src/task_manager/tools_lib/tasks.py",
+        "src/task_manager/tools_lib/projects.py",
+        "src/task_manager/mcp_server.py",
+        "src/task_manager/ra_instructions.py"
+      ],
+      "contentPatterns": [
+        "create_task",
+        "update_task",
+        "ra_mode",
+        "ra_score",
+        "ra_tags",
+        "add_ra_tag",
+        "RA methodology"
+      ]
+    }
+  },
+  "pm-dashboard-dev": {
+    "type": "domain",
+    "enforcement": "suggest",
+    "priority": "high",
+    "promptTriggers": {
+      "keywords": [
+        "MCP tool",
+        "FastAPI",
+        "endpoint",
+        "route",
+        "router",
+        "database",
+        "API",
+        "WebSocket",
+        "test",
+        "pytest"
+      ],
+      "intentPatterns": [
+        "(create|add).*?(tool|endpoint|route|router)",
+        "how to.*?(add|create).*?(MCP|tool|endpoint)",
+        "(implement|build).*?(feature|endpoint|API)",
+        "(test|testing).*?(database|API|MCP)",
+        "add.*?(router|endpoint)"
+      ]
+    },
+    "fileTriggers": {
+      "pathPatterns": [
+        "src/task_manager/**/*.py",
+        "src/task_manager/routers/**/*.py",
+        "src/task_manager/database/**/*.py",
+        "src/task_manager/tools_lib/**/*.py",
+        "test/project_manager/**/*.py"
+      ],
+      "contentPatterns": [
+        "@mcp.tool",
+        "async def.*apply",
+        "router = APIRouter",
+        "@router\\.",
+        "class.*Tool\\(BaseTool\\)",
+        "@router\\.(get|post|put|delete)",
+        "@pytest"
+      ]
+    }
+  },
+  "knowledge-management": {
+    "type": "advisory",
+    "enforcement": "remind",
+    "priority": "medium",
+    "promptTriggers": {
+      "keywords": [
+        "error",
+        "gotcha",
+        "took multiple",
+        "finally worked",
+        "user correction",
+        "trial and error",
+        "multiple attempts",
+        "non-obvious",
+        "struggled",
+        "debugging"
+      ],
+      "intentPatterns": [
+        "(tried|attempted).*?(failed|didn't work)",
+        "(finally|eventually).*?(worked|fixed)",
+        "this was.*?(tricky|non-obvious|gotcha)",
+        "(after|took).*?(attempts|tries)",
+        "spent.*?(hours|time).*?(debug|fix)",
+        "user (said|corrected|told)"
+      ]
+    }
+  },
+  "task-locking": {
+    "type": "domain",
+    "enforcement": "suggest",
+    "priority": "high",
+    "promptTriggers": {
+      "keywords": [
+        "lock",
+        "atomic",
+        "race condition",
+        "concurrent",
+        "acquire lock",
+        "release lock",
+        "lock conflict",
+        "multi-agent"
+      ],
+      "intentPatterns": [
+        "(acquire|release|get|check).*?lock",
+        "task.*?(locked|unlocked|lock)",
+        "(concurrent|atomic|parallel).*?operation",
+        "race.*?condition",
+        "lock.*?(timeout|expired|conflict)"
+      ]
+    },
+    "fileTriggers": {
+      "pathPatterns": [
+        "src/task_manager/database/locks.py",
+        "src/task_manager/tools_lib/tasks.py"
+      ],
+      "contentPatterns": [
+        "acquire_task_lock",
+        "release_lock",
+        "lock_holder",
+        "lock_expires_at",
+        "update_task_status"
+      ]
+    }
+  }
+}
