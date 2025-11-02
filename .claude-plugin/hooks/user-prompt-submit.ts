@@ -34,7 +34,7 @@ interface SkillRules {
  */
 function loadSkillRules(): SkillRules {
   try {
-    const rulesPath = path.join(process.cwd(), 'hooks', 'skill-rules.json');
+    const rulesPath = path.join(__dirname, 'skill-rules.json');
     const rulesContent = fs.readFileSync(rulesPath, 'utf-8');
     return JSON.parse(rulesContent);
   } catch (error) {

@@ -23,7 +23,7 @@ interface EditLog {
   }>;
 }
 
-const EDIT_LOG_PATH = path.join(process.cwd(), 'hooks', '.edit-log.json');
+const EDIT_LOG_PATH = path.join(__dirname, '.edit-log.json');
 
 /**
  * Load and clear edit log
@@ -168,7 +168,8 @@ export default async function stopEventHook(): Promise<void> {
         console.log(output);
         console.log(`\n⚠️  Found ${errors} issue(s). Please review and fix.`);
       } else {
-        console.log(`\n❌ Found ${errors} issues. Consider running: bash skills/pm-dashboard-dev/scripts/run-full-tests.sh`);
+        const scriptsPath = path.join(__dirname, '..', 'skills', 'pm-dashboard-dev', 'scripts', 'run-full-tests.sh');
+        console.log(`\n❌ Found ${errors} issues. Consider running: bash ${scriptsPath}`);
       }
     } else {
       console.log('✅ All build checks passed!');

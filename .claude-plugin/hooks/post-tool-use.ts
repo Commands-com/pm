@@ -23,7 +23,7 @@ interface EditLog {
   entries: EditLogEntry[];
 }
 
-const EDIT_LOG_PATH = path.join(process.cwd(), 'hooks', '.edit-log.json');
+const EDIT_LOG_PATH = path.join(__dirname, '.edit-log.json');
 
 /**
  * Load existing edit log
@@ -63,8 +63,8 @@ function getModuleName(filePath: string): string {
     return 'task_manager';
   }
   if (filePath.includes('test/')) return 'tests';
-  if (filePath.includes('skills/')) return 'skills';
-  if (filePath.includes('hooks/')) return 'hooks';
+  if (filePath.includes('.claude-plugin/skills/')) return 'skills';
+  if (filePath.includes('.claude-plugin/hooks/')) return 'hooks';
   return 'other';
 }
 
