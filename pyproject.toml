@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "project-manager-mcp"
-version = "0.2.4"
+version = "0.2.5"
 description = "Project Manager MCP with SQLite database layer and atomic locking"
 readme = "README.md"
 license = {text = "MIT"}
