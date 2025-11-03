@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/check-python-files.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/check-python-files.sh"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/ra-reminder.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/ra-reminder.sh"
           }
         ]
       }
