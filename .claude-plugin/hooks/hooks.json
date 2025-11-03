@@ -1,5 +1,16 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '\"PreToolUse hook executed at \\(now | strftime(\"%Y-%m-%d %H:%M:%S\")) - CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT}\"' >> /tmp/claude-hook-test.log"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
