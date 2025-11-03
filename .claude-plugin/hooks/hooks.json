@@ -1,23 +1,12 @@
 {
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jq -r '\"PreToolUse hook executed at \\(now | strftime(\"%Y-%m-%d %H:%M:%S\")) - CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT}\"' >> /tmp/claude-hook-test.log"
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '\"PostToolUse hook executed at \\(now | strftime(\"%Y-%m-%d %H:%M:%S\")) - CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT}\"' >> /tmp/claude-hook-test.log"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/check-python-files.sh"
           }
         ]
       }
@@ -28,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '\"Stop hook executed at \\(now | strftime(\"%Y-%m-%d %H:%M:%S\")) - CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT}\"' >> /tmp/claude-hook-test.log"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/ra-reminder.sh"
           }
         ]
       }

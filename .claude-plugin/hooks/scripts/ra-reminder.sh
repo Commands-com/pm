@@ -1,6 +1,13 @@
 #!/bin/bash
-# Show RA methodology reminders after response completion
+set -e
 
+# CRITICAL: Consume stdin (hooks receive JSON via stdin)
+hook_data=$(cat)
+
+# Extract session info if needed
+session_id=$(echo "$hook_data" | jq -r '.session_id // empty')
+
+# Output reminder to Claude
 cat << 'EOF'
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

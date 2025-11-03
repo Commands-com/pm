@@ -1,10 +1,24 @@
 #!/bin/bash
-# Check Python files after Edit/Write operations
+set -e
 
-# Only run if we're in a Python project
-if [ ! -f "pyproject.toml" ] && [ ! -f "setup.py" ]; then
+# CRITICAL: Consume stdin (hooks receive JSON via stdin)
+tool_info=$(cat)
+
+# Extract file path to check if it's a Python file
+file_path=$(echo "$tool_info" | jq -r '.tool_input.file_path // empty')
+
+# Only run for Python files
+if [[ ! "$file_path" =~ \.py$ ]]; then
     exit 0
 fi
+
+# Only run if we're in a Python project
+if [ ! -f "$CLAUDE_PROJECT_DIR/pyproject.toml" ] && [ ! -f "$CLAUDE_PROJECT_DIR/setup.py" ]; then
+    exit 0
+fi
+
+# Change to project directory
+cd "$CLAUDE_PROJECT_DIR"
 
 # Check if virtual environment exists and activate it
 if [ -f "activate.sh" ]; then
