@@ -4,8 +4,14 @@ set -e
 # CRITICAL: Consume stdin (hooks receive JSON via stdin)
 hook_data=$(cat)
 
+# Debug: Log that hook was called
+echo "$(date): UserPromptSubmit hook called" >> /tmp/skill-activation-debug.log
+
 # Extract user prompt
 user_prompt=$(echo "$hook_data" | jq -r '.user_prompt // empty')
+
+# Debug: Log the prompt
+echo "$(date): User prompt: $user_prompt" >> /tmp/skill-activation-debug.log
 
 # If no prompt, exit silently
 if [[ -z "$user_prompt" ]]; then
