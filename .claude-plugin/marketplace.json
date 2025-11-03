@@ -10,7 +10,7 @@
     {
       "name": "pm",
       "description": "Comprehensive project management with AI agent coordination, task tracking, and Response Awareness methodology",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "author": {
         "name": "Project Manager MCP Contributors",
         "url": "https://github.com/Commands-com/pm"
