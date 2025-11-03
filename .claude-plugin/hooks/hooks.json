@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"HOOK EXECUTED: CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT}\""
+            "command": "jq -r '\"PostToolUse hook executed at \\(now | strftime(\"%Y-%m-%d %H:%M:%S\")) - CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT}\"' >> /tmp/claude-hook-test.log"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"STOP HOOK: CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT}\""
+            "command": "jq -r '\"Stop hook executed at \\(now | strftime(\"%Y-%m-%d %H:%M:%S\")) - CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT}\"' >> /tmp/claude-hook-test.log"
           }
         ]
       }
